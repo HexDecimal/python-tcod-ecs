@@ -18,6 +18,10 @@ classifiers = [
 ]
 dynamic = ["version", "description"]
 requires-python = ">=3.8"
+dependencies = ["typing-extensions >=4.4.0"]
+
+[project.optional-dependencies]
+test = ["attrs >=22.2.0", "pytest>=7.2.0", "pytest-cov", "mypy >=1.1.1"]
 
 [tool.flit.module]
 name = "tcod.ecs"
