@@ -29,6 +29,7 @@ name = "tcod.ecs"
 [project.urls]
 Home = "https://github.com/HexDecimal"
 Changelog = "https://github.com/HexDecimal/python-tcod-ecs/blob/main/CHANGELOG.md"
+Documentation = "https://python-tcod-ecs.readthedocs.io"
 Source = "https://github.com/HexDecimal/python-tcod-ecs"
 
 [tool.black] # https://black.readthedocs.io/en/stable/usage_and_configuration/the_basics.html#configuration-via-a-file
