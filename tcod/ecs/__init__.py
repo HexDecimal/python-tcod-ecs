@@ -31,9 +31,9 @@ class Entity:
         return EntityComponents(self)
 
     @property
-    def groups(self) -> EntityGroups:
-        """Access a components groups."""
-        return EntityGroups(self)
+    def tags(self) -> EntityTags:
+        """Access a components tags."""
+        return EntityTags(self)
 
 
 class EntityComponents(MutableMapping[Type[Any], Any]):
@@ -97,8 +97,8 @@ class EntityComponents(MutableMapping[Type[Any], Any]):
             self.set(value)
 
 
-class EntityGroups(MutableSet[Any]):
-    """A proxy attribute to access an entities groups."""
+class EntityTags(MutableSet[Any]):
+    """A proxy attribute to access an entities tags."""
 
     __slots__ = ("entity",)
 
@@ -106,31 +106,31 @@ class EntityGroups(MutableSet[Any]):
         """Initialize this attribute for the given entity."""
         self.entity: Final = entity
 
-    def add(self, group: object) -> None:
-        """Add a group to the entity."""
-        self.entity.world._groups_by_entity[self.entity].add(group)
-        self.entity.world._groups_by_key[group].add(self.entity)
+    def add(self, tag: object) -> None:
+        """Add a tag to the entity."""
+        self.entity.world._tags_by_entity[self.entity].add(tag)
+        self.entity.world._tags_by_key[tag].add(self.entity)
 
-    def discard(self, group: object) -> None:
-        """Discard a group from an entity."""
-        self.entity.world._groups_by_entity[self.entity].discard(group)
-        self.entity.world._groups_by_key[group].discard(self.entity)
-        if not self.entity.world._groups_by_entity[self.entity]:
-            del self.entity.world._groups_by_entity[self.entity]
-        if not self.entity.world._groups_by_key[group]:
-            del self.entity.world._groups_by_key[group]
+    def discard(self, tag: object) -> None:
+        """Discard a tag from an entity."""
+        self.entity.world._tags_by_entity[self.entity].discard(tag)
+        self.entity.world._tags_by_key[tag].discard(self.entity)
+        if not self.entity.world._tags_by_entity[self.entity]:
+            del self.entity.world._tags_by_entity[self.entity]
+        if not self.entity.world._tags_by_key[tag]:
+            del self.entity.world._tags_by_key[tag]
 
     def __contains__(self, x: object) -> bool:
-        """Return True if this entity belongs to a group."""
-        return x in self.entity.world._groups_by_entity.get(self.entity, ())
+        """Return True if this entity has the given tag."""
+        return x in self.entity.world._tags_by_entity.get(self.entity, ())
 
     def __iter__(self) -> Iterator[Any]:
-        """Iterate over this entities groups."""
-        return iter(self.entity.world._groups_by_entity.get(self.entity, ()))
+        """Iterate over this entities tags."""
+        return iter(self.entity.world._tags_by_entity.get(self.entity, ()))
 
     def __len__(self) -> int:
-        """Return the number of groups this entity belongs to."""
-        return len(self.entity.world._groups_by_entity.get(self.entity, ()))
+        """Return the number of tags this entity has."""
+        return len(self.entity.world._tags_by_entity.get(self.entity, ()))
 
 
 class World:
@@ -143,21 +143,21 @@ class World:
         # Components types belonging to entities.
         self._components_by_entity: DefaultDict[Entity, set[type[Any]]] = DefaultDict(set)
 
-        self._groups_by_key: DefaultDict[Any, set[Entity]] = DefaultDict(set)
-        self._groups_by_entity: DefaultDict[Entity, set[Any]] = DefaultDict(set)
+        self._tags_by_key: DefaultDict[Any, set[Entity]] = DefaultDict(set)
+        self._tags_by_entity: DefaultDict[Entity, set[Any]] = DefaultDict(set)
 
     def new_entity(
         self,
         components: Iterable[object] = (),
         *,
-        groups: Iterable[Any] = (),
+        tags: Iterable[Any] = (),
     ) -> Entity:
         """Create and return a new entity."""
         entity = Entity(self)
         entity.components.update_values(components)
-        entity_groups = entity.groups
-        for group in groups:
-            entity_groups.add(group)
+        entity_tags = entity.tags
+        for tag in tags:
+            entity_tags.add(tag)
         return entity
 
 
@@ -197,16 +197,16 @@ class Query:
             self.__apply_exclusion(self.world._components_by_type.get(component, {}).keys())
         return self
 
-    def all_of_groups(self, *groups: type[object]) -> Self:
-        """Collect entities which have all of the given groups."""
-        for group in groups:
-            self.__apply_intersection(self.world._groups_by_key.get(group, set()))
+    def all_of_tags(self, *tags: object) -> Self:
+        """Collect entities which have all of the given tags."""
+        for tag in tags:
+            self.__apply_intersection(self.world._tags_by_key.get(tag, set()))
         return self
 
-    def none_of_groups(self, *groups: type[object]) -> Self:
-        """Collect entities which have none of the given groups."""
-        for group in groups:
-            self.__apply_exclusion(self.world._groups_by_key.get(group, set()))
+    def none_of_tags(self, *tags: object) -> Self:
+        """Collect entities which have none of the given tags."""
+        for tag in tags:
+            self.__apply_exclusion(self.world._tags_by_key.get(tag, set()))
         return self
 
     def __iter__(self) -> Iterator[Entity]:
