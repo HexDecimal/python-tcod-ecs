@@ -277,6 +277,14 @@ class World:
             entity_tags.add(tag)
         return entity
 
+    @property
+    def Q(self) -> Query:
+        """Start a new Query for this world.
+
+        Alias for ``tcod.ecs.Query(world)``.
+        """
+        return Query(self)
+
 
 class Query:
     """Collect a set of entities with the provided conditions."""
