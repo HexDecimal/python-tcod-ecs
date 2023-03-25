@@ -64,7 +64,7 @@ strict_equality = true
 minversion = "6.0"
 required_plugins = "pytest-cov>=4.0.0"
 addopts = "--doctest-modules --cov=tcod --doctest-glob=*.md"
-testpaths = ["tcod"]
+testpaths = ["."]
 
 [tool.ruff]
 # https://beta.ruff.rs/docs/rules/
