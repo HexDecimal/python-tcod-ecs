@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 __version__ = "0.0.1"
-from typing import AbstractSet, Any, DefaultDict, Final, Iterable, Iterator, MutableMapping, MutableSet, TypeVar
+from typing import AbstractSet, Any, DefaultDict, Final, Iterable, Iterator, MutableMapping, MutableSet, Type, TypeVar
 
 from typing_extensions import Self
 
@@ -36,7 +36,7 @@ class Entity:
         return EntityGroups(self)
 
 
-class EntityComponents(MutableMapping[type[Any], Any]):
+class EntityComponents(MutableMapping[Type[Any], Any]):
     """A proxy attribute to access an entities components."""
 
     __slots__ = ("entity",)

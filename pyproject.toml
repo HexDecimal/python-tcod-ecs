@@ -42,6 +42,8 @@ profile = "black"
 skip_gitignore = true
 
 [tool.mypy] # https://mypy.readthedocs.io/en/stable/config_file.html
+files = "**/*.py"
+explicit_package_bases = true
 python_version = "3.8"
 warn_unused_configs = true
 disallow_any_generics = true
