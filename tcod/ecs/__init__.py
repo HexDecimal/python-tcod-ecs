@@ -2,11 +2,28 @@
 from __future__ import annotations
 
 __version__ = "0.0.1"
-from typing import AbstractSet, Any, DefaultDict, Final, Iterable, Iterator, MutableMapping, MutableSet, Type, TypeVar
+from typing import (
+    AbstractSet,
+    Any,
+    DefaultDict,
+    Final,
+    Iterable,
+    Iterator,
+    MutableMapping,
+    MutableSet,
+    Type,
+    TypeVar,
+    overload,
+)
 
 from typing_extensions import Self
 
 T = TypeVar("T")
+_T1 = TypeVar("_T1")
+_T2 = TypeVar("_T2")
+_T3 = TypeVar("_T3")
+_T4 = TypeVar("_T4")
+_T5 = TypeVar("_T5")
 
 
 def abstract_component(cls: type[T]) -> type[T]:
@@ -167,48 +184,111 @@ class Query:
     def __init__(self, world: World) -> None:
         """Initialize a Query."""
         self.world: Final = world
-        self.entities: set[Entity] | None = None
 
-    def __apply_intersection(self, entities: AbstractSet[Entity]) -> Self:
-        """Apply an interaction of a set."""
-        if self.entities is None:
-            self.entities = set(entities)
-        else:
-            self.entities &= entities
-        return self
+        self._all_of_components: set[type[object]] = set()
+        self._none_of_components: set[type[object]] = set()
+        self._all_of_tags: set[object] = set()
+        self._none_of_tags: set[object] = set()
 
-    def __apply_exclusion(self, entities: AbstractSet[Entity]) -> Self:
-        """Exclude entities based on a set."""
-        if self.entities is None:
-            msg = "Query can not begin by excluding entities."
+    def _get_entities(self, extra_components: AbstractSet[type[object]] = frozenset()) -> set[Entity]:
+        collect_components = self._all_of_components | extra_components
+        requires: list[AbstractSet[Entity]] = []
+        excludes: list[AbstractSet[Entity]] = []
+        for component in collect_components:
+            requires.append(self.world._components_by_type.get(component, {}).keys())
+        for tag in self._all_of_tags:
+            requires.append(self.world._tags_by_key.get(tag, set()))
+
+        for component in self._none_of_components:
+            excludes.append(self.world._components_by_type.get(component, {}).keys())
+        for tag in self._none_of_tags:
+            excludes.append(self.world._tags_by_key.get(tag, set()))
+
+        if not requires:
+            if excludes:
+                msg = "A Query can not function only excluding entities."
+            else:
+                msg = "This Query did not include any entities."
             raise AssertionError(msg)
-        self.entities -= entities
+
+        requires.sort(key=lambda x: len(x))  # Place the smallest sets first to speed up intersections.
+        entities = set(requires[0])
+        for require in requires[1:]:
+            entities.intersection_update(require)
+        for exclude in excludes:
+            entities.difference_update(exclude)
+        return entities
+
+    def all_of(
+        self,
+        components: Iterable[type[object]] = (),
+        *,
+        tags: Iterable[object] = (),
+    ) -> Self:
+        """Filter entities based on having all of the provided elements."""
+        self._all_of_components.update(components)
+        self._all_of_tags.update(tags)
         return self
 
-    def all_of_components(self, *components: type[object]) -> Self:
-        """Collect entities which have all of the given components."""
-        for component in components:
-            self.__apply_intersection(self.world._components_by_type.get(component, {}).keys())
-        return self
-
-    def none_of_components(self, *components: type[object]) -> Self:
-        """Collect entities which have none of the given components."""
-        for component in components:
-            self.__apply_exclusion(self.world._components_by_type.get(component, {}).keys())
-        return self
-
-    def all_of_tags(self, *tags: object) -> Self:
-        """Collect entities which have all of the given tags."""
-        for tag in tags:
-            self.__apply_intersection(self.world._tags_by_key.get(tag, set()))
-        return self
-
-    def none_of_tags(self, *tags: object) -> Self:
-        """Collect entities which have none of the given tags."""
-        for tag in tags:
-            self.__apply_exclusion(self.world._tags_by_key.get(tag, set()))
+    def none_of(
+        self,
+        components: Iterable[type[object]] = (),
+        *,
+        tags: Iterable[object] = (),
+    ) -> Self:
+        """Filter entities based on having none of the provided elements."""
+        self._none_of_components.update(components)
+        self._none_of_tags.update(tags)
         return self
 
     def __iter__(self) -> Iterator[Entity]:
         """Iterate over the matching entities."""
-        return iter(self.entities if self.entities is not None else iter(()))
+        return iter(self._get_entities())
+
+    @overload
+    def __getitem__(self, key: type[_T1]) -> Iterable[tuple[_T1]]:
+        ...
+
+    @overload
+    def __getitem__(self, key: tuple[type[_T1]]) -> Iterable[tuple[_T1]]:
+        ...
+
+    @overload
+    def __getitem__(self, key: tuple[type[_T1], type[_T2]]) -> Iterable[tuple[_T1, _T2]]:
+        ...
+
+    @overload
+    def __getitem__(self, key: tuple[type[_T1], type[_T2], type[_T3]]) -> Iterable[tuple[_T1, _T2, _T3]]:
+        ...
+
+    @overload
+    def __getitem__(
+        self, key: tuple[type[_T1], type[_T2], type[_T3], type[_T4]]
+    ) -> Iterable[tuple[_T1, _T2, _T3, _T4]]:
+        ...
+
+    @overload
+    def __getitem__(
+        self, key: tuple[type[_T1], type[_T2], type[_T3], type[_T4], type[_T5]]
+    ) -> Iterable[tuple[_T1, _T2, _T3, _T4, _T5]]:
+        ...
+
+    @overload
+    def __getitem__(self, key: tuple[type[object], ...] | type[object]) -> Iterable[tuple[Any, ...]]:
+        ...
+
+    def __getitem__(self, key: tuple[type[object], ...] | type[object]) -> Iterable[tuple[Any, ...]]:
+        """Collect components from a query."""
+        assert key is not None
+        if not isinstance(key, tuple):
+            key = (key,)
+
+        entities = list(self._get_entities(set(key) - {Entity}))
+        entity_components = []
+        for component_type in key:
+            if component_type is Entity:
+                entity_components.append(entities)
+                continue
+            world_components = self.world._components_by_type[component_type]
+            entity_components.append([world_components[entity] for entity in entities])
+        return zip(*entity_components)

@@ -10,11 +10,12 @@ def test_world() -> None:
     assert entity.components[int] == 1
     assert str in entity.components
     del entity.components[str]
-    assert set(tcod.ecs.Query(world).all_of_components(int)) == {entity}
+    assert set(tcod.ecs.Query(world).all_of({int})) == {entity}
+    assert set(tcod.ecs.Query(world)[tcod.ecs.Entity, int]) == {(entity, 1)}
 
     entity.tags.add("Hello")
     entity.tags.add("World")
     entity.tags.remove("World")
     assert "Hello" in entity.tags
     assert "missing" not in entity.tags
-    assert set(tcod.ecs.Query(world).all_of_components(int).all_of_tags("Hello")) == {entity}
+    assert set(tcod.ecs.Query(world).all_of({int}, tags={"Hello"})) == {entity}
