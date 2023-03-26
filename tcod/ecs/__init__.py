@@ -54,8 +54,13 @@ class Entity:
         return EntityTags(self)
 
     @property
-    def relations(self) -> EntityRelations:
-        """Access an entities relations."""
+    def relations(self) -> EntityRelationsExclusive:
+        """Access an entities exclusive relations."""
+        return EntityRelationsExclusive(self)
+
+    @property
+    def relations_many(self) -> EntityRelations:
+        """Access an entities many-to-many relations."""
         return EntityRelations(self)
 
 
@@ -243,6 +248,50 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
     def __len__(self) -> int:
         """Return the number of relations this entity has."""
         return len(list(self))  # Slow!
+
+
+class EntityRelationsExclusive(MutableMapping[object, Entity]):
+    """A proxy attribute to access entity relations exclusively."""
+
+    __slots__ = ("entity",)
+
+    def __init__(self, entity: Entity) -> None:
+        """Initialize this attribute for the given entity."""
+        self.entity: Final = entity
+
+    def __getitem__(self, key: object) -> Entity:
+        """Return the relation target for a key.
+
+        If the relation has no target then raises KeyError.
+        If the relation is not exclusive then raises ValueError.
+        """
+        values = tuple(EntityRelationsMapping(self.entity, key))
+        if not values:
+            raise KeyError(key)
+        try:
+            (target,) = values
+        except ValueError:
+            msg = "Entity relation has multiple targets but an exclusive value was expected."
+            raise ValueError(msg) from None
+        return target
+
+    def __setitem__(self, key: object, target: Entity) -> None:
+        """Set a relation exclusively to a new target."""
+        mapping = EntityRelationsMapping(self.entity, key)
+        mapping.clear()
+        mapping.add(target)
+
+    def __delitem__(self, key: object) -> None:
+        """Clear the relation targets of a relation key."""
+        EntityRelationsMapping(self.entity, key).clear()
+
+    def __iter__(self) -> Iterator[Any]:
+        """Iterate over the keys of this entities relations."""
+        return EntityRelations(self.entity).__iter__()
+
+    def __len__(self) -> int:
+        """Return the number of relations this entity has."""
+        return EntityRelations(self.entity).__len__()
 
 
 class World:
