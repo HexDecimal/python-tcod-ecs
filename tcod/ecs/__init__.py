@@ -1,4 +1,4 @@
-"""A partially implemented Entity Component System."""
+"""A type-hinted Entity Component System based on Python dictionaries and sets."""
 from __future__ import annotations
 
 __version__ = "0.0.1"

@@ -17,6 +17,7 @@
         "codecov",
         "dtype",
         "genindex",
+        "hashable",
         "intersphinx",
         "isort",
         "ivar",
