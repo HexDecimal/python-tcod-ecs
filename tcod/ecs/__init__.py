@@ -67,7 +67,7 @@ class Entity:
         return EntityRelations(self)
 
 
-class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, type[Any]]], Any]):
+class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]], Any]):
     """A proxy attribute to access an entities components like a dictionary."""
 
     __slots__ = ("entity",)
