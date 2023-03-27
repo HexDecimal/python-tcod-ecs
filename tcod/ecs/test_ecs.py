@@ -39,24 +39,29 @@ def test_component_names() -> None:
 def test_relations() -> None:
     ChildOf: Final = "ChildOf"
     world = tcod.ecs.World()
-    entity_a = world.new_entity()
-    entity_b = world.new_entity()
+    entity_a = world.new_entity(name="A")
+    entity_b = world.new_entity(name="B")
     entity_b.relations[ChildOf] = entity_a
-    entity_c = world.new_entity()
+    entity_c = world.new_entity(name="C")
     entity_c.relations[ChildOf] = entity_a
-    entity_d = world.new_entity()
+    entity_d = world.new_entity(name="D")
     entity_d.relations[ChildOf] = entity_b
     assert set(world.Q.all_of(relations=[(ChildOf, entity_a)])) == {entity_b, entity_c}
     assert set(world.Q.all_of(relations=[(ChildOf, None)])) == {entity_b, entity_c, entity_d}
     assert set(world.Q.all_of(relations=[(ChildOf, entity_d)])) == set()
     assert set(world.Q.all_of(relations=[(ChildOf, None)]).none_of(relations=[(ChildOf, entity_a)])) == {entity_d}
+    assert entity_a in entity_b.relations_many[ChildOf]
+    assert entity_a == entity_b.relations[ChildOf]
+    for e in world.Q.all_of(relations=[(ChildOf, None)]):
+        e.relations.clear()
+    assert not set(world.Q.all_of(relations=[(ChildOf, None)]))
 
 
 def test_relations_many() -> None:
     world = tcod.ecs.World()
-    entity_a = world.new_entity()
-    entity_b = world.new_entity()
-    entity_c = world.new_entity()
+    entity_a = world.new_entity(name="A")
+    entity_b = world.new_entity(name="B")
+    entity_c = world.new_entity(name="C")
 
     with pytest.raises(KeyError):
         entity_a.relations["foo"]

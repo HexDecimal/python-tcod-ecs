@@ -66,6 +66,30 @@ class Entity:
         """Access an entities many-to-many relations."""
         return EntityRelations(self)
 
+    @property
+    def name(self) -> object:
+        """The unique name of this entity or None.
+
+        You may assign a new name, but if an entity of the world already has that name then it will lose it.
+        """
+        return self.world._names_by_entity.get(self)
+
+    @name.setter
+    def name(self, value: object) -> None:
+        if value is None and self in self.world._names_by_entity:
+            del self.world._names_by_name[self.world._names_by_entity[self]]
+            self.world._names_by_entity[self]
+            return
+        self.world._names_by_name[value] = self
+        self.world._names_by_entity[self] = value
+
+    def __repr__(self) -> str:
+        """Return a representation of this entity."""
+        items = [self.__class__.__name__]
+        name = self.name
+        items.append(f"0x{id(self):X}" if name is None else f"name={name!r}")
+        return f"<{' '.join(items)}>"
+
 
 class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]], Any]):
     """A proxy attribute to access an entities components like a dictionary."""
@@ -105,10 +129,12 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def __delitem__(self, key: type[object] | tuple[object, type[object]]) -> None:
         """Delete a component from an entity."""
         assert self.__assert_key(key)
+
         del self.entity.world._components_by_type[key][self.entity]
-        self.entity.world._components_by_entity[self.entity].remove(key)
         if not self.entity.world._components_by_type[key]:
             del self.entity.world._components_by_type[key]
+
+        self.entity.world._components_by_entity[self.entity].remove(key)
         if not self.entity.world._components_by_entity[self.entity]:
             del self.entity.world._components_by_entity[self.entity]
 
@@ -147,9 +173,10 @@ class EntityTags(MutableSet[Any]):
     def discard(self, tag: object) -> None:
         """Discard a tag from an entity."""
         self.entity.world._tags_by_entity[self.entity].discard(tag)
-        self.entity.world._tags_by_key[tag].discard(self.entity)
         if not self.entity.world._tags_by_entity[self.entity]:
             del self.entity.world._tags_by_entity[self.entity]
+
+        self.entity.world._tags_by_key[tag].discard(self.entity)
         if not self.entity.world._tags_by_key[tag]:
             del self.entity.world._tags_by_key[tag]
 
@@ -180,28 +207,32 @@ class EntityRelationsMapping(MutableSet[Entity]):
     def add(self, target: Entity) -> None:
         """Add a relation target to this key."""
         world = self.entity.world
-        world._relations_by_key[self.key][None].add(target)
         world._relations_by_key[self.key][self.entity].add(target)
-        world._relations_by_target[(self.key, None)].add(self.entity)
+        world._relations_by_key[self.key][None].add(target)
         world._relations_by_target[(self.key, target)].add(self.entity)
+        world._relations_by_target[(self.key, None)].add(self.entity)
 
     def discard(self, target: Entity) -> None:
         """Discard a relation target from this key."""
         world = self.entity.world
+
         world._relations_by_key[self.key][self.entity].discard(target)
-        world._relations_by_target[(self.key, target)].discard(self.entity)
         if not world._relations_by_key[self.key][self.entity]:
             del world._relations_by_key[self.key][self.entity]
-            world._relations_by_key[self.key][None].discard(target)
-            if not world._relations_by_key[self.key][None]:
-                del world._relations_by_key[self.key][None]
+
+        world._relations_by_key[self.key][None].discard(target)
+        if not world._relations_by_key[self.key][None]:
+            del world._relations_by_key[self.key][None]
             if not world._relations_by_key[self.key]:
                 del world._relations_by_key[self.key]
+
+        world._relations_by_target[(self.key, target)].discard(self.entity)
         if not world._relations_by_target[(self.key, target)]:
             del world._relations_by_target[(self.key, target)]
-            world._relations_by_target[(self.key, None)].discard(self.entity)
-            if not world._relations_by_target[(self.key, None)]:
-                del world._relations_by_target[(self.key, None)]
+
+        world._relations_by_target[(self.key, None)].discard(self.entity)
+        if not world._relations_by_target[(self.key, None)]:
+            del world._relations_by_target[(self.key, None)]
 
     def __contains__(self, target: Entity) -> bool:  # type: ignore[override]
         """Return True if this relation contains the given value."""
@@ -252,7 +283,7 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
 
     def __len__(self) -> int:
         """Return the number of relations this entity has."""
-        return len(list(self))  # Slow!
+        return len(list(self.__iter__()))  # Slow!
 
 
 class EntityRelationsExclusive(MutableMapping[object, Entity]):
@@ -317,10 +348,14 @@ class World:
         )
         self._relations_by_target: DefaultDict[tuple[object, Entity | None], set[Entity]] = DefaultDict(set)
 
+        self._names_by_name: dict[object, Entity] = {}
+        self._names_by_entity: dict[Entity, object] = {}
+
     def new_entity(
         self,
         components: Iterable[object] = (),
         *,
+        name: object = None,
         tags: Iterable[Any] = (),
     ) -> Entity:
         """Create and return a new entity."""
@@ -329,6 +364,7 @@ class World:
         entity_tags = entity.tags
         for tag in tags:
             entity_tags.add(tag)
+        entity.name = name
         return entity
 
     @property
