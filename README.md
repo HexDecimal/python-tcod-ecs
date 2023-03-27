@@ -12,6 +12,7 @@ This implementation focuses on type-hinting, organization, and is designed to wo
 The following features are currently implemented:
 
 - Entities can have store components which are instances of any Python object. Components are looked up by their type.
+- Entities can have one instance of a type, or multiple instances of a type with a string or other hashable to differentiate them.
 - Components can be registered as abstract, allowing a base type to hold subclasses of that component.
 - Entity tags are distinct from components, tags are any hashable Python object rather than empty class.
 - Entity relationships are supported, either as many-to-many or many-to-one relationships.

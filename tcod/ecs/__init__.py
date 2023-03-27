@@ -12,8 +12,10 @@ from typing import (
     Iterator,
     MutableMapping,
     MutableSet,
+    Tuple,
     Type,
     TypeVar,
+    Union,
     overload,
 )
 
@@ -25,6 +27,7 @@ _T2 = TypeVar("_T2")
 _T3 = TypeVar("_T3")
 _T4 = TypeVar("_T4")
 _T5 = TypeVar("_T5")
+_ComponentKey = Union[Type[T], Tuple[object, Type[T]]]
 
 
 def abstract_component(cls: type[T]) -> type[T]:
@@ -64,7 +67,7 @@ class Entity:
         return EntityRelations(self)
 
 
-class EntityComponents(MutableMapping[Type[Any], Any]):
+class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, type[Any]]], Any]):
     """A proxy attribute to access an entities components like a dictionary."""
 
     __slots__ = ("entity",)
@@ -79,25 +82,27 @@ class EntityComponents(MutableMapping[Type[Any], Any]):
         self[key] = value
 
     @staticmethod
-    def __assert_key(key: type[Any]) -> bool:
+    def __assert_key(key: _ComponentKey[Any]) -> bool:
         """Verify that abstract classes are accessed correctly."""
+        if isinstance(key, tuple):
+            key = key[1]
         assert (
             getattr(key, "_TCOD_BASE_COMPONENT", key) is key
         ), "Abstract components must be accessed via the base class."
         return True
 
-    def __getitem__(self, key: type[T]) -> T:
+    def __getitem__(self, key: _ComponentKey[T]) -> T:
         """Return a component belonging to this entity."""
         assert self.__assert_key(key)
         return self.entity.world._components_by_type[key][self.entity]  # type: ignore[no-any-return]
 
-    def __setitem__(self, key: type[T], value: T) -> None:
+    def __setitem__(self, key: _ComponentKey[T], value: T) -> None:
         """Assign a component to an entity."""
         assert self.__assert_key(key)
         self.entity.world._components_by_type[key][self.entity] = value
         self.entity.world._components_by_entity[self.entity].add(key)
 
-    def __delitem__(self, key: type[object]) -> None:
+    def __delitem__(self, key: type[object] | tuple[object, type[object]]) -> None:
         """Delete a component from an entity."""
         assert self.__assert_key(key)
         del self.entity.world._components_by_type[key][self.entity]
@@ -107,11 +112,11 @@ class EntityComponents(MutableMapping[Type[Any], Any]):
         if not self.entity.world._components_by_entity[self.entity]:
             del self.entity.world._components_by_entity[self.entity]
 
-    def __contains__(self, key: type[Any]) -> bool:  # type: ignore[override]
+    def __contains__(self, key: _ComponentKey[object]) -> bool:  # type: ignore[override]
         """Return True if this entity has the provided component."""
         return key in self.entity.world._components_by_entity.get(self.entity, ())
 
-    def __iter__(self) -> Iterator[type[Any]]:
+    def __iter__(self) -> Iterator[_ComponentKey[Any]]:
         """Iterate over the component types belonging to this entity."""
         return iter(self.entity.world._components_by_entity.get(self.entity, ()))
 
@@ -300,9 +305,9 @@ class World:
     def __init__(self) -> None:
         """Initialize a new world."""
         # Spare components as `v[ComponentType][Entity] = component`
-        self._components_by_type: DefaultDict[type[object], dict[Entity, Any]] = DefaultDict(dict)
+        self._components_by_type: DefaultDict[_ComponentKey[object], dict[Entity, Any]] = DefaultDict(dict)
         # Components types belonging to entities.
-        self._components_by_entity: DefaultDict[Entity, set[type[Any]]] = DefaultDict(set)
+        self._components_by_entity: DefaultDict[Entity, set[_ComponentKey[object]]] = DefaultDict(set)
 
         self._tags_by_key: DefaultDict[object, set[Entity]] = DefaultDict(set)
         self._tags_by_entity: DefaultDict[Entity, set[Any]] = DefaultDict(set)
@@ -342,14 +347,14 @@ class Query:
         """Initialize a Query."""
         self.world: Final = world
 
-        self._all_of_components: set[type[object]] = set()
-        self._none_of_components: set[type[object]] = set()
+        self._all_of_components: set[_ComponentKey[object]] = set()
+        self._none_of_components: set[_ComponentKey[object]] = set()
         self._all_of_tags: set[object] = set()
         self._none_of_tags: set[object] = set()
         self._all_of_relations: set[tuple[object, Entity | None]] = set()
         self._none_of_relations: set[tuple[object, Entity | None]] = set()
 
-    def __iter_requires(self, extra_components: AbstractSet[type[object]]) -> Iterator[AbstractSet[Entity]]:
+    def __iter_requires(self, extra_components: AbstractSet[_ComponentKey[object]]) -> Iterator[AbstractSet[Entity]]:
         collect_components = self._all_of_components | extra_components
         for component in collect_components:
             yield self.world._components_by_type.get(component, {}).keys()
@@ -366,7 +371,7 @@ class Query:
         for relation in self._none_of_relations:
             yield self.world._relations_by_target.get(relation, set())
 
-    def _get_entities(self, extra_components: AbstractSet[type[object]] = frozenset()) -> set[Entity]:
+    def _get_entities(self, extra_components: AbstractSet[_ComponentKey[object]] = frozenset()) -> set[Entity]:
         # Place the smallest sets first to speed up intersections.
         requires = sorted(self.__iter_requires(extra_components), key=len)
         excludes = list(self.__iter_excludes())
@@ -387,7 +392,7 @@ class Query:
 
     def all_of(
         self,
-        components: Iterable[type[object]] = (),
+        components: Iterable[_ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
         relations: Iterable[tuple[object, Entity | None]] = (),
@@ -400,7 +405,7 @@ class Query:
 
     def none_of(
         self,
-        components: Iterable[type[object]] = (),
+        components: Iterable[_ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
         relations: Iterable[tuple[object, Entity | None]] = (),
@@ -416,42 +421,40 @@ class Query:
         return iter(self._get_entities())
 
     @overload
-    def __getitem__(self, key: type[_T1]) -> Iterable[tuple[_T1]]:
+    def __getitem__(self, key: tuple[_ComponentKey[_T1]]) -> Iterable[tuple[_T1]]:
         ...
 
     @overload
-    def __getitem__(self, key: tuple[type[_T1]]) -> Iterable[tuple[_T1]]:
-        ...
-
-    @overload
-    def __getitem__(self, key: tuple[type[_T1], type[_T2]]) -> Iterable[tuple[_T1, _T2]]:
-        ...
-
-    @overload
-    def __getitem__(self, key: tuple[type[_T1], type[_T2], type[_T3]]) -> Iterable[tuple[_T1, _T2, _T3]]:
+    def __getitem__(self, key: tuple[_ComponentKey[_T1], _ComponentKey[_T2]]) -> Iterable[tuple[_T1, _T2]]:
         ...
 
     @overload
     def __getitem__(
-        self, key: tuple[type[_T1], type[_T2], type[_T3], type[_T4]]
+        self, key: tuple[_ComponentKey[_T1], _ComponentKey[_T2], _ComponentKey[_T3]]
+    ) -> Iterable[tuple[_T1, _T2, _T3]]:
+        ...
+
+    @overload
+    def __getitem__(
+        self, key: tuple[_ComponentKey[_T1], _ComponentKey[_T2], _ComponentKey[_T3], _ComponentKey[_T4]]
     ) -> Iterable[tuple[_T1, _T2, _T3, _T4]]:
         ...
 
     @overload
     def __getitem__(
-        self, key: tuple[type[_T1], type[_T2], type[_T3], type[_T4], type[_T5]]
+        self,
+        key: tuple[_ComponentKey[_T1], _ComponentKey[_T2], _ComponentKey[_T3], _ComponentKey[_T4], _ComponentKey[_T5]],
     ) -> Iterable[tuple[_T1, _T2, _T3, _T4, _T5]]:
         ...
 
     @overload
-    def __getitem__(self, key: tuple[type[object], ...] | type[object]) -> Iterable[tuple[Any, ...]]:
+    def __getitem__(self, key: tuple[_ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]:
         ...
 
-    def __getitem__(self, key: tuple[type[object], ...] | type[object]) -> Iterable[tuple[Any, ...]]:
+    def __getitem__(self, key: tuple[_ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]:
         """Collect components from a query."""
         assert key is not None
-        if not isinstance(key, tuple):
-            key = (key,)
+        assert isinstance(key, tuple)
 
         entities = list(self._get_entities(set(key) - {Entity}))
         entity_components = []
