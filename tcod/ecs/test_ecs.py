@@ -70,6 +70,19 @@ def test_relations_many() -> None:
         entity_a.relations["foo"]
 
 
+def test_naming() -> None:
+    world = tcod.ecs.World()
+    entity_a = world.new_entity(name="A")
+    assert entity_a.name == "A"
+    assert world.named["A"] is entity_a
+    entity_a2 = world.new_entity(name="A")
+    assert world.named["A"] is entity_a2
+    assert entity_a.name is None
+    entity_a2.name = None
+    assert entity_a2.name is None
+    assert world.named.get("A") is None
+
+
 def test_component_missing(benchmark: Any) -> None:
     entity = tcod.ecs.World().new_entity()
     benchmark(lambda: entity.components.get(str))

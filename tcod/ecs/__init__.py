@@ -10,6 +10,7 @@ from typing import (
     Final,
     Iterable,
     Iterator,
+    Mapping,
     MutableMapping,
     MutableSet,
     Tuple,
@@ -76,12 +77,17 @@ class Entity:
 
     @name.setter
     def name(self, value: object) -> None:
-        if value is None and self in self.world._names_by_entity:
-            del self.world._names_by_name[self.world._names_by_entity[self]]
-            self.world._names_by_entity[self]
-            return
-        self.world._names_by_name[value] = self
-        self.world._names_by_entity[self] = value
+        old_name = self.name
+        if old_name is not None:  # Remove self from names.
+            del self.world._names_by_name[old_name]
+            del self.world._names_by_entity[self]
+
+        if value is not None:  # Add self to names.
+            old_entity = self.world._names_by_name.get(value)
+            if old_entity is not None:  # Remove entity with old name, name will be overwritten.
+                del self.world._names_by_entity[old_entity]
+            self.world._names_by_name[value] = self
+            self.world._names_by_entity[self] = value
 
     def __repr__(self) -> str:
         """Return a representation of this entity."""
@@ -335,21 +341,39 @@ class World:
 
     def __init__(self) -> None:
         """Initialize a new world."""
-        # Spare components as `v[ComponentType][Entity] = component`
+        # Spare-set components.
+        # ComponentKey is `type` or `(tag, type)`, see annotation.
+        # dict[ComponentKey][Entity] = component_instance
         self._components_by_type: DefaultDict[_ComponentKey[object], dict[Entity, Any]] = DefaultDict(dict)
-        # Components types belonging to entities.
+        # dict[Entity] = {component_keys_owned_by_entity}
         self._components_by_entity: DefaultDict[Entity, set[_ComponentKey[object]]] = DefaultDict(set)
 
+        # Sparse-set tags.
+        # dict[tag] = {all_entities_with_tag}
         self._tags_by_key: DefaultDict[object, set[Entity]] = DefaultDict(set)
+        # dict[Entity] = {all_tags_for_entity}
         self._tags_by_entity: DefaultDict[Entity, set[Any]] = DefaultDict(set)
 
+        # Sparse-set relations.
+        # dict[tag][this_entity] = {target_entities_for_entity}
+        # dict[tag][None] = {target_entities_for_tag}
         self._relations_by_key: DefaultDict[object, DefaultDict[Entity | None, set[Entity]]] = DefaultDict(
             partial(DefaultDict, set)  # type: ignore[arg-type]
         )
+        # dict[(tag, this_entity)] = {target_entities_for_entity}
+        # dict[(tag, None)] = {target_entities_for_tag}
         self._relations_by_target: DefaultDict[tuple[object, Entity | None], set[Entity]] = DefaultDict(set)
 
+        # Named objects dictionary.
+        # dict[name] = named_entity
         self._names_by_name: dict[object, Entity] = {}
+        # dict[Entity] = entities_name
         self._names_by_entity: dict[Entity, object] = {}
+
+    @property
+    def named(self) -> Mapping[object, Entity]:
+        """A view into this worlds named entities."""
+        return self._names_by_name
 
     def new_entity(
         self,
