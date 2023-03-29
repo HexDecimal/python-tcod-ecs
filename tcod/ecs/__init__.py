@@ -518,10 +518,10 @@ class Query:
 
         entities = list(self._get_entities(set(key) - {Entity}))
         entity_components = []
-        for component_type in key:
-            if component_type is Entity:
+        for component_key in key:
+            if component_key is Entity:
                 entity_components.append(entities)
                 continue
-            world_components = self.world._components_by_type[component_type]
+            world_components = self.world._components_by_type[component_key]
             entity_components.append([world_components[entity] for entity in entities])
         return zip(*entity_components)

@@ -36,6 +36,7 @@
         "scancode",
         "tcod",
         "toctree",
+        "Traceback",
         "typehints",
         "undoc",
         "WASD",
