@@ -40,7 +40,7 @@ def abstract_component(cls: type[T]) -> type[T]:
 class Entity:
     """A unique entity in a world."""
 
-    __slots__ = ("world", "__weakref__")
+    __slots__ = ("world",)
 
     def __init__(self, world: World) -> None:
         """Initialize a new unique entity."""
