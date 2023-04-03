@@ -8,6 +8,7 @@ from typing import (
     Any,
     DefaultDict,
     Final,
+    Generic,
     Iterable,
     Iterator,
     Mapping,
@@ -58,12 +59,17 @@ class Entity:
         return EntityTags(self)
 
     @property
-    def relations(self) -> EntityRelationsExclusive:
+    def relation_components(self) -> EntityComponentRelations:
+        """Access an entities relation components."""
+        return EntityComponentRelations(self)
+
+    @property
+    def relation_tags(self) -> EntityRelationsExclusive:
         """Access an entities exclusive relations."""
         return EntityRelationsExclusive(self)
 
     @property
-    def relations_many(self) -> EntityRelations:
+    def relation_tags_many(self) -> EntityRelations:
         """Access an entities many-to-many relations."""
         return EntityRelations(self)
 
@@ -214,9 +220,11 @@ class EntityRelationsMapping(MutableSet[Entity]):
         """Add a relation target to this key."""
         world = self.entity.world
         world._relations_by_key[self.key][self.entity].add(target)
-        world._relations_by_key[self.key][None].add(target)
-        world._relations_by_target[(self.key, target)].add(self.entity)
-        world._relations_by_target[(self.key, None)].add(self.entity)
+
+        world._relations_lookup[(self.key, target)].add(self.entity)
+        world._relations_lookup[(self.key, None)].add(self.entity)
+        world._relations_lookup[(self.entity, self.key, None)].add(target)
+        world._relations_lookup[(None, self.key, None)].add(target)
 
     def discard(self, target: Entity) -> None:
         """Discard a relation target from this key."""
@@ -225,24 +233,28 @@ class EntityRelationsMapping(MutableSet[Entity]):
         world._relations_by_key[self.key][self.entity].discard(target)
         if not world._relations_by_key[self.key][self.entity]:
             del world._relations_by_key[self.key][self.entity]
-
-        world._relations_by_key[self.key][None].discard(target)
-        if not world._relations_by_key[self.key][None]:
-            del world._relations_by_key[self.key][None]
             if not world._relations_by_key[self.key]:
                 del world._relations_by_key[self.key]
 
-        world._relations_by_target[(self.key, target)].discard(self.entity)
-        if not world._relations_by_target[(self.key, target)]:
-            del world._relations_by_target[(self.key, target)]
+        world._relations_lookup[(self.key, target)].discard(self.entity)
+        if not world._relations_lookup[(self.key, target)]:
+            del world._relations_lookup[(self.key, target)]
 
-        world._relations_by_target[(self.key, None)].discard(self.entity)
-        if not world._relations_by_target[(self.key, None)]:
-            del world._relations_by_target[(self.key, None)]
+        world._relations_lookup[(self.key, None)].discard(self.entity)
+        if not world._relations_lookup[(self.key, None)]:
+            del world._relations_lookup[(self.key, None)]
+
+        world._relations_lookup[(self.entity, self.key, None)].discard(target)
+        if not world._relations_lookup[(self.entity, self.key, None)]:
+            del world._relations_lookup[(self.entity, self.key, None)]
+
+        world._relations_lookup[(None, self.key, None)].discard(target)
+        if not world._relations_lookup[(None, self.key, None)]:
+            del world._relations_lookup[(None, self.key, None)]
 
     def __contains__(self, target: Entity) -> bool:  # type: ignore[override]
         """Return True if this relation contains the given value."""
-        return bool(self.entity.world._relations_by_target.get((self.key, target), ()))
+        return bool(self.entity.world._relations_lookup.get((self.key, target), ()))
 
     def __iter__(self) -> Iterator[Entity]:
         """Iterate over this relations targets."""
@@ -336,6 +348,88 @@ class EntityRelationsExclusive(MutableMapping[object, Entity]):
         return EntityRelations(self.entity).__len__()
 
 
+class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
+    """An entity-component mapping to access the relation target component objects.."""
+
+    __slots__ = ("entity", "key")
+
+    def __init__(self, entity: Entity, key: _ComponentKey[T]) -> None:
+        """Initialize this attribute for the given entity."""
+        assert isinstance(entity, Entity), entity
+        self.entity: Final = entity
+        self.key: _ComponentKey[T] = key
+
+    def __getitem__(self, target: Entity) -> T:
+        """Return the component related to a target entity."""
+        return self.entity.world._relation_components[self.key][self.entity][target]  # type: ignore[no-any-return]
+
+    def __setitem__(self, target: Entity, component: T) -> None:
+        """Assign a component to the target entity."""
+        world = self.entity.world
+        if target in world._relation_components[self.key][self.entity] is not None:
+            del self[target]
+        world._relation_components[self.key][self.entity][target] = component
+
+        world._relations_lookup[(self.key, target)] = {self.entity}
+        world._relations_lookup[(self.key, None)].add(self.entity)
+        world._relations_lookup[(self.entity, self.key, None)] = {target}
+        world._relations_lookup[(None, self.key, None)].add(target)
+
+    def __delitem__(self, target: Entity) -> None:
+        """Delete a component assigned to the target entity."""
+        world = self.entity.world
+        del world._relation_components[self.key][self.entity][target]
+        if not world._relation_components[self.key][self.entity]:
+            del world._relation_components[self.key][self.entity]
+        if not world._relation_components[self.key]:
+            del world._relation_components[self.key]
+
+        world._relations_lookup[(self.key, target)].discard(self.entity)
+        if not world._relations_lookup[(self.key, target)]:
+            del world._relations_lookup[(self.key, target)]
+
+        world._relations_lookup[(self.key, None)].discard(self.entity)
+        if not world._relations_lookup[(self.key, None)]:
+            del world._relations_lookup[(self.key, None)]
+
+        world._relations_lookup[(self.entity, self.key, None)].discard(self.entity)
+        if not world._relations_lookup[(self.entity, self.key, None)]:
+            del world._relations_lookup[(self.entity, self.key, None)]
+
+        world._relations_lookup[(None, self.key, None)].discard(self.entity)
+        if not world._relations_lookup[(None, self.key, None)]:
+            del world._relations_lookup[(None, self.key, None)]
+
+    def __iter__(self) -> Iterator[Entity]:
+        """Iterate over the targets with assigned components."""
+        relations_by_type = self.entity.world._relation_components.get(self.key)
+        return iter(()) if relations_by_type is None else iter(relations_by_type.get(self.entity, ()))
+
+    def __len__(self) -> int:
+        """Return the count of targets for this component relation."""
+        relations_by_type = self.entity.world._relation_components.get(self.key)
+        return 0 if relations_by_type is None else len(relations_by_type.get(self.entity, ()))
+
+
+class EntityComponentRelations:
+    """Proxy to access the component relations of an entity."""
+
+    __slots__ = ("entity",)
+
+    def __init__(self, entity: Entity) -> None:
+        """Initialize this attribute for the given entity."""
+        assert isinstance(entity, Entity), entity
+        self.entity: Final = entity
+
+    def __getitem__(self, key: _ComponentKey[T]) -> EntityComponentRelationMapping[T]:
+        """Access relations for this component key as a `{target: component}` dict-like object."""
+        return EntityComponentRelationMapping(self.entity, key)
+
+    def __delitem__(self, key: _ComponentKey[object]) -> None:
+        """Remove all relations associated with this component key."""
+        EntityComponentRelationMapping(self.entity, key).clear()
+
+
 class World:
     """A container for entities and components."""
 
@@ -356,13 +450,30 @@ class World:
 
         # Sparse-set relations.
         # dict[tag][this_entity] = {target_entities_for_entity}
-        # dict[tag][None] = {target_entities_for_tag}
-        self._relations_by_key: DefaultDict[object, DefaultDict[Entity | None, set[Entity]]] = DefaultDict(
+        self._relations_by_key: DefaultDict[object, DefaultDict[Entity, set[Entity]]] = DefaultDict(
             partial(DefaultDict, set)  # type: ignore[arg-type]
         )
+        # Tag:
         # dict[(tag, this_entity)] = {target_entities_for_entity}
         # dict[(tag, None)] = {target_entities_for_tag}
-        self._relations_by_target: DefaultDict[tuple[object, Entity | None], set[Entity]] = DefaultDict(set)
+        # dict[(target_entity, tag, None)] = {origin_entities_for_target}
+        # dict[(None, tag, None)] = {all_origen_entities_for_tag}
+        # Component:
+        # dict[(ComponentKey, target_entity)] = {origin_entities}
+        # dict[(ComponentKey, None)] = {all_origin_entities}
+        # dict[(origin_entity, ComponentKey, None)] = {target_entities}
+        # dict[(None, ComponentKey, None)] = {all_target_entities}
+        self._relations_lookup: DefaultDict[
+            tuple[Any, Entity | None] | tuple[Entity | None, Any, Entity | None], set[Entity]
+        ] = DefaultDict(set)
+
+        # Sparse-set relations owning components.
+        # dict[ComponentKey][own_entity][target_entity] = component
+        self._relation_components: DefaultDict[
+            _ComponentKey[object], DefaultDict[Entity, dict[Entity, Any]]
+        ] = DefaultDict(
+            partial(DefaultDict, dict)  # type: ignore[arg-type]
+        )
 
         # Named objects dictionary.
         # dict[name] = named_entity
@@ -411,8 +522,8 @@ class Query:
         self._none_of_components: set[_ComponentKey[object]] = set()
         self._all_of_tags: set[object] = set()
         self._none_of_tags: set[object] = set()
-        self._all_of_relations: set[tuple[object, Entity | None]] = set()
-        self._none_of_relations: set[tuple[object, Entity | None]] = set()
+        self._all_of_relations: set[tuple[Any, Entity | None] | tuple[Entity | None, Any, Entity | None]] = set()
+        self._none_of_relations: set[tuple[Any, Entity | None] | tuple[Entity | None, Any, Entity | None]] = set()
 
     def __iter_requires(self, extra_components: AbstractSet[_ComponentKey[object]]) -> Iterator[AbstractSet[Entity]]:
         collect_components = self._all_of_components | extra_components
@@ -421,7 +532,7 @@ class Query:
         for tag in self._all_of_tags:
             yield self.world._tags_by_key.get(tag, set())
         for relation in self._all_of_relations:
-            yield self.world._relations_by_target.get(relation, set())
+            yield self.world._relations_lookup.get(relation, set())
 
     def __iter_excludes(self) -> Iterator[AbstractSet[Entity]]:
         for component in self._none_of_components:
@@ -429,7 +540,7 @@ class Query:
         for tag in self._none_of_tags:
             yield self.world._tags_by_key.get(tag, set())
         for relation in self._none_of_relations:
-            yield self.world._relations_by_target.get(relation, set())
+            yield self.world._relations_lookup.get(relation, set())
 
     def _get_entities(self, extra_components: AbstractSet[_ComponentKey[object]] = frozenset()) -> set[Entity]:
         # Place the smallest sets first to speed up intersections.
@@ -455,7 +566,7 @@ class Query:
         components: Iterable[_ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
-        relations: Iterable[tuple[object, Entity | None]] = (),
+        relations: Iterable[tuple[object, Entity | None] | tuple[Entity | None, Any, Entity | None]] = (),
     ) -> Self:
         """Filter entities based on having all of the provided elements."""
         self._all_of_components.update(components)
@@ -468,7 +579,7 @@ class Query:
         components: Iterable[_ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
-        relations: Iterable[tuple[object, Entity | None]] = (),
+        relations: Iterable[tuple[object, Entity | None] | tuple[Entity | None, Any, Entity | None]] = (),
     ) -> Self:
         """Filter entities based on having none of the provided elements."""
         self._none_of_components.update(components)

@@ -183,25 +183,33 @@ True
 
 ## Relations
 
-
+Use `Entity.relation_components[component_key][target] = component` to associate a relation with data.
+Use `Entity.relation_tags[tag] = target` to associate a tag exclusively with a target entity.
+Use `Entity.relation_tags_many[tag].add(target)` to associate a tag with multiple targets.
+Tags and relations share the same space then queried, so tags can not be in the format of a component key.
+Relations are unidirectional.
 
 ```py
+>>> @attrs.define
+... class OrbitOf:  # OrbitOf component.
+...     dist: int
+>>> LandedOn = "LandedOn"  # LandedOn tag.
 >>> star = world.new_entity()
 >>> planet = world.new_entity()
 >>> moon = world.new_entity()
 >>> ship = world.new_entity()
 >>> player = world.new_entity()
 >>> moon_rock = world.new_entity()
->>> OrbitOf = "OrbitOf"
->>> LandedOn = "LandedOn"
->>> planet.relations[OrbitOf] = star
->>> moon.relations[OrbitOf] = planet
->>> ship.relations[LandedOn] = moon
->>> moon_rock.relations[LandedOn] = moon
->>> player.relations[LandedOn] = moon_rock
+>>> planet.relation_components[OrbitOf][star] = OrbitOf(dist=1000)
+>>> moon.relation_components[OrbitOf][planet] = OrbitOf(dist=10)
+>>> ship.relation_tags[LandedOn] = moon
+>>> moon_rock.relation_tags[LandedOn] = moon
+>>> player.relation_tags[LandedOn] = moon_rock
 >>> set(world.Q.all_of(relations=[(OrbitOf, planet)])) == {moon}
 True
->>> set(world.Q.all_of(relations=[(OrbitOf, None)])) == {planet, moon}
+>>> set(world.Q.all_of(relations=[(OrbitOf, None)])) == {planet, moon}  # Get objects in an orbit.
+True
+>>> set(world.Q.all_of(relations=[(None, OrbitOf, None)])) == {star, planet}  # Get objects being orbited.
 True
 >>> set(world.Q.all_of(relations=[(LandedOn, None)])) == {ship, moon_rock, player}
 True

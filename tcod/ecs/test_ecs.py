@@ -41,19 +41,19 @@ def test_relations() -> None:
     world = tcod.ecs.World()
     entity_a = world.new_entity(name="A")
     entity_b = world.new_entity(name="B")
-    entity_b.relations[ChildOf] = entity_a
+    entity_b.relation_tags[ChildOf] = entity_a
     entity_c = world.new_entity(name="C")
-    entity_c.relations[ChildOf] = entity_a
+    entity_c.relation_tags[ChildOf] = entity_a
     entity_d = world.new_entity(name="D")
-    entity_d.relations[ChildOf] = entity_b
+    entity_d.relation_tags[ChildOf] = entity_b
     assert set(world.Q.all_of(relations=[(ChildOf, entity_a)])) == {entity_b, entity_c}
     assert set(world.Q.all_of(relations=[(ChildOf, None)])) == {entity_b, entity_c, entity_d}
     assert set(world.Q.all_of(relations=[(ChildOf, entity_d)])) == set()
     assert set(world.Q.all_of(relations=[(ChildOf, None)]).none_of(relations=[(ChildOf, entity_a)])) == {entity_d}
-    assert entity_a in entity_b.relations_many[ChildOf]
-    assert entity_a == entity_b.relations[ChildOf]
+    assert entity_a in entity_b.relation_tags_many[ChildOf]
+    assert entity_a == entity_b.relation_tags[ChildOf]
     for e in world.Q.all_of(relations=[(ChildOf, None)]):
-        e.relations.clear()
+        e.relation_tags.clear()
     assert not set(world.Q.all_of(relations=[(ChildOf, None)]))
 
 
@@ -64,10 +64,23 @@ def test_relations_many() -> None:
     entity_c = world.new_entity(name="C")
 
     with pytest.raises(KeyError):
-        entity_a.relations["foo"]
-    entity_a.relations_many["foo"] = (entity_b, entity_c)
+        entity_a.relation_tags["foo"]
+    entity_a.relation_tags_many["foo"] = (entity_b, entity_c)
     with pytest.raises(ValueError, match=r"Entity relation has multiple targets but an exclusive value was expected\."):
-        entity_a.relations["foo"]
+        entity_a.relation_tags["foo"]
+
+
+def test_relation_components() -> None:
+    world = tcod.ecs.World()
+    entity_a = world.new_entity(name="A")
+    entity_b = world.new_entity(name="B")
+
+    entity_b.relation_components[int][entity_a] = 1
+    assert entity_b.relation_components[int][entity_a] == 1
+    del entity_b.relation_components[int][entity_a]
+
+    entity_b.relation_components[("named", int)][entity_a] = 0
+    assert entity_b.relation_components[("named", int)][entity_a] == 0
 
 
 def test_naming() -> None:
