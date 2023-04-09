@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 __version__ = "0.2.0"
+import sys
 from functools import partial
 from typing import (
     AbstractSet,
@@ -22,6 +23,11 @@ from typing import (
 )
 
 from typing_extensions import Self
+
+if sys.version_info >= (3, 10):
+    from types import EllipsisType
+else:
+    EllipsisType = Any
 
 T = TypeVar("T")
 _T1 = TypeVar("_T1")
@@ -511,6 +517,30 @@ class World:
         return Query(self)
 
 
+def _parse_relation_query(
+    relations: Iterable[
+        tuple[object, Entity | EllipsisType | None]
+        | tuple[Entity | EllipsisType | None, Any, Entity | EllipsisType | None]
+    ]
+) -> Iterator[tuple[Any, Entity | None] | tuple[Entity | None, Any, Entity | None]]:
+    for relation in relations:
+        if len(relation) == 3:  # noqa: PLR2004
+            left, key, right = relation  # type: ignore[misc]
+            if left is right is None:
+                left = ...
+        else:
+            left, key, right = (None, *relation)  # type: ignore[misc]
+            if right is None:
+                right = ...
+        if left is right is Ellipsis:
+            raise TypeError()
+        if left is None:
+            yield (key, None if right is Ellipsis else right)
+        else:
+            assert right is None
+            yield (None if left is Ellipsis else left, key, None)
+
+
 class Query:
     """Collect a set of entities with the provided conditions."""
 
@@ -566,12 +596,15 @@ class Query:
         components: Iterable[_ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
-        relations: Iterable[tuple[object, Entity | None] | tuple[Entity | None, Any, Entity | None]] = (),
+        relations: Iterable[
+            tuple[object, Entity | EllipsisType]
+            | tuple[Entity | EllipsisType | None, Any, Entity | EllipsisType | None]
+        ] = (),
     ) -> Self:
         """Filter entities based on having all of the provided elements."""
         self._all_of_components.update(components)
         self._all_of_tags.update(tags)
-        self._all_of_relations.update(relations)
+        self._all_of_relations.update(_parse_relation_query(relations))
         return self
 
     def none_of(
@@ -579,12 +612,15 @@ class Query:
         components: Iterable[_ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
-        relations: Iterable[tuple[object, Entity | None] | tuple[Entity | None, Any, Entity | None]] = (),
+        relations: Iterable[
+            tuple[object, Entity | EllipsisType]
+            | tuple[Entity | EllipsisType | None, Any, Entity | EllipsisType | None]
+        ] = (),
     ) -> Self:
         """Filter entities based on having none of the provided elements."""
         self._none_of_components.update(components)
         self._none_of_tags.update(tags)
-        self._none_of_relations.update(relations)
+        self._none_of_relations.update(_parse_relation_query(relations))
         return self
 
     def __iter__(self) -> Iterator[Entity]:

@@ -207,13 +207,13 @@ Relations are unidirectional.
 >>> player.relation_tags[LandedOn] = moon_rock
 >>> set(world.Q.all_of(relations=[(OrbitOf, planet)])) == {moon}
 True
->>> set(world.Q.all_of(relations=[(OrbitOf, None)])) == {planet, moon}  # Get objects in an orbit.
+>>> set(world.Q.all_of(relations=[(OrbitOf, ...)])) == {planet, moon}  # Get objects in an orbit.
 True
->>> set(world.Q.all_of(relations=[(None, OrbitOf, None)])) == {star, planet}  # Get objects being orbited.
+>>> set(world.Q.all_of(relations=[(..., OrbitOf, None)])) == {star, planet}  # Get objects being orbited.
 True
->>> set(world.Q.all_of(relations=[(LandedOn, None)])) == {ship, moon_rock, player}
+>>> set(world.Q.all_of(relations=[(LandedOn, ...)])) == {ship, moon_rock, player}
 True
->>> set(world.Q.all_of(relations=[(LandedOn, None)]).none_of(relations=[(LandedOn, moon)])) == {player}
+>>> set(world.Q.all_of(relations=[(LandedOn, ...)]).none_of(relations=[(LandedOn, moon)])) == {player}
 True
 
 ```

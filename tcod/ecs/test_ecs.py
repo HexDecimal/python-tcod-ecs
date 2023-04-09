@@ -47,14 +47,14 @@ def test_relations() -> None:
     entity_d = world.new_entity(name="D")
     entity_d.relation_tags[ChildOf] = entity_b
     assert set(world.Q.all_of(relations=[(ChildOf, entity_a)])) == {entity_b, entity_c}
-    assert set(world.Q.all_of(relations=[(ChildOf, None)])) == {entity_b, entity_c, entity_d}
+    assert set(world.Q.all_of(relations=[(ChildOf, ...)])) == {entity_b, entity_c, entity_d}
     assert set(world.Q.all_of(relations=[(ChildOf, entity_d)])) == set()
-    assert set(world.Q.all_of(relations=[(ChildOf, None)]).none_of(relations=[(ChildOf, entity_a)])) == {entity_d}
+    assert set(world.Q.all_of(relations=[(ChildOf, ...)]).none_of(relations=[(ChildOf, entity_a)])) == {entity_d}
     assert entity_a in entity_b.relation_tags_many[ChildOf]
     assert entity_a == entity_b.relation_tags[ChildOf]
-    for e in world.Q.all_of(relations=[(ChildOf, None)]):
+    for e in world.Q.all_of(relations=[(ChildOf, ...)]):
         e.relation_tags.clear()
-    assert not set(world.Q.all_of(relations=[(ChildOf, None)]))
+    assert not set(world.Q.all_of(relations=[(ChildOf, ...)]))
 
 
 def test_relations_many() -> None:
