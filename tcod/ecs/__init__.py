@@ -228,9 +228,9 @@ class EntityRelationsMapping(MutableSet[Entity]):
         world._relations_by_key[self.key][self.entity].add(target)
 
         world._relations_lookup[(self.key, target)].add(self.entity)
-        world._relations_lookup[(self.key, None)].add(self.entity)
+        world._relations_lookup[(self.key, ...)].add(self.entity)
         world._relations_lookup[(self.entity, self.key, None)].add(target)
-        world._relations_lookup[(None, self.key, None)].add(target)
+        world._relations_lookup[(..., self.key, None)].add(target)
 
     def discard(self, target: Entity) -> None:
         """Discard a relation target from this key."""
@@ -246,17 +246,17 @@ class EntityRelationsMapping(MutableSet[Entity]):
         if not world._relations_lookup[(self.key, target)]:
             del world._relations_lookup[(self.key, target)]
 
-        world._relations_lookup[(self.key, None)].discard(self.entity)
-        if not world._relations_lookup[(self.key, None)]:
-            del world._relations_lookup[(self.key, None)]
+        world._relations_lookup[(self.key, ...)].discard(self.entity)
+        if not world._relations_lookup[(self.key, ...)]:
+            del world._relations_lookup[(self.key, ...)]
 
         world._relations_lookup[(self.entity, self.key, None)].discard(target)
         if not world._relations_lookup[(self.entity, self.key, None)]:
             del world._relations_lookup[(self.entity, self.key, None)]
 
-        world._relations_lookup[(None, self.key, None)].discard(target)
-        if not world._relations_lookup[(None, self.key, None)]:
-            del world._relations_lookup[(None, self.key, None)]
+        world._relations_lookup[(..., self.key, None)].discard(target)
+        if not world._relations_lookup[(..., self.key, None)]:
+            del world._relations_lookup[(..., self.key, None)]
 
     def __contains__(self, target: Entity) -> bool:  # type: ignore[override]
         """Return True if this relation contains the given value."""
@@ -377,9 +377,9 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
         world._relation_components[self.key][self.entity][target] = component
 
         world._relations_lookup[(self.key, target)] = {self.entity}
-        world._relations_lookup[(self.key, None)].add(self.entity)
+        world._relations_lookup[(self.key, ...)].add(self.entity)
         world._relations_lookup[(self.entity, self.key, None)] = {target}
-        world._relations_lookup[(None, self.key, None)].add(target)
+        world._relations_lookup[(..., self.key, None)].add(target)
 
     def __delitem__(self, target: Entity) -> None:
         """Delete a component assigned to the target entity."""
@@ -394,17 +394,17 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
         if not world._relations_lookup[(self.key, target)]:
             del world._relations_lookup[(self.key, target)]
 
-        world._relations_lookup[(self.key, None)].discard(self.entity)
-        if not world._relations_lookup[(self.key, None)]:
-            del world._relations_lookup[(self.key, None)]
+        world._relations_lookup[(self.key, ...)].discard(self.entity)
+        if not world._relations_lookup[(self.key, ...)]:
+            del world._relations_lookup[(self.key, ...)]
 
         world._relations_lookup[(self.entity, self.key, None)].discard(self.entity)
         if not world._relations_lookup[(self.entity, self.key, None)]:
             del world._relations_lookup[(self.entity, self.key, None)]
 
-        world._relations_lookup[(None, self.key, None)].discard(self.entity)
-        if not world._relations_lookup[(None, self.key, None)]:
-            del world._relations_lookup[(None, self.key, None)]
+        world._relations_lookup[(..., self.key, None)].discard(self.entity)
+        if not world._relations_lookup[(..., self.key, None)]:
+            del world._relations_lookup[(..., self.key, None)]
 
     def __iter__(self) -> Iterator[Entity]:
         """Iterate over the targets with assigned components."""
@@ -470,7 +470,7 @@ class World:
         # dict[(origin_entity, ComponentKey, None)] = {target_entities}
         # dict[(None, ComponentKey, None)] = {all_target_entities}
         self._relations_lookup: DefaultDict[
-            tuple[Any, Entity | None] | tuple[Entity | None, Any, Entity | None], set[Entity]
+            tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]
         ] = DefaultDict(set)
 
         # Sparse-set relations owning components.
@@ -517,30 +517,6 @@ class World:
         return Query(self)
 
 
-def _parse_relation_query(
-    relations: Iterable[
-        tuple[object, Entity | EllipsisType | None]
-        | tuple[Entity | EllipsisType | None, Any, Entity | EllipsisType | None]
-    ]
-) -> Iterator[tuple[Any, Entity | None] | tuple[Entity | None, Any, Entity | None]]:
-    for relation in relations:
-        if len(relation) == 3:  # noqa: PLR2004
-            left, key, right = relation  # type: ignore[misc]
-            if left is right is None:
-                left = ...
-        else:
-            left, key, right = (None, *relation)  # type: ignore[misc]
-            if right is None:
-                right = ...
-        if left is right is Ellipsis:
-            raise TypeError()
-        if left is None:
-            yield (key, None if right is Ellipsis else right)
-        else:
-            assert right is None
-            yield (None if left is Ellipsis else left, key, None)
-
-
 class Query:
     """Collect a set of entities with the provided conditions."""
 
@@ -552,8 +528,10 @@ class Query:
         self._none_of_components: set[_ComponentKey[object]] = set()
         self._all_of_tags: set[object] = set()
         self._none_of_tags: set[object] = set()
-        self._all_of_relations: set[tuple[Any, Entity | None] | tuple[Entity | None, Any, Entity | None]] = set()
-        self._none_of_relations: set[tuple[Any, Entity | None] | tuple[Entity | None, Any, Entity | None]] = set()
+        self._all_of_relations: set[tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None]] = set()
+        self._none_of_relations: set[
+            tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None]
+        ] = set()
 
     def __iter_requires(self, extra_components: AbstractSet[_ComponentKey[object]]) -> Iterator[AbstractSet[Entity]]:
         collect_components = self._all_of_components | extra_components
@@ -596,15 +574,12 @@ class Query:
         components: Iterable[_ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
-        relations: Iterable[
-            tuple[object, Entity | EllipsisType]
-            | tuple[Entity | EllipsisType | None, Any, Entity | EllipsisType | None]
-        ] = (),
+        relations: Iterable[tuple[object, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None]] = (),
     ) -> Self:
         """Filter entities based on having all of the provided elements."""
         self._all_of_components.update(components)
         self._all_of_tags.update(tags)
-        self._all_of_relations.update(_parse_relation_query(relations))
+        self._all_of_relations.update(relations)
         return self
 
     def none_of(
@@ -612,15 +587,12 @@ class Query:
         components: Iterable[_ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
-        relations: Iterable[
-            tuple[object, Entity | EllipsisType]
-            | tuple[Entity | EllipsisType | None, Any, Entity | EllipsisType | None]
-        ] = (),
+        relations: Iterable[tuple[object, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None]] = (),
     ) -> Self:
         """Filter entities based on having none of the provided elements."""
         self._none_of_components.update(components)
         self._none_of_tags.update(tags)
-        self._none_of_relations.update(_parse_relation_query(relations))
+        self._none_of_relations.update(relations)
         return self
 
     def __iter__(self) -> Iterator[Entity]:
