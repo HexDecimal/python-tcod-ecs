@@ -1,4 +1,4 @@
-# ruff: noqa: D100 D103 ANN401
+# ruff: noqa: D100 D103 ANN401 S301
 from __future__ import annotations
 
 import pickle
