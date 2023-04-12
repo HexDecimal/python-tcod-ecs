@@ -13,8 +13,10 @@
     "files.trimTrailingWhitespace": true,
     "cSpell.words": [
         "automodule",
+        "autouse",
         "Benesch",
         "codecov",
+        "doctests",
         "dtype",
         "genindex",
         "hashable",

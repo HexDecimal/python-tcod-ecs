@@ -48,7 +48,6 @@ Worlds only know about their entities once the entity is assigned a name, compon
 An entity is identified by its "Python identity" rather than with a low-level stand-in identifier.
 
 ```py
-
 >>> entity = world.new_entity(name="MyEntity")  # Name is optional and can be any hashable, not just str.
 >>> entity
 <Entity name='MyEntity'>
@@ -61,6 +60,17 @@ True
 
 ```
 
+## Serialization
+
+Worlds are normal Python objects and can be pickled as long as all stored components can be pickled.
+
+```py
+>>> import pickle
+>>> pickled_data: bytes = pickle.dumps(world)
+>>> world = pickle.loads(pickled_data)
+
+```
+
 ## Components
 
 Components are instances of any Python type.
@@ -69,7 +79,6 @@ The type is used as the key to access the component.
 The types used can be custom classes or standard Python types.
 
 ```py
-
 >>> import attrs
 >>> entity = world.new_entity()
 >>> entity.components[int] = 42

@@ -45,7 +45,15 @@ def abstract_component(cls: type[T]) -> type[T]:
 
 
 class Entity:
-    """A unique entity in a world."""
+    """A unique entity in a world.
+
+    Example::
+
+        >>> import tcod.ecs
+        >>> world = tcod.ecs.World()  # Create a new world.
+        >>> entity = world.new_entity(name="entity")  # Create a new entity, name is optional.
+        >>> other_entity = world.new_entity(name="other_entity")
+    """  # Changes here should be reflected in conftest.py.
 
     __slots__ = ("world",)
 
@@ -56,27 +64,82 @@ class Entity:
 
     @property
     def components(self) -> EntityComponents:
-        """Access an entities components."""
+        """Access an entities components.
+
+        Example::
+
+            >>> entity.components[str] = "foo"  # Assign component.
+            >>> entity.components[("name", str)] = "my_name" # Assign named component.
+            >>> ("name", str) in entity.components
+            True
+            >>> {str, ("name", str)}.issubset(entity.components.keys())
+            True
+            >>> list(world.Q.all_of(components=[str]))  # Query components.
+            [<Entity name='entity'>]
+            >>> list(world.Q[tcod.ecs.Entity, str, ("name", str)])  # Query zip components.
+            [(<Entity name='entity'>, 'foo', 'my_name')]
+        """
         return EntityComponents(self)
 
     @property
     def tags(self) -> EntityTags:
-        """Access an entities tags."""
+        """Access an entities tags.
+
+        Example::
+
+            >>> entity.tags.add("tag") # Add tag.
+            >>> "tag" in entity.tags  # Check tag.
+            True
+            >>> list(world.Q.all_of(tags=["tag"]))  # Query tags.
+            [<Entity name='entity'>]
+            >>> entity.tags.discard("tag")
+        """
         return EntityTags(self)
 
     @property
     def relation_components(self) -> EntityComponentRelations:
-        """Access an entities relation components."""
+        """Access an entities relation components.
+
+        Example::
+
+            >>> entity.relation_components[str][other_entity] = "foo" # Assign component to relation.
+            >>> entity.relation_components[("distance", int)][other_entity] = 42 # Also works for named components.
+            >>> other_entity in entity.relation_components[str]
+            True
+            >>> list(world.Q.all_of(relations=[(str, other_entity)]))
+            [<Entity name='entity'>]
+            >>> list(world.Q.all_of(relations=[(str, ...)]))
+            [<Entity name='entity'>]
+            >>> list(world.Q.all_of(relations=[(entity, str, None)]))
+            [<Entity name='other_entity'>]
+            >>> list(world.Q.all_of(relations=[(..., str, None)]))
+            [<Entity name='other_entity'>]
+        """
         return EntityComponentRelations(self)
 
     @property
     def relation_tags(self) -> EntityRelationsExclusive:
-        """Access an entities exclusive relations."""
+        """Access an entities exclusive relations.
+
+        Example::
+
+            >>> entity.relation_tags["ChildOf"] = other_entity  # Assign relation.
+            >>> list(world.Q.all_of(relations=[("ChildOf", other_entity)]))  # Get children of other_entity.
+            [<Entity name='entity'>]
+            >>> list(world.Q.all_of(relations=[(entity, "ChildOf", None)]))  # Get parents of entity.
+            [<Entity name='other_entity'>]
+            >>> del entity.relation_tags["ChildOf"]
+        """
         return EntityRelationsExclusive(self)
 
     @property
     def relation_tags_many(self) -> EntityRelations:
-        """Access an entities many-to-many relations."""
+        """Access an entities many-to-many relations.
+
+        Example::
+
+            >>> entity.relation_tags_many["KnownBy"].add(other_entity)  # Assign relation.
+        """
         return EntityRelations(self)
 
     @property
@@ -110,7 +173,10 @@ class Entity:
 
 
 class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]], Any]):
-    """A proxy attribute to access an entities components like a dictionary."""
+    """A proxy attribute to access an entities components like a dictionary.
+
+    See :any:`Entity.components`.
+    """
 
     __slots__ = ("entity",)
 
@@ -175,7 +241,10 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
 
 
 class EntityTags(MutableSet[Any]):
-    """A proxy attribute to access an entities tags like a set."""
+    """A proxy attribute to access an entities tags like a set.
+
+    See :any:`Entity.tags`.
+    """
 
     __slots__ = ("entity",)
 
@@ -212,7 +281,10 @@ class EntityTags(MutableSet[Any]):
 
 
 class EntityRelationsMapping(MutableSet[Entity]):
-    """A proxy attribute to access entity relation targets like a set."""
+    """A proxy attribute to access entity relation targets like a set.
+
+    See :any:`Entity.relation_tags_many`.
+    """
 
     __slots__ = ("entity", "key")
 
@@ -274,7 +346,10 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
 
 class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
-    """A proxy attribute to access entity relations like a dict of sets."""
+    """A proxy attribute to access entity relations like a dict of sets.
+
+    See :any:`Entity.relation_tags_many`.
+    """
 
     __slots__ = ("entity",)
 
@@ -311,7 +386,10 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
 
 
 class EntityRelationsExclusive(MutableMapping[object, Entity]):
-    """A proxy attribute to access entity relations exclusively."""
+    """A proxy attribute to access entity relations exclusively.
+
+    See :any:`Entity.relation_tags`.
+    """
 
     __slots__ = ("entity",)
 
@@ -355,7 +433,10 @@ class EntityRelationsExclusive(MutableMapping[object, Entity]):
 
 
 class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
-    """An entity-component mapping to access the relation target component objects.."""
+    """An entity-component mapping to access the relation target component objects.
+
+    See :any:`Entity.relation_components`.
+    """
 
     __slots__ = ("entity", "key")
 
@@ -418,7 +499,10 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
 
 
 class EntityComponentRelations:
-    """Proxy to access the component relations of an entity."""
+    """Proxy to access the component relations of an entity.
+
+    See :any:`Entity.relation_components`.
+    """
 
     __slots__ = ("entity",)
 
@@ -459,6 +543,13 @@ class World:
         self._relations_by_key: DefaultDict[object, DefaultDict[Entity, set[Entity]]] = DefaultDict(
             partial(DefaultDict, set)  # type: ignore[arg-type]
         )
+        # Sparse-set relations owning components.
+        # dict[ComponentKey][own_entity][target_entity] = component
+        self._relation_components: DefaultDict[
+            _ComponentKey[object], DefaultDict[Entity, dict[Entity, Any]]
+        ] = DefaultDict(
+            partial(DefaultDict, dict)  # type: ignore[arg-type]
+        )
         # Tag:
         # dict[(tag, this_entity)] = {target_entities_for_entity}
         # dict[(tag, None)] = {target_entities_for_tag}
@@ -472,14 +563,6 @@ class World:
         self._relations_lookup: DefaultDict[
             tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]
         ] = DefaultDict(set)
-
-        # Sparse-set relations owning components.
-        # dict[ComponentKey][own_entity][target_entity] = component
-        self._relation_components: DefaultDict[
-            _ComponentKey[object], DefaultDict[Entity, dict[Entity, Any]]
-        ] = DefaultDict(
-            partial(DefaultDict, dict)  # type: ignore[arg-type]
-        )
 
         # Named objects dictionary.
         # dict[name] = named_entity
