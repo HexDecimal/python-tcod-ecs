@@ -1,7 +1,7 @@
 """A type-hinted Entity Component System based on Python dictionaries and sets."""
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "1.0.0"
 import sys
 from functools import partial
 from typing import (

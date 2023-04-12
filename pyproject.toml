@@ -8,7 +8,7 @@ authors = [{ name = "Kyle Benesch", email = "4b796c65+github@gmail.com" }]
 readme = "README.md"
 license = { file = "LICENSE" }
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
