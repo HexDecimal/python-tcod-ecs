@@ -570,6 +570,22 @@ class World:
         # dict[Entity] = entities_name
         self._names_by_entity: dict[Entity, object] = {}
 
+        self.G: Final = Entity(self)
+        """A unique globally accessible entity.
+
+        This can be used to store globally accessible components in the world itself without any extra boilerplate.
+        Otherwise this entity is not special and will show up with other entities in queries, etc.
+
+        .. versionadded:: Unreleased
+        """
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        """Unpickle this object and handle state migration."""
+        # Migrate from version 1.0.0.
+        state.setdefault("G", Entity(self))
+
+        self.__dict__.update(state)
+
     @property
     def named(self) -> Mapping[object, Entity]:
         """A view into this worlds named entities."""
