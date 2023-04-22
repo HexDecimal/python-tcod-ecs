@@ -36,6 +36,7 @@ _T3 = TypeVar("_T3")
 _T4 = TypeVar("_T4")
 _T5 = TypeVar("_T5")
 _ComponentKey = Union[Type[T], Tuple[object, Type[T]]]
+"""ComponentKey is plain `type` or tuple `(tag, type)`."""
 
 
 def abstract_component(cls: type[T]) -> type[T]:
@@ -299,9 +300,9 @@ class EntityRelationsMapping(MutableSet[Entity]):
         assert key not in {None, Ellipsis}
 
     def add(self, target: Entity) -> None:
-        """Add a relation target to this key."""
+        """Add a relation target to this tag."""
         world = self.entity.world
-        world._relations_by_key[self.key][self.entity].add(target)
+        world._relation_tags_by_entity[self.entity][self.key].add(target)
 
         world._relations_lookup[(self.key, target)].add(self.entity)
         world._relations_lookup[(self.key, ...)].add(self.entity)
@@ -309,14 +310,14 @@ class EntityRelationsMapping(MutableSet[Entity]):
         world._relations_lookup[(..., self.key, None)].add(target)
 
     def discard(self, target: Entity) -> None:
-        """Discard a relation target from this key."""
+        """Discard a relation target from this tag."""
         world = self.entity.world
 
-        world._relations_by_key[self.key][self.entity].discard(target)
-        if not world._relations_by_key[self.key][self.entity]:
-            del world._relations_by_key[self.key][self.entity]
-            if not world._relations_by_key[self.key]:
-                del world._relations_by_key[self.key]
+        world._relation_tags_by_entity[self.entity][self.key].discard(target)
+        if not world._relation_tags_by_entity[self.entity][self.key]:
+            del world._relation_tags_by_entity[self.entity][self.key]
+            if not world._relation_tags_by_entity[self.entity]:
+                del world._relation_tags_by_entity[self.entity]
 
         world._relations_lookup[(self.key, target)].discard(self.entity)
         if not world._relations_lookup[(self.key, target)]:
@@ -339,14 +340,14 @@ class EntityRelationsMapping(MutableSet[Entity]):
         return bool(self.entity.world._relations_lookup.get((self.key, target), ()))
 
     def __iter__(self) -> Iterator[Entity]:
-        """Iterate over this relations targets."""
-        relations = self.entity.world._relations_by_key.get(self.key)
-        return iter(relations.get(self.entity, ())) if relations is not None else iter(())
+        """Iterate over this relation tags targets."""
+        by_entity = self.entity.world._relation_tags_by_entity.get(self.entity)
+        return iter(by_entity.get(self.key, ())) if by_entity is not None else iter(())
 
     def __len__(self) -> int:
-        """Return the number of targets in this relation."""
-        relations = self.entity.world._relations_by_key.get(self.key)
-        return len(relations.get(self.entity, ())) if relations is not None else 0
+        """Return the number of targets for this relation tag."""
+        by_entity = self.entity.world._relation_tags_by_entity.get(self.entity)
+        return len(by_entity.get(self.key, ())) if by_entity is not None else 0
 
 
 class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
@@ -362,11 +363,11 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
         self.entity: Final = entity
 
     def __getitem__(self, key: object) -> EntityRelationsMapping:
-        """Return the relation mapping for a key."""
+        """Return the relation mapping for a tag."""
         return EntityRelationsMapping(self.entity, key)
 
     def __setitem__(self, key: object, values: Iterable[Entity]) -> None:
-        """Overwrite the targets of a relation key with the new values."""
+        """Overwrite the targets of a relation tag with the new values."""
         assert not isinstance(values, Entity), "Did you mean `entity.relations[key] = (target,)`?"
         mapping = EntityRelationsMapping(self.entity, key)
         mapping.clear()
@@ -374,19 +375,19 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
             mapping.add(v)
 
     def __delitem__(self, key: object) -> None:
-        """Clear the relation targets of a relation key."""
+        """Clear the relation tags of an entity.
+
+        This does not remove relation tags towards this entity.
+        """
         self[key].clear()
 
     def __iter__(self) -> Iterator[Any]:
-        """Iterate over the keys of this entities relations."""
-        # Slow!
-        for key, value in self.entity.world._relations_by_key.items():
-            if self.entity in value:
-                yield key
+        """Iterate over the unique relation tags of this entity."""
+        return iter(self.entity.world._relation_tags_by_entity.get(self.entity, {}).keys())
 
     def __len__(self) -> int:
-        """Return the number of relations this entity has."""
-        return len(list(self.__iter__()))  # Slow!
+        """Return the number of unique relation tags this entity has."""
+        return len(self.entity.world._relation_tags_by_entity.get(self.entity, {}))
 
 
 class EntityRelationsExclusive(MutableMapping[object, Entity]):
@@ -452,14 +453,14 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
 
     def __getitem__(self, target: Entity) -> T:
         """Return the component related to a target entity."""
-        return self.entity.world._relation_components[self.key][self.entity][target]  # type: ignore[no-any-return]
+        return self.entity.world._relation_components_by_entity[self.entity][self.key][target]  # type: ignore[no-any-return]
 
     def __setitem__(self, target: Entity, component: T) -> None:
         """Assign a component to the target entity."""
         world = self.entity.world
-        if target in world._relation_components[self.key][self.entity] is not None:
+        if target in world._relation_components_by_entity[self.entity][self.key] is not None:
             del self[target]
-        world._relation_components[self.key][self.entity][target] = component
+        world._relation_components_by_entity[self.entity][self.key][target] = component
 
         world._relations_lookup[(self.key, target)] = {self.entity}
         world._relations_lookup[(self.key, ...)].add(self.entity)
@@ -469,11 +470,11 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
     def __delitem__(self, target: Entity) -> None:
         """Delete a component assigned to the target entity."""
         world = self.entity.world
-        del world._relation_components[self.key][self.entity][target]
-        if not world._relation_components[self.key][self.entity]:
-            del world._relation_components[self.key][self.entity]
-        if not world._relation_components[self.key]:
-            del world._relation_components[self.key]
+        del world._relation_components_by_entity[self.entity][self.key][target]
+        if not world._relation_components_by_entity[self.entity][self.key]:
+            del world._relation_components_by_entity[self.entity][self.key]
+        if not world._relation_components_by_entity[self.entity]:
+            del world._relation_components_by_entity[self.entity]
 
         world._relations_lookup[(self.key, target)].discard(self.entity)
         if not world._relations_lookup[(self.key, target)]:
@@ -493,13 +494,13 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
 
     def __iter__(self) -> Iterator[Entity]:
         """Iterate over the targets with assigned components."""
-        relations_by_type = self.entity.world._relation_components.get(self.key)
-        return iter(()) if relations_by_type is None else iter(relations_by_type.get(self.entity, ()))
+        by_entity = self.entity.world._relation_components_by_entity.get(self.entity)
+        return iter(()) if by_entity is None else iter(by_entity.get(self.key, ()))
 
     def __len__(self) -> int:
         """Return the count of targets for this component relation."""
-        relations_by_type = self.entity.world._relation_components.get(self.key)
-        return 0 if relations_by_type is None else len(relations_by_type.get(self.entity, ()))
+        by_entity = self.entity.world._relation_components_by_entity.get(self.entity)
+        return 0 if by_entity is None else len(by_entity.get(self.key, ()))
 
 
 class EntityComponentRelations:
@@ -529,50 +530,71 @@ class World:
 
     def __init__(self) -> None:
         """Initialize a new world."""
-        # Spare-set components.
-        # ComponentKey is `type` or `(tag, type)`, see annotation.
-        # dict[ComponentKey][Entity] = component_instance
         self._components_by_type: DefaultDict[_ComponentKey[object], dict[Entity, Any]] = DefaultDict(dict)
-        # dict[Entity] = {component_keys_owned_by_entity}
+        """Query table entity components.
+
+        dict[ComponentKey][Entity] = component_instance
+        """
         self._components_by_entity: DefaultDict[Entity, set[_ComponentKey[object]]] = DefaultDict(set)
+        """Random access entity components.
 
-        # Sparse-set tags.
-        # dict[tag] = {all_entities_with_tag}
+        dict[Entity] = {component_keys_owned_by_entity}
+        """
+
         self._tags_by_key: DefaultDict[object, set[Entity]] = DefaultDict(set)
-        # dict[Entity] = {all_tags_for_entity}
-        self._tags_by_entity: DefaultDict[Entity, set[Any]] = DefaultDict(set)
+        """Query table entity tags.
 
-        # Sparse-set relations.
-        # dict[tag][this_entity] = {target_entities_for_entity}
-        self._relations_by_key: DefaultDict[object, DefaultDict[Entity, set[Entity]]] = DefaultDict(
+        dict[tag] = {all_entities_with_tag}
+        """
+        self._tags_by_entity: DefaultDict[Entity, set[Any]] = DefaultDict(set)
+        """Random access entity tags.
+
+        dict[Entity] = {all_tags_for_entity}
+        """
+
+        self._relation_tags_by_entity: DefaultDict[Entity, DefaultDict[object, set[Entity]]] = DefaultDict(
             partial(DefaultDict, set)  # type: ignore[arg-type]
         )
-        # Sparse-set relations owning components.
-        # dict[ComponentKey][own_entity][target_entity] = component
-        self._relation_components: DefaultDict[
-            _ComponentKey[object], DefaultDict[Entity, dict[Entity, Any]]
+        """Random access tag multi-relations.
+
+        dict[entity][tag] = {target_entities}
+        """
+        self._relation_components_by_entity: DefaultDict[
+            Entity, DefaultDict[_ComponentKey[object], dict[Entity, Any]]
         ] = DefaultDict(
             partial(DefaultDict, dict)  # type: ignore[arg-type]
         )
-        # Tag:
-        # dict[(tag, this_entity)] = {target_entities_for_entity}
-        # dict[(tag, None)] = {target_entities_for_tag}
-        # dict[(target_entity, tag, None)] = {origin_entities_for_target}
-        # dict[(None, tag, None)] = {all_origen_entities_for_tag}
-        # Component:
-        # dict[(ComponentKey, target_entity)] = {origin_entities}
-        # dict[(ComponentKey, None)] = {all_origin_entities}
-        # dict[(origin_entity, ComponentKey, None)] = {target_entities}
-        # dict[(None, ComponentKey, None)] = {all_target_entities}
+        """Random access relations owning components.
+
+        dict[entity][ComponentKey][target_entity] = component
+        """
         self._relations_lookup: DefaultDict[
             tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]
         ] = DefaultDict(set)
+        """Relations query table.  Tags and components are mixed together.
 
-        # Named objects dictionary.
-        # dict[name] = named_entity
+        Tag:
+            dict[(tag, this_entity)] = {target_entities_for_entity}
+            dict[(tag, None)] = {target_entities_for_tag}
+            dict[(target_entity, tag, None)] = {origin_entities_for_target}
+            dict[(None, tag, None)] = {all_origen_entities_for_tag}
+        Component:
+            dict[(ComponentKey, target_entity)] = {origin_entities}
+            dict[(ComponentKey, None)] = {all_origin_entities}
+            dict[(origin_entity, ComponentKey, None)] = {target_entities}
+            dict[(None, ComponentKey, None)] = {all_target_entities}
+        """
+
         self._names_by_name: dict[object, Entity] = {}
-        # dict[Entity] = entities_name
+        """Name query table.
+
+        dict[name] = named_entity
+        """
         self._names_by_entity: dict[Entity, object] = {}
+        """Name lookup table.
+
+        dict[Entity] = entities_name
+        """
 
         self.global_: Final = Entity(self)
         """A unique globally accessible entity.
@@ -591,6 +613,21 @@ class World:
         """Unpickle this object and handle state migration."""
         # Migrate from version 1.0.0.
         state.setdefault("global_", Entity(self))
+        if "_relation_components" in state:
+            _relation_components: dict[_ComponentKey[object], dict[Entity, dict[Entity, Any]]] = state.pop(
+                "_relation_components"
+            )
+            self._relation_components_by_entity = DefaultDict(partial(DefaultDict, dict))  # type: ignore[arg-type]
+            for component_key, component_key_relations in _relation_components.items():
+                for entity, entities_component_table in component_key_relations.items():
+                    for target_entity, target_component in entities_component_table.items():
+                        self._relation_components_by_entity[entity][component_key][target_entity] = target_component
+
+            _relations_by_key: dict[object, dict[Entity, set[Entity]]] = state.pop("_relations_by_key")
+            self._relation_tags_by_entity = DefaultDict(partial(DefaultDict, set))  # type: ignore[arg-type]
+            for tag, tag_relations in _relations_by_key.items():
+                for entity, targets in tag_relations.items():
+                    self._relation_tags_by_entity[entity][tag] = targets
 
         self.__dict__.update(state)
 
