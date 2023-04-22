@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- World's now have a globally accessible entity accessed with `World.G`.
+- World's now have a globally accessible entity accessed with `World.global_`.
 
 ## [1.0.0] - 2023-04-11
 First stable release.

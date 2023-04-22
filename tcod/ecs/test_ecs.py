@@ -165,4 +165,10 @@ def test_unpickle_v1_0() -> None:
     unpickled: tcod.ecs.World = pickle.loads(WORLD_v1_0)
     check_world_v1(unpickled)
     unpickled.new_entity()
-    assert not unpickled.G.components
+    assert not unpickled.global_.components
+
+
+def test_global() -> None:
+    world = tcod.ecs.World()
+    world.global_.components[int] = 1
+    assert set(world.Q[tcod.ecs.Entity, int]) == {(world.global_, 1)}
