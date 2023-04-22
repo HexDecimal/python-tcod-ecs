@@ -171,6 +171,10 @@ class Entity:
         items.append(f"0x{id(self):X}" if name is None else f"name={name!r}")
         return f"<{' '.join(items)}>"
 
+    def __reduce__(self) -> tuple[type[Entity], tuple[World]]:  # Private function.  # noqa: D105
+        # Note: This was added after version 1.0.0, objects pickled in previous versions will call __setstate__.
+        return self.__class__, (self.world,)
+
 
 class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]], Any]):
     """A proxy attribute to access an entities components like a dictionary.
