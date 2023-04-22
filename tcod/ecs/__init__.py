@@ -1,7 +1,7 @@
 """A type-hinted Entity Component System based on Python dictionaries and sets."""
 from __future__ import annotations
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 import sys
 from functools import partial
 from typing import (
@@ -173,7 +173,7 @@ class Entity:
         return f"<{' '.join(items)}>"
 
     def __reduce__(self) -> tuple[type[Entity], tuple[World]]:  # Private function.  # noqa: D105
-        # Note: This was added after version 1.0.0, objects pickled in previous versions will call __setstate__.
+        # Note: This was added after version 1.0.0, objects pickled in <=1.0.0 will call __setstate__.
         return self.__class__, (self.world,)
 
 
@@ -602,7 +602,7 @@ class World:
         This can be used to store globally accessible components in the world itself without any extra boilerplate.
         Otherwise this entity is not special and will show up with other entities in queries, etc.
 
-        .. versionadded:: Unreleased
+        .. versionadded:: 1.1
 
         Example::
 
@@ -611,7 +611,7 @@ class World:
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         """Unpickle this object and handle state migration."""
-        # Migrate from version 1.0.0.
+        # Migrate from version <=1.0.0.
         state.setdefault("global_", Entity(self))
         if "_relation_components" in state:
             _relation_components: dict[_ComponentKey[object], dict[Entity, dict[Entity, Any]]] = state.pop(
