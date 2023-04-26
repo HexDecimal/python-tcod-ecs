@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Fixed
 - Added missing typing marker.
+- Corrected the type-hinting of `Entity.component.get` and `Entity.component.setdefault`.
 
 ## [1.1.0] - 2023-04-21
 ### Added

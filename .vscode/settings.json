@@ -36,6 +36,7 @@
         "RMASK",
         "rtype",
         "scancode",
+        "setdefault",
         "tcod",
         "toctree",
         "Traceback",

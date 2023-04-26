@@ -5,6 +5,7 @@ __version__ = "1.1.0"
 import sys
 from functools import partial
 from typing import (
+    TYPE_CHECKING,
     AbstractSet,
     Any,
     DefaultDict,
@@ -243,6 +244,22 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         """Add or overwrite multiple components inplace, deriving the keys from the values."""
         for value in values:
             self.set(value)
+
+    if TYPE_CHECKING:  # Type-hinted overrides
+
+        @overload
+        def get(self, __key: _ComponentKey[T]) -> T | None:
+            ...
+
+        @overload
+        def get(self, __key: _ComponentKey[T], __default: T) -> T:
+            ...
+
+        def get(self, __key: _ComponentKey[T], __default: T | None = None) -> T | None:
+            """Return a component, returns None or a default value when the component is missing."""
+
+        def setdefault(self, __key: _ComponentKey[T], __default: T) -> T:  # type: ignore[override]
+            """Assign a default value if a component is missing, then returns the current value."""
 
 
 class EntityTags(MutableSet[Any]):
