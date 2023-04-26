@@ -57,7 +57,7 @@ class Entity:
         >>> other_entity = world.new_entity(name="other_entity")
     """  # Changes here should be reflected in conftest.py.
 
-    __slots__ = ("world",)
+    __slots__ = ("world", "__weakref__")
 
     def __init__(self, world: World) -> None:
         """Initialize a new unique entity."""
