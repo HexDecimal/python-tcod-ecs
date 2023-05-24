@@ -3,6 +3,7 @@ from __future__ import annotations
 
 __version__ = "1.2.0"
 import sys
+from collections import defaultdict
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -547,37 +548,37 @@ class World:
 
     def __init__(self) -> None:
         """Initialize a new world."""
-        self._components_by_type: DefaultDict[_ComponentKey[object], dict[Entity, Any]] = DefaultDict(dict)
+        self._components_by_type: defaultdict[_ComponentKey[object], dict[Entity, Any]] = DefaultDict(dict)
         """Query table entity components.
 
         dict[ComponentKey][Entity] = component_instance
         """
-        self._components_by_entity: DefaultDict[Entity, set[_ComponentKey[object]]] = DefaultDict(set)
+        self._components_by_entity: defaultdict[Entity, set[_ComponentKey[object]]] = DefaultDict(set)
         """Random access entity components.
 
         dict[Entity] = {component_keys_owned_by_entity}
         """
 
-        self._tags_by_key: DefaultDict[object, set[Entity]] = DefaultDict(set)
+        self._tags_by_key: defaultdict[object, set[Entity]] = DefaultDict(set)
         """Query table entity tags.
 
         dict[tag] = {all_entities_with_tag}
         """
-        self._tags_by_entity: DefaultDict[Entity, set[Any]] = DefaultDict(set)
+        self._tags_by_entity: defaultdict[Entity, set[Any]] = DefaultDict(set)
         """Random access entity tags.
 
         dict[Entity] = {all_tags_for_entity}
         """
 
-        self._relation_tags_by_entity: DefaultDict[Entity, DefaultDict[object, set[Entity]]] = DefaultDict(
+        self._relation_tags_by_entity: defaultdict[Entity, defaultdict[object, set[Entity]]] = DefaultDict(
             partial(DefaultDict, set)  # type: ignore[arg-type]
         )
         """Random access tag multi-relations.
 
         dict[entity][tag] = {target_entities}
         """
-        self._relation_components_by_entity: DefaultDict[
-            Entity, DefaultDict[_ComponentKey[object], dict[Entity, Any]]
+        self._relation_components_by_entity: defaultdict[
+            Entity, defaultdict[_ComponentKey[object], dict[Entity, Any]]
         ] = DefaultDict(
             partial(DefaultDict, dict)  # type: ignore[arg-type]
         )
@@ -585,7 +586,7 @@ class World:
 
         dict[entity][ComponentKey][target_entity] = component
         """
-        self._relations_lookup: DefaultDict[
+        self._relations_lookup: defaultdict[
             tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]
         ] = DefaultDict(set)
         """Relations query table.  Tags and components are mixed together.
