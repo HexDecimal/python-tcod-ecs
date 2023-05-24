@@ -9,7 +9,6 @@ from typing import (
     TYPE_CHECKING,
     AbstractSet,
     Any,
-    DefaultDict,
     Final,
     Generic,
     Iterable,
@@ -548,30 +547,30 @@ class World:
 
     def __init__(self) -> None:
         """Initialize a new world."""
-        self._components_by_type: defaultdict[_ComponentKey[object], dict[Entity, Any]] = DefaultDict(dict)
+        self._components_by_type: defaultdict[_ComponentKey[object], dict[Entity, Any]] = defaultdict(dict)
         """Query table entity components.
 
         dict[ComponentKey][Entity] = component_instance
         """
-        self._components_by_entity: defaultdict[Entity, set[_ComponentKey[object]]] = DefaultDict(set)
+        self._components_by_entity: defaultdict[Entity, set[_ComponentKey[object]]] = defaultdict(set)
         """Random access entity components.
 
         dict[Entity] = {component_keys_owned_by_entity}
         """
 
-        self._tags_by_key: defaultdict[object, set[Entity]] = DefaultDict(set)
+        self._tags_by_key: defaultdict[object, set[Entity]] = defaultdict(set)
         """Query table entity tags.
 
         dict[tag] = {all_entities_with_tag}
         """
-        self._tags_by_entity: defaultdict[Entity, set[Any]] = DefaultDict(set)
+        self._tags_by_entity: defaultdict[Entity, set[Any]] = defaultdict(set)
         """Random access entity tags.
 
         dict[Entity] = {all_tags_for_entity}
         """
 
-        self._relation_tags_by_entity: defaultdict[Entity, defaultdict[object, set[Entity]]] = DefaultDict(
-            partial(DefaultDict, set)  # type: ignore[arg-type]
+        self._relation_tags_by_entity: defaultdict[Entity, defaultdict[object, set[Entity]]] = defaultdict(
+            partial(defaultdict, set)  # type: ignore[arg-type]
         )
         """Random access tag multi-relations.
 
@@ -579,8 +578,8 @@ class World:
         """
         self._relation_components_by_entity: defaultdict[
             Entity, defaultdict[_ComponentKey[object], dict[Entity, Any]]
-        ] = DefaultDict(
-            partial(DefaultDict, dict)  # type: ignore[arg-type]
+        ] = defaultdict(
+            partial(defaultdict, dict)  # type: ignore[arg-type]
         )
         """Random access relations owning components.
 
@@ -588,7 +587,7 @@ class World:
         """
         self._relations_lookup: defaultdict[
             tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]
-        ] = DefaultDict(set)
+        ] = defaultdict(set)
         """Relations query table.  Tags and components are mixed together.
 
         Tag:
@@ -635,14 +634,14 @@ class World:
             _relation_components: dict[_ComponentKey[object], dict[Entity, dict[Entity, Any]]] = state.pop(
                 "_relation_components"
             )
-            self._relation_components_by_entity = DefaultDict(partial(DefaultDict, dict))  # type: ignore[arg-type]
+            self._relation_components_by_entity = defaultdict(partial(defaultdict, dict))  # type: ignore[arg-type]
             for component_key, component_key_relations in _relation_components.items():
                 for entity, entities_component_table in component_key_relations.items():
                     for target_entity, target_component in entities_component_table.items():
                         self._relation_components_by_entity[entity][component_key][target_entity] = target_component
 
             _relations_by_key: dict[object, dict[Entity, set[Entity]]] = state.pop("_relations_by_key")
-            self._relation_tags_by_entity = DefaultDict(partial(DefaultDict, set))  # type: ignore[arg-type]
+            self._relation_tags_by_entity = defaultdict(partial(defaultdict, set))  # type: ignore[arg-type]
             for tag, tag_relations in _relations_by_key.items():
                 for entity, targets in tag_relations.items():
                     self._relation_tags_by_entity[entity][tag] = targets
