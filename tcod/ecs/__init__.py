@@ -241,6 +241,11 @@ class Entity:
         # Note: This was added after version 1.0.0, objects pickled in <=1.0.0 will call __setstate__.
         return self.__class__, (self.world, self.uid)
 
+    def _force_remap(self, new_uid: object) -> None:
+        """Remap this Entity to a new uid, both and old and new uid's will use this entity."""
+        _entity_table[self.world][new_uid] = self
+        self.uid = new_uid  # type: ignore[misc]
+
 
 class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]], Any]):
     """A proxy attribute to access an entities components like a dictionary.
@@ -677,23 +682,29 @@ class World:
         dict[Entity] = entities_name
         """
 
-        self.global_: Final = Entity(self, None)
+    @property
+    def global_(self) -> Entity:
         """A unique globally accessible entity.
 
         This can be used to store globally accessible components in the world itself without any extra boilerplate.
         Otherwise this entity is not special and will show up with other entities in queries, etc.
+
+        This entity has a `uid` of `None` and may be accessed that way.
+        This syntax my be better for globals in general since it can use any hashable object.
 
         .. versionadded:: 1.1
 
         Example::
 
             >>> world.global_.components[("turn", int)] = 0
+            >>> world[None].components[("turn", int)]  # Alternative syntax
+            0
         """
+        return Entity(self, None)
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         """Unpickle this object and handle state migration."""
         # Migrate from version <=1.0.0.
-        state.setdefault("global_", Entity(self))
         if "_relation_components" in state:
             _relation_components: dict[_ComponentKey[object], dict[Entity, dict[Entity, Any]]] = state.pop(
                 "_relation_components"
@@ -709,6 +720,8 @@ class World:
             for tag, tag_relations in _relations_by_key.items():
                 for entity, targets in tag_relations.items():
                     self._relation_tags_by_entity[entity][tag] = targets
+
+        state.pop("global_", None)  # Migrate from version <=1.2.0.
 
         self.__dict__.update(state)
 
