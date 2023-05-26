@@ -743,7 +743,20 @@ class World:
 
     @property
     def named(self) -> Mapping[object, Entity]:
-        """A view into this worlds named entities."""
+        """A view into this worlds named entities.
+
+        Example::
+
+            >>> entity = world.new_entity(name="MyEntity")  # Name is optional and can be any hashable, not just str.
+            >>> entity
+            <Entity name='MyEntity'>
+            >>> entity.world is world  # Worlds can always be accessed from their entity.
+            True
+            >>> world.named["MyEntity"]  # Named entities can be accessed with `World.named`.
+            <Entity name='MyEntity'>
+            >>> world.named.get("Missing") is None  # `World.named` acts like a dictionary, including assignment and `.get()`.
+            True
+        """
         return self._names_by_name
 
     def new_entity(

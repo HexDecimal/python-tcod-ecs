@@ -42,23 +42,30 @@ Remove or update `tcod` to fix this issue.
 
 ## Entity
 
-New entities can be created with `World.new_entity`.
+Each Entity is identified by its unique id (`uid`) which can be any hashable object and the `world` it belongs to.
+New unique entities can be created with `World.new_entity` which uses a new `object()` as the `uid`.
 An entity always knows about its assigned world.
 Worlds only know about their entities once the entity is assigned a name, component, tag, or relation.
-An entity is identified by its "Python identity" rather than with a low-level stand-in identifier.
 
 ```py
->>> entity = world.new_entity(name="MyEntity")  # Name is optional and can be any hashable, not just str.
+>>> entity = world.new_entity()  # Creates a unique entity using `object()` as the uid
 >>> entity
-<Entity name='MyEntity'>
->>> entity.world is world  # Worlds can always be accessed from their entity.
+<Entity(uid=object at ...)>
+>>> entity.world is world  # Worlds can always be accessed from their entity
 True
->>> world.named["MyEntity"]  # Named entities can be accessed with `World.named`.
-<Entity name='MyEntity'>
->>> world.named.get("Missing") is None  # `World.named` acts like a dictionary, including assignment and `.get()`.
+>>> world[entity.uid] is entity  # Entities with the same world/uid are compared using `is`
+True
+
+# Reference an entity with the given uid, can be any hashable object:
+>>> entity = world["MyEntity"]
+>>> entity
+<Entity(uid='MyEntity')>
+>>> world["MyEntity"] is entity
 True
 
 ```
+
+Use `World.new_entity` to create unique entities and use `World[x]` to reference a global entity or relation with an id.
 
 ## Serialization
 
