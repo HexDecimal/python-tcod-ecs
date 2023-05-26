@@ -54,7 +54,7 @@ jobs:
       - name: Install package
         run: pip install -e ".[test]"
       - name: Mypy
-        uses: liskin/gh-problem-matcher-wrap@v1
+        uses: liskin/gh-problem-matcher-wrap@v2
         with:
           linters: mypy
           run: mypy --show-column-numbers --python-version ${{ matrix.python-version }}
