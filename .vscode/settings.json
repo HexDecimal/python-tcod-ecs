@@ -42,6 +42,7 @@
         "Traceback",
         "typehints",
         "undoc",
+        "unpickling",
         "WASD",
         "WAXD",
         "WINDOWLEAVE"

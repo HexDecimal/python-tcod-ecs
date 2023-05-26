@@ -22,6 +22,7 @@ from typing import (
     Union,
     overload,
 )
+from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from typing_extensions import Self
 
@@ -46,6 +47,15 @@ def abstract_component(cls: type[T]) -> type[T]:
     return cls
 
 
+_entity_table: WeakKeyDictionary[World, WeakValueDictionary[object, Entity]] = WeakKeyDictionary()
+"""A weak table of worlds and unique identifiers to entity objects.
+
+This table is used to that non-unique Entity's won't create a new object and thus will always share identities.
+
+_entity_table[world][uid] = entity
+"""
+
+
 class Entity:
     """A unique entity in a world.
 
@@ -57,12 +67,47 @@ class Entity:
         >>> other_entity = world.new_entity(name="other_entity")
     """  # Changes here should be reflected in conftest.py.
 
-    __slots__ = ("world", "__weakref__")
+    __slots__ = ("world", "uid", "__weakref__")
 
-    def __init__(self, world: World) -> None:
-        """Initialize a new unique entity."""
-        self.world: Final = world
-        """The :any:`World` this entity belongs to."""
+    world: Final[World]  # type:ignore[misc]  # https://github.com/python/mypy/issues/5774
+    """The :any:`World` this entity belongs to."""
+    uid: Final[object]  # type:ignore[misc]
+    """This entities unique identifier."""
+
+    def __new__(cls, world: World, uid: object = object) -> Entity:
+        """Return a unique entity for the given `world` and `uid`.
+
+        If an entity already exists with a matching `world` and `uid` then that entity is returned.
+
+        The `uid` default of `object` will create an instance of :any:`object` as the `uid`.
+        An entity created this way will never match or collide with an existing entity.
+
+        Example::
+
+            >>> world = World()
+            >>> Entity(world, "foo")
+            <Entity(uid='foo')>
+            >>> Entity(world, "foo") is Entity(world, "foo")
+            True
+            >>> Entity(world) is Entity(world)
+            False
+        """
+        if uid is object:
+            uid = object()
+        try:
+            table = _entity_table[world]
+        except KeyError:
+            table = WeakValueDictionary()
+            _entity_table[world] = table
+        try:
+            return table[uid]
+        except KeyError:
+            pass
+        self = super().__new__(cls)
+        self.world = world  # type:ignore[misc]  # https://github.com/python/mypy/issues/5774
+        self.uid = uid  # type:ignore[misc]
+        _entity_table[world][uid] = self
+        return self
 
     @property
     def components(self) -> EntityComponents:
@@ -167,15 +212,31 @@ class Entity:
             self.world._names_by_entity[self] = value
 
     def __repr__(self) -> str:
-        """Return a representation of this entity."""
-        items = [self.__class__.__name__]
+        """Return a representation of this entity.
+
+        Example::
+
+            >>> world.new_entity()
+            <Entity(uid=object at ...)>
+            >>> world["foo"]
+            <Entity(uid='foo')>
+            >>> world.new_entity(name="foo")
+            <Entity name='foo'>
+        """
+        uid_str = f"object at 0x{id(self.uid):X}" if self.uid.__class__ == object else repr(self.uid)
+        items = [f"{self.__class__.__name__}(uid={uid_str})"]
         name = self.name
-        items.append(f"0x{id(self):X}" if name is None else f"name={name!r}")
+        if name is not None:  # Switch to older style.
+            items = [self.__class__.__name__, f"name={name!r}"]
         return f"<{' '.join(items)}>"
 
-    def __reduce__(self) -> tuple[type[Entity], tuple[World]]:  # Private function.  # noqa: D105
+    def __reduce__(self) -> tuple[type[Entity], tuple[World, object]]:
+        """Pickle this Entity.
+
+        Note that any pickled entity will include the world it belongs to and all the entities of that world.
+        """
         # Note: This was added after version 1.0.0, objects pickled in <=1.0.0 will call __setstate__.
-        return self.__class__, (self.world,)
+        return self.__class__, (self.world, self.uid)
 
 
 class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]], Any]):
@@ -613,7 +674,7 @@ class World:
         dict[Entity] = entities_name
         """
 
-        self.global_: Final = Entity(self)
+        self.global_: Final = Entity(self, None)
         """A unique globally accessible entity.
 
         This can be used to store globally accessible components in the world itself without any extra boilerplate.
@@ -647,6 +708,22 @@ class World:
                     self._relation_tags_by_entity[entity][tag] = targets
 
         self.__dict__.update(state)
+
+    def __getitem__(self, uid: object) -> Entity:
+        """Return an entity associated with a unique id.
+
+        Example::
+
+            >>> world = World()
+            >>> foo = world["foo"]  # Referencing a new entity returns a new empty entity
+            >>> foo is world["foo"]
+            True
+            >>> entity = world.new_entity()
+            >>> world[entity.uid] is entity  # Anonymous entities can be referred to by their uid
+            True
+        """
+        assert uid is not object, "This is reserved."
+        return Entity(self, uid)
 
     @property
     def named(self) -> Mapping[object, Entity]:

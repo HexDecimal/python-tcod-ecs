@@ -90,7 +90,7 @@ True
 >>> entity.components[int]  # Missing keys raise KeyError
 Traceback (most recent call last):
   ...
-KeyError: <Entity ...>
+KeyError: <Entity...>
 >>> entity.components.get(int, "default")  # Test keys with `.get()` like a dictionary.
 'default'
 >>> @attrs.define
@@ -124,7 +124,7 @@ Vector2(x=10, y=0)
 # This always iterates over the entity itself instead of an Entity component.
 >>> for e, pos, i in world.Q[tcod.ecs.Entity, Vector2, int]:
 ...     print((e, pos, i))
-(<Entity ...>, Vector2(x=10, y=0), 11)
+(<Entity...>, Vector2(x=10, y=0), 11)
 
 ```
 
