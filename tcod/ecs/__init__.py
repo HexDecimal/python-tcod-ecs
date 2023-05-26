@@ -1,7 +1,6 @@
 """A type-hinted Entity Component System based on Python dictionaries and sets."""
 from __future__ import annotations
 
-__version__ = "1.2.0"
 import sys
 from collections import defaultdict
 from functools import partial
@@ -25,6 +24,10 @@ from typing import (
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from typing_extensions import Self
+
+from tcod.ecs import _version
+
+__version__ = _version.__version__
 
 if sys.version_info >= (3, 10):
     from types import EllipsisType

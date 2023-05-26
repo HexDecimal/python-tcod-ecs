@@ -62,3 +62,34 @@ jobs:
         run: pytest --cov-report=xml
       - name: Upload coverage
         uses: codecov/codecov-action@v3
+
+  build-dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install build
+        run: pip install build
+      - name: Build package
+        run: python -m build
+      - uses: actions/upload-artifact@v3
+        with:
+          name: python-dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    needs: [build-dist]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+      url: https://pypi.org/p/tcod
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: python-dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
