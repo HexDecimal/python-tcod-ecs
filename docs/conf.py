@@ -12,7 +12,7 @@ sys.path.append("..")
 
 from tcod.ecs import __version__  # noqa
 
-project = "tcod-ec"
+project = "tcod-ecs"
 copyright = "2023, Kyle Benesch"
 author = "Kyle Benesch"
 release = __version__

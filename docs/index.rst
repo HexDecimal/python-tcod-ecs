@@ -1,4 +1,4 @@
-Welcome to tcod-ec's documentation!
+Welcome to tcod-ecs's documentation!
 =======================================
 
 .. toctree::
