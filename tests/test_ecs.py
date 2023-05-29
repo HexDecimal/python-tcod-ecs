@@ -1,7 +1,9 @@
 # ruff: noqa: D100 D103 ANN401 S301
 from __future__ import annotations
 
+import io
 import pickle
+import pickletools
 import sys
 from typing import Any, Callable, Final, Iterator
 
@@ -204,6 +206,13 @@ def iter_samples() -> Iterator[tuple[str, str]]:
             yield sample_version, ecs_version
 
 
+def pickle_disassemble(pickle: bytes) -> str:
+    """Return a readable disassembly of a pickle stream."""
+    with io.StringIO() as out:
+        pickletools.dis(pickle, out)
+        return out.getvalue()
+
+
 @pytest.mark.xfail(
     condition=not (sys.platform == "win32" and sys.version_info[:2] == (3, 11)),
     reason="Pickle objects are sometimes not reproducible",
@@ -216,8 +225,7 @@ def test_pickle(sample_version: str) -> None:
     sample_data = PICKLED_SAMPLES[sample_version]["latest"]
 
     pickled = pickle.dumps(sample_world(), protocol=4)
-    print(repr(pickled))
-    assert pickled == sample_data, "Check if data format has changed"
+    assert pickle_disassemble(pickled) == pickle_disassemble(sample_data), "Check if data format has changed"
     unpickled: tcod.ecs.World = pickle.loads(pickled)
     check_world(unpickled)
 
