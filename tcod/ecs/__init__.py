@@ -316,6 +316,8 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def by_name_type(self, name_type: type[_T1], component_type: type[_T2]) -> Iterator[tuple[_T1, type[_T2]]]:
         """Iterate over all of an entities component keys with a specific (name_type, component_type) combination.
 
+        .. versionadded:: 3.0.0
+
         Example::
 
             >>> entity.components["A", int] = 1
