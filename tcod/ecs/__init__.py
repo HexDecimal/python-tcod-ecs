@@ -313,6 +313,24 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         for value in values:
             self.set(value)
 
+    def by_name_type(self, name_type: type[_T1], component_type: type[_T2]) -> Iterator[tuple[_T1, type[_T2]]]:
+        """Iterate over all of an entities component keys with a specific (name_type, component_type) combination.
+
+        Example::
+
+            >>> entity.components["A", int] = 1
+            >>> entity.components["B", int] = 2
+            >>> sorted(entity.components.by_name_type(str, int))
+            [('A', <class 'int'>), ('B', <class 'int'>)]
+        """
+        # Naive implementation until I feel like optimizing it.
+        for key in self:
+            if not isinstance(key, tuple):
+                continue
+            key_name, key_component = key
+            if key_component is component_type and isinstance(key_name, name_type):
+                yield key_name, key_component
+
     if TYPE_CHECKING:  # Type-hinted overrides
 
         @overload

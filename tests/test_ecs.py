@@ -245,3 +245,13 @@ def test_global() -> None:
     world = tcod.ecs.World()
     world.global_.components[int] = 1
     assert set(world.Q[tcod.ecs.Entity, int]) == {(world.global_, 1)}
+
+
+def test_by_name_type() -> None:
+    entity = tcod.ecs.World()[None]
+    assert list(entity.components.by_name_type(int, int)) == []
+    entity.components[int] = 0
+    entity.components[1, int] = 1
+    entity.components[2, int] = 2
+    entity.components["", int] = 3
+    assert set(entity.components.by_name_type(int, int)) == {(1, int), (2, int)}
