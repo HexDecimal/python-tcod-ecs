@@ -238,7 +238,6 @@ class Entity:
 
         Note that any pickled entity will include the world it belongs to and all the entities of that world.
         """
-        # Note: This was added after version 1.0.0, objects pickled in <=1.0.0 will call __setstate__.
         return self.__class__, (self.world, self.uid)
 
     def _force_remap(self, new_uid: object) -> None:
@@ -704,23 +703,6 @@ class World:
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         """Unpickle this object and handle state migration."""
-        # Migrate from version <=1.0.0.
-        if "_relation_components" in state:
-            _relation_components: dict[_ComponentKey[object], dict[Entity, dict[Entity, Any]]] = state.pop(
-                "_relation_components"
-            )
-            self._relation_components_by_entity = defaultdict(partial(defaultdict, dict))  # type: ignore[arg-type]
-            for component_key, component_key_relations in _relation_components.items():
-                for entity, entities_component_table in component_key_relations.items():
-                    for target_entity, target_component in entities_component_table.items():
-                        self._relation_components_by_entity[entity][component_key][target_entity] = target_component
-
-            _relations_by_key: dict[object, dict[Entity, set[Entity]]] = state.pop("_relations_by_key")
-            self._relation_tags_by_entity = defaultdict(partial(defaultdict, set))  # type: ignore[arg-type]
-            for tag, tag_relations in _relations_by_key.items():
-                for entity, targets in tag_relations.items():
-                    self._relation_tags_by_entity[entity][tag] = targets
-
         state.pop("global_", None)  # Migrate from version <=1.2.0.
 
         self.__dict__.update(state)
