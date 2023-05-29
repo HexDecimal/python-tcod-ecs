@@ -707,6 +707,9 @@ class World:
 
         self.__dict__.update(state)
 
+        if self.global_.uid is not None:  # Migrate from version <=1.2.0.
+            self.global_._force_remap(None)
+
     def __getitem__(self, uid: object) -> Entity:
         """Return an entity associated with a unique id.
 
