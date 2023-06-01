@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import sys
 from collections import defaultdict
-from functools import partial
 from typing import (
     TYPE_CHECKING,
     AbstractSet,
@@ -630,6 +629,16 @@ class EntityComponentRelations:
         EntityComponentRelationMapping(self.entity, key).clear()
 
 
+def _defaultdict_of_set() -> defaultdict[_T1, set[_T2]]:
+    """Return a new defaultdict of sets."""
+    return defaultdict(set)
+
+
+def _defaultdict_of_dict() -> defaultdict[_T1, dict[_T2, _T3]]:
+    """Return a new defaultdict of dicts."""
+    return defaultdict(dict)
+
+
 class World:
     """A container for entities and components."""
 
@@ -658,7 +667,7 @@ class World:
         """
 
         self._relation_tags_by_entity: defaultdict[Entity, defaultdict[object, set[Entity]]] = defaultdict(
-            partial(defaultdict, set)  # type: ignore[arg-type]
+            _defaultdict_of_set
         )
         """Random access tag multi-relations.
 
@@ -666,9 +675,7 @@ class World:
         """
         self._relation_components_by_entity: defaultdict[
             Entity, defaultdict[_ComponentKey[object], dict[Entity, Any]]
-        ] = defaultdict(
-            partial(defaultdict, dict)  # type: ignore[arg-type]
-        )
+        ] = defaultdict(_defaultdict_of_dict)
         """Random access relations owning components.
 
         dict[entity][ComponentKey][target_entity] = component
