@@ -156,8 +156,7 @@ def check_world_v1(world: tcod.ecs.World) -> None:
     entity_b = world.named["B"]
     assert entity_b.relation_tags["ChildOf"] == entity
     assert entity_b.relation_components[str][entity] == "str"
-    assert not world.global_.components
-    assert world.global_ is world[None]
+    assert not world[None].components
 
 
 def sample_world_v2() -> tcod.ecs.World:
@@ -170,7 +169,7 @@ def sample_world_v2() -> tcod.ecs.World:
     world["A"].tags.add("tag")
     world["B"].relation_tags["ChildOf"] = world["A"]
     world["B"].relation_components[str][world["A"]] = "str"
-    world.global_.components[bool] = True
+    world[None].components[bool] = True
     return world
 
 
@@ -183,8 +182,7 @@ def check_world_v2(world: tcod.ecs.World) -> None:
     assert world["A"].tags == original["A"].tags
     assert world["B"].relation_tags["ChildOf"] == world["A"]
     assert world["B"].relation_components[str][world["A"]] == "str"
-    assert world.global_.components[bool] is True
-    assert world.global_ is world[None]
+    assert world[None].components[bool] is True
 
 
 PICKLED_SAMPLES = {
@@ -246,8 +244,10 @@ def test_unpickle(sample_version: str, ecs_version: str) -> None:
 
 def test_global() -> None:
     world = tcod.ecs.World()
-    world.global_.components[int] = 1
-    assert set(world.Q[tcod.ecs.Entity, int]) == {(world.global_, 1)}
+    with pytest.warns(match=r"world\[None\]"):
+        world.global_.components[int] = 1
+    with pytest.warns(match=r"world\[None\]"):
+        assert set(world.Q[tcod.ecs.Entity, int]) == {(world.global_, 1)}
 
 
 def test_by_name_type() -> None:

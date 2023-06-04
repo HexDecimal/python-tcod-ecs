@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import warnings
 from collections import defaultdict
 from typing import (
     TYPE_CHECKING,
@@ -722,20 +723,25 @@ class World:
 
         Example::
 
-            >>> world.global_.components[("turn", int)] = 0
-            >>> world[None].components[("turn", int)]  # Alternative syntax
+            >>> world[None].components[("turn", int)] = 0
+            >>> world[None].components[("turn", int)]
             0
         """
+        warnings.warn(
+            "The 'world.global_' attribute has been deprecated. Use 'world[None]' to access this entity.",
+            FutureWarning,
+            stacklevel=2,
+        )
         return Entity(self, None)
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         """Unpickle this object and handle state migration."""
-        state.pop("global_", None)  # Migrate from version <=1.2.0.
+        global_: Entity | None = state.pop("global_", None)  # Migrate from version <=1.2.0.
 
         self.__dict__.update(state)
 
-        if self.global_.uid is not None:  # Migrate from version <=1.2.0.
-            self.global_._force_remap(None)
+        if global_ is not None and global_.uid is not None:  # Migrate from version <=1.2.0.
+            global_._force_remap(None)
 
     def __getitem__(self, uid: object) -> Entity:
         """Return an entity associated with a unique id.
