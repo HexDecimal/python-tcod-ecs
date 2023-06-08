@@ -50,7 +50,7 @@
     "python.formatting.provider": "none",
     "editor.codeActionsOnSave": {
         "source.fixAll": true, // Invokes Ruff fixes.
-        "source.organizeImports": true // Runs isort.
+        "source.organizeImports": false // Runs isort.
     },
     "editor.rulers": [
         120
