@@ -26,6 +26,7 @@ write_to = "tcod/ecs/_version.py"
 [project.optional-dependencies]
 test = [
     "attrs >=22.2.0",
+    "cattrs >=23.1.2",
     "pytest >=7.2.0",
     "pytest-cov >=4.0.0",
     "pytest-benchmark >=4.0.0",

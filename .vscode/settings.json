@@ -15,6 +15,7 @@
         "automodule",
         "autouse",
         "Benesch",
+        "cattrs",
         "codecov",
         "doctests",
         "dtype",
@@ -31,6 +32,7 @@
         "Numpad",
         "PAGEDOWN",
         "PAGEUP",
+        "preconf",
         "pytest",
         "quickstart",
         "RMASK",
@@ -43,6 +45,7 @@
         "typehints",
         "undoc",
         "unpickling",
+        "unstructure",
         "WASD",
         "WAXD",
         "WINDOWLEAVE"

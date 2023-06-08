@@ -5,3 +5,8 @@ API reference
    :members:
    :undoc-members:
    :show-inheritance:
+
+.. automodule:: tcod.ecs.cattrs
+   :members:
+   :undoc-members:
+   :show-inheritance:

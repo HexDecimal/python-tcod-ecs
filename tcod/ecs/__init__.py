@@ -709,6 +709,81 @@ class World:
         dict[Entity] = entities_name
         """
 
+    def _get_all_entities(self) -> set[Entity]:
+        entities = set(self._components_by_entity.keys())
+        entities |= self._tags_by_entity.keys()
+        entities |= self._relation_tags_by_entity.keys()
+        entities |= self._relation_components_by_entity.keys()
+        entities |= self._names_by_entity.keys()
+        return entities
+
+    def _clear(self) -> None:
+        self._components_by_type = defaultdict(dict)
+        self._components_by_entity = defaultdict(set)
+        self._tags_by_key = defaultdict(set)
+        self._tags_by_entity = defaultdict(set)
+        self._relation_tags_by_entity = defaultdict(_defaultdict_of_set)
+        self._relation_components_by_entity = defaultdict(_defaultdict_of_dict)
+        self._relations_lookup = defaultdict(set)
+        self._names_by_name = {}
+        self._names_by_entity = {}
+
+    def __unpack_relations(
+        self,
+        relation_tags: Mapping[object, Mapping[object, Iterable[object]]],
+        relation_components: Mapping[object, Mapping[type[object], Mapping[object, object]]],
+    ) -> None:
+        for uid, relation_tags_values in relation_tags.items():
+            entity = Entity(self, uid)
+            for tag, targets in relation_tags_values.items():
+                for target_uid in targets:
+                    target = Entity(self, target_uid)
+                    self._relation_tags_by_entity[entity][tag].add(target)
+                    self._relations_lookup[(tag, target)].add(entity)
+                    self._relations_lookup[(tag, ...)].add(entity)
+                    self._relations_lookup[(entity, tag, None)].add(target)
+                    self._relations_lookup[(..., tag, None)].add(target)
+
+        for uid, relation_components_values in relation_components.items():
+            entity = Entity(self, uid)
+            for component_type, target_components in relation_components_values.items():
+                for target_uid, component_value in target_components.items():
+                    target = Entity(self, target_uid)
+                    self._relation_components_by_entity[entity][component_type][target] = component_value
+                    self._relations_lookup[(component_type, target)].add(entity)
+                    self._relations_lookup[(component_type, ...)].add(entity)
+                    self._relations_lookup[(entity, component_type, None)].add(target)
+                    self._relations_lookup[(..., component_type, None)].add(target)
+
+    def _unpack(  # noqa: PLR0913
+        self,
+        *,
+        components: Mapping[object, Mapping[type[object], object]],
+        tags: Mapping[object, Iterable[object]],
+        relation_tags: Mapping[object, Mapping[object, Iterable[object]]],
+        relation_components: Mapping[object, Mapping[type[object], Mapping[object, object]]],
+        names: Mapping[object, object],
+    ) -> None:
+        if self._get_all_entities():
+            pass
+        self._clear()
+        for uid, components_values in components.items():
+            entity = Entity(self, uid)
+            for component_type, component_value in components_values.items():
+                self._components_by_type[component_type][entity] = component_value
+                self._components_by_entity[entity].add(component_type)
+
+        for uid, tag_values in tags.items():
+            entity = Entity(self, uid)
+            self._tags_by_entity[entity].update(tag_values)
+            for tag_value in tag_values:
+                self._tags_by_key[tag_value].add(entity)
+
+        self._names_by_entity = {Entity(self, uid): tag for uid, tag in names.items()}
+        self._names_by_name = {v: k for k, v in self._names_by_entity.items()}
+
+        self.__unpack_relations(relation_tags, relation_components)
+
     @property
     def global_(self) -> Entity:
         """A unique globally accessible entity.
