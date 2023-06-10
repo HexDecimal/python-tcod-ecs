@@ -14,7 +14,8 @@ import tcod.ecs
 
 def test_world() -> None:
     world = tcod.ecs.World()
-    entity = world.new_entity([1, "test"])
+    with pytest.warns():
+        entity = world.new_entity([1, "test"])
     assert entity.components[int] == 1
     assert str in entity.components
     del entity.components[str]
@@ -43,12 +44,12 @@ def test_component_names() -> None:
 def test_relations() -> None:
     ChildOf: Final = "ChildOf"
     world = tcod.ecs.World()
-    entity_a = world.new_entity(name="A")
-    entity_b = world.new_entity(name="B")
+    entity_a = world["A"]
+    entity_b = world["B"]
     entity_b.relation_tags[ChildOf] = entity_a
-    entity_c = world.new_entity(name="C")
+    entity_c = world["C"]
     entity_c.relation_tags[ChildOf] = entity_a
-    entity_d = world.new_entity(name="D")
+    entity_d = world["D"]
     entity_d.relation_tags[ChildOf] = entity_b
     assert set(world.Q.all_of(relations=[(ChildOf, entity_a)])) == {entity_b, entity_c}
     assert set(world.Q.all_of(relations=[(ChildOf, ...)])) == {entity_b, entity_c, entity_d}
@@ -63,9 +64,9 @@ def test_relations() -> None:
 
 def test_relations_many() -> None:
     world = tcod.ecs.World()
-    entity_a = world.new_entity(name="A")
-    entity_b = world.new_entity(name="B")
-    entity_c = world.new_entity(name="C")
+    entity_a = world["A"]
+    entity_b = world["B"]
+    entity_c = world["C"]
 
     with pytest.raises(KeyError):
         entity_a.relation_tags["foo"]
@@ -76,8 +77,8 @@ def test_relations_many() -> None:
 
 def test_relation_components() -> None:
     world = tcod.ecs.World()
-    entity_a = world.new_entity(name="A")
-    entity_b = world.new_entity(name="B")
+    entity_a = world["A"]
+    entity_b = world["B"]
 
     entity_b.relation_components[int][entity_a] = 1
     assert entity_b.relation_components[int][entity_a] == 1
@@ -89,15 +90,20 @@ def test_relation_components() -> None:
 
 def test_naming() -> None:
     world = tcod.ecs.World()
-    entity_a = world.new_entity(name="A")
+    with pytest.warns():
+        entity_a = world.new_entity(name="A")
     assert entity_a.name == "A"
     assert world.named["A"] is entity_a
-    entity_a2 = world.new_entity(name="A")
+    with pytest.warns():
+        entity_a2 = world.new_entity(name="A")
     assert world.named["A"] is entity_a2
     assert entity_a.name is None
-    entity_a2.name = None
+    with pytest.warns():
+        entity_a2.name = None
     assert entity_a2.name is None
     assert world.named.get("A") is None
+    with pytest.warns():
+        assert repr(world.new_entity(name="foo")) == "<Entity name='foo'>"
 
 
 def test_component_missing(benchmark: Any) -> None:
@@ -137,11 +143,13 @@ def test_tag_found(benchmark: Any) -> None:
 def sample_world_v1() -> tcod.ecs.World:
     """Return a sample world."""
     world = tcod.ecs.World()
-    entity = world.new_entity(name="A")
+    with pytest.warns():
+        entity = world.new_entity(name="A")
     entity.components[str] = "str"
     entity.components[("foo", str)] = "foo"
     entity.tags.add("tag")
-    entity_b = world.new_entity(name="B")
+    with pytest.warns():
+        entity_b = world.new_entity(name="B")
     entity_b.relation_tags["ChildOf"] = entity
     entity_b.relation_components[str][entity] = "str"
     return world
@@ -162,7 +170,8 @@ def check_world_v1(world: tcod.ecs.World) -> None:
 def sample_world_v2() -> tcod.ecs.World:
     """Return a sample world."""
     world = tcod.ecs.World()
-    world["A"].name = "A"
+    with pytest.warns():
+        world["A"].name = "A"
     assert world.named["A"] is world["A"]
     world["A"].components[str] = "str"
     world["A"].components[("foo", str)] = "foo"
@@ -252,9 +261,11 @@ def test_global() -> None:
 
 def test_by_name_type() -> None:
     entity = tcod.ecs.World()[None]
-    assert list(entity.components.by_name_type(int, int)) == []
+    with pytest.warns():
+        assert list(entity.components.by_name_type(int, int)) == []
     entity.components[int] = 0
     entity.components[1, int] = 1
     entity.components[2, int] = 2
     entity.components["", int] = 3
-    assert set(entity.components.by_name_type(int, int)) == {(1, int), (2, int)}
+    with pytest.warns():
+        assert set(entity.components.by_name_type(int, int)) == {(1, int), (2, int)}

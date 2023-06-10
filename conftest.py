@@ -10,8 +10,8 @@ import tcod.ecs
 def _add_world_entity(doctest_namespace: Dict[str, Any]) -> None:
     """Add world and entity objects to all doctests."""
     world = tcod.ecs.World()
-    entity = world.new_entity(name="entity")
-    other_entity = world.new_entity(name="other_entity")
+    entity = world["entity"]
+    other_entity = world["other"]
     doctest_namespace.update(
         {
             "tcod": tcod,

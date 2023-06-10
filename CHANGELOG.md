@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- `World.new_entity` can now take a `Mapping` as the `components` parameter.
+
+### Deprecated
+- Implicit keys for components have been deprecated in all places.
+- The names feature has been deprecated.
+- `Entity.components.by_name_type` has been deprecated.
 
 ## [3.0.1] - 2023-06-04
 ### Deprecated

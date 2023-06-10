@@ -107,10 +107,7 @@ KeyError: <Entity...>
 >>> entity.components[Vector2] = Vector2(1, 2)
 >>> entity.components[Vector2]
 Vector2(x=1, y=2)
->>> entity.components.set(Vector2(3, 4))  # Shorter syntax derives the type from the value when assigning a component.
->>> entity.components[Vector2]
-Vector2(x=3, y=4)
->>> entity.components.update_values([11, Vector2(0, 0)])  # Multiple values can be assigned without keys.
+>>> entity.components.update({int: 11, Vector2: Vector2(0, 0)})  # Multiple values can be assigned like a dict.
 >>> entity.components[int]
 11
 >>> entity.components[Vector2]
