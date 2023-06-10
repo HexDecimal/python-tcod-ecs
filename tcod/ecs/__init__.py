@@ -47,7 +47,7 @@ _ComponentKey = Union[Type[T], Tuple[object, Type[T]]]
 def abstract_component(cls: type[T]) -> type[T]:
     """Register class `cls` as an abstract component and return it.
 
-    .. deprecated:: Unreleased
+    .. deprecated:: 3.1
         This decorator is deprecated since abstract components should always be explicit.
     """
     warnings.warn(
@@ -227,7 +227,7 @@ class Entity:
 
         You may assign a new name, but if an entity of the world already has that name then it will lose it.
 
-        .. deprecated:: Unreleased
+        .. deprecated:: 3.1
             This feature has been deprecated.
         """
         return self.world._names_by_entity.get(self)
@@ -281,7 +281,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def set(self, value: object, *, _stacklevel: int = 1) -> None:
         """Assign or overwrite a component, automatically deriving the key.
 
-        .. deprecated:: Unreleased
+        .. deprecated:: 3.1
             Setting values without an explicit key has been deprecated.
         """
         warnings.warn(
@@ -340,7 +340,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def update_values(self, values: Iterable[object], *, _stacklevel: int = 1) -> None:
         """Add or overwrite multiple components inplace, deriving the keys from the values.
 
-        .. deprecated:: Unreleased
+        .. deprecated:: 3.1
             Setting values without an explicit key has been deprecated.
         """
         for value in values:
@@ -351,7 +351,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
 
         .. versionadded:: 3.0
 
-        .. deprecated:: Unreleased
+        .. deprecated:: 3.1
             This method has been deprecated. Iterate over items instead.
         """
         warnings.warn("This method has been deprecated. Iterate over items instead.", FutureWarning, stacklevel=2)
@@ -793,7 +793,7 @@ class World:
     def named(self) -> Mapping[object, Entity]:
         """A view into this worlds named entities.
 
-        .. deprecated:: Unreleased
+        .. deprecated:: 3.1
             This feature has been deprecated.
         """
         return self._names_by_name
@@ -807,7 +807,7 @@ class World:
     ) -> Entity:
         """Create and return a new entity.
 
-        .. versionchanged:: Unreleased
+        .. versionchanged:: 3.1
             `components` can now take a mapping.
 
         Example::
