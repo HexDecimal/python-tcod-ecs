@@ -10,7 +10,7 @@ import sys
 
 sys.path.append("..")
 
-from tcod.ecs import __version__  # noqa
+from tcod.ecs import __version__  # noqa: E402
 
 project = "tcod-ecs"
 copyright = "2023, Kyle Benesch"
@@ -34,13 +34,13 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
 html_static_path = ["_static"]
 
 
 intersphinx_mapping = {
-    "https://docs.python.org/3/": None,
-    "https://python-tcod.readthedocs.io/en/latest/": None,
+    "python": ("https://docs.python.org/3/", None),
+    "tcod": ("https://python-tcod.readthedocs.io/en/latest/", None),
 }
 
 autodoc_typehints = "description"

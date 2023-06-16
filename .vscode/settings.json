@@ -18,6 +18,7 @@
         "codecov",
         "doctests",
         "dtype",
+        "furo",
         "genindex",
         "hashable",
         "intersphinx",
