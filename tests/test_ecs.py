@@ -269,3 +269,8 @@ def test_by_name_type() -> None:
     entity.components["", int] = 3
     with pytest.warns():
         assert set(entity.components.by_name_type(int, int)) == {(1, int), (2, int)}
+
+
+def test_suspicious_tags() -> None:
+    with pytest.warns(match=r"The tags parameter was given a str type"):
+        tcod.ecs.World().Q.all_of(tags="Tags")

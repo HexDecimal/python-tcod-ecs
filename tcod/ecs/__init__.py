@@ -897,6 +897,18 @@ class Query:
             entities.difference_update(exclude)
         return entities
 
+    @staticmethod
+    def __check_suspicious_tags(tags: Iterable[object], stacklevel: int = 2) -> None:
+        if isinstance(tags, str):
+            warnings.warn(
+                "The tags parameter was given a str type."
+                " This will split the string and check its individual letters as tags."
+                "\nAdd square brackets 'tags=[tag]' to check for a single string tag. (Recommended)"
+                "\nOtherwise use 'tags=list(tags)' to suppress this warning.",
+                RuntimeWarning,
+                stacklevel=stacklevel + 1,
+            )
+
     def all_of(
         self,
         components: Iterable[_ComponentKey[object]] = (),
@@ -905,6 +917,7 @@ class Query:
         relations: Iterable[tuple[object, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None]] = (),
     ) -> Self:
         """Filter entities based on having all of the provided elements."""
+        self.__check_suspicious_tags(tags)
         self._all_of_components.update(components)
         self._all_of_tags.update(tags)
         self._all_of_relations.update(relations)
@@ -918,6 +931,7 @@ class Query:
         relations: Iterable[tuple[object, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None]] = (),
     ) -> Self:
         """Filter entities based on having none of the provided elements."""
+        self.__check_suspicious_tags(tags)
         self._none_of_components.update(components)
         self._none_of_tags.update(tags)
         self._none_of_relations.update(relations)
