@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - Warn if a string is passed directly as a tags parameter, which might cause unexpected behavior.
+- `Entity.relation_tags` has been renamed to `Entity.relation_tag`.
+
+### Deprecated
+- Deprecated the renamed attribute `Entity.relation_tag`.
 
 ## [3.1.0] - 2023-06-10
 ### Changed

@@ -197,7 +197,7 @@ True
 ## Relations
 
 Use `Entity.relation_components[component_key][target] = component` to associate a relation with data.
-Use `Entity.relation_tags[tag] = target` to associate a tag exclusively with a target entity.
+Use `Entity.relation_tag[tag] = target` to associate a tag exclusively with a target entity.
 Use `Entity.relation_tags_many[tag].add(target)` to associate a tag with multiple targets.
 Tags and relations share the same space then queried, so tags can not be in the format of a component key.
 Relations are unidirectional.
@@ -215,9 +215,9 @@ Relations are unidirectional.
 >>> moon_rock = world.new_entity()
 >>> planet.relation_components[OrbitOf][star] = OrbitOf(dist=1000)
 >>> moon.relation_components[OrbitOf][planet] = OrbitOf(dist=10)
->>> ship.relation_tags[LandedOn] = moon
->>> moon_rock.relation_tags[LandedOn] = moon
->>> player.relation_tags[LandedOn] = moon_rock
+>>> ship.relation_tag[LandedOn] = moon
+>>> moon_rock.relation_tag[LandedOn] = moon
+>>> player.relation_tag[LandedOn] = moon_rock
 >>> set(world.Q.all_of(relations=[(OrbitOf, planet)])) == {moon}
 True
 >>> set(world.Q.all_of(relations=[(OrbitOf, ...)])) == {planet, moon}  # Get objects in an orbit.

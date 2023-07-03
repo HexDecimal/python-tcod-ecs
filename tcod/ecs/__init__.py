@@ -179,18 +179,28 @@ class Entity:
         return EntityComponentRelations(self)
 
     @property
-    def relation_tags(self) -> EntityRelationsExclusive:
+    def relation_tag(self) -> EntityRelationsExclusive:
         """Access an entities exclusive relations.
 
         Example::
 
-            >>> entity.relation_tags["ChildOf"] = other_entity  # Assign relation.
+            >>> entity.relation_tag["ChildOf"] = other_entity  # Assign relation.
             >>> list(world.Q.all_of(relations=[("ChildOf", other_entity)]))  # Get children of other_entity.
             [<Entity(uid='entity')>]
             >>> list(world.Q.all_of(relations=[(entity, "ChildOf", None)]))  # Get parents of entity.
             [<Entity(uid='other')>]
-            >>> del entity.relation_tags["ChildOf"]
+            >>> del entity.relation_tag["ChildOf"]
         """
+        return EntityRelationsExclusive(self)
+
+    @property
+    def relation_tags(self) -> EntityRelationsExclusive:
+        """Access an entities exclusive relations.
+
+        .. deprecated:: 3.2
+            This attribute was renamed to :any:`relation_tag`.
+        """
+        warnings.warn("The '.relation_tags' attribute has been renamed to '.relation_tag'", FutureWarning, stacklevel=2)
         return EntityRelationsExclusive(self)
 
     @property
@@ -528,7 +538,7 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
 class EntityRelationsExclusive(MutableMapping[object, Entity]):
     """A proxy attribute to access entity relations exclusively.
 
-    See :any:`Entity.relation_tags`.
+    See :any:`Entity.relation_tag`.
     """
 
     __slots__ = ("entity",)

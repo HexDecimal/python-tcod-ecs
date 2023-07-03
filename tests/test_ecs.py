@@ -46,20 +46,26 @@ def test_relations() -> None:
     world = tcod.ecs.World()
     entity_a = world["A"]
     entity_b = world["B"]
-    entity_b.relation_tags[ChildOf] = entity_a
+    entity_b.relation_tag[ChildOf] = entity_a
     entity_c = world["C"]
-    entity_c.relation_tags[ChildOf] = entity_a
+    entity_c.relation_tag[ChildOf] = entity_a
     entity_d = world["D"]
-    entity_d.relation_tags[ChildOf] = entity_b
+    entity_d.relation_tag[ChildOf] = entity_b
     assert set(world.Q.all_of(relations=[(ChildOf, entity_a)])) == {entity_b, entity_c}
     assert set(world.Q.all_of(relations=[(ChildOf, ...)])) == {entity_b, entity_c, entity_d}
     assert set(world.Q.all_of(relations=[(ChildOf, entity_d)])) == set()
     assert set(world.Q.all_of(relations=[(ChildOf, ...)]).none_of(relations=[(ChildOf, entity_a)])) == {entity_d}
     assert entity_a in entity_b.relation_tags_many[ChildOf]
-    assert entity_a == entity_b.relation_tags[ChildOf]
+    assert entity_a == entity_b.relation_tag[ChildOf]
     for e in world.Q.all_of(relations=[(ChildOf, ...)]):
-        e.relation_tags.clear()
+        e.relation_tag.clear()
     assert not set(world.Q.all_of(relations=[(ChildOf, ...)]))
+
+
+def test_relations_old() -> None:
+    world = tcod.ecs.World()
+    with pytest.warns(FutureWarning):
+        world[None].relation_tags["Foo"] = world[None]
 
 
 def test_relations_many() -> None:
@@ -69,10 +75,10 @@ def test_relations_many() -> None:
     entity_c = world["C"]
 
     with pytest.raises(KeyError):
-        entity_a.relation_tags["foo"]
+        entity_a.relation_tag["foo"]
     entity_a.relation_tags_many["foo"] = (entity_b, entity_c)
     with pytest.raises(ValueError, match=r"Entity relation has multiple targets but an exclusive value was expected\."):
-        entity_a.relation_tags["foo"]
+        entity_a.relation_tag["foo"]
 
 
 def test_relation_components() -> None:
@@ -150,7 +156,7 @@ def sample_world_v1() -> tcod.ecs.World:
     entity.tags.add("tag")
     with pytest.warns():
         entity_b = world.new_entity(name="B")
-    entity_b.relation_tags["ChildOf"] = entity
+    entity_b.relation_tag["ChildOf"] = entity
     entity_b.relation_components[str][entity] = "str"
     return world
 
@@ -162,7 +168,7 @@ def check_world_v1(world: tcod.ecs.World) -> None:
     assert entity.components[("foo", str)] == "foo"
     assert "tag" in entity.tags
     entity_b = world.named["B"]
-    assert entity_b.relation_tags["ChildOf"] == entity
+    assert entity_b.relation_tag["ChildOf"] == entity
     assert entity_b.relation_components[str][entity] == "str"
     assert not world[None].components
 
@@ -176,7 +182,7 @@ def sample_world_v2() -> tcod.ecs.World:
     world["A"].components[str] = "str"
     world["A"].components[("foo", str)] = "foo"
     world["A"].tags.add("tag")
-    world["B"].relation_tags["ChildOf"] = world["A"]
+    world["B"].relation_tag["ChildOf"] = world["A"]
     world["B"].relation_components[str][world["A"]] = "str"
     world[None].components[bool] = True
     return world
@@ -189,7 +195,7 @@ def check_world_v2(world: tcod.ecs.World) -> None:
     assert world.named["A"] is world["A"]
     assert world["A"].components == original["A"].components
     assert world["A"].tags == original["A"].tags
-    assert world["B"].relation_tags["ChildOf"] == world["A"]
+    assert world["B"].relation_tag["ChildOf"] == world["A"]
     assert world["B"].relation_components[str][world["A"]] == "str"
     assert world[None].components[bool] is True
 
