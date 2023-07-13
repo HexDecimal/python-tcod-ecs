@@ -395,7 +395,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def __ior__(self, value: Mapping[_ComponentKey[Any], Any] | Iterable[tuple[_ComponentKey[Any], Any]]) -> Self:
         """Update components in-place.
 
-        .. versionadded:: Unreleased
+        .. versionadded:: 3.4
         """
         self.update(value)
         return self
