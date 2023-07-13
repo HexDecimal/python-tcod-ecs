@@ -154,8 +154,18 @@ class Entity:
             >>> list(world.Q.all_of(tags=["tag"]))  # Query tags.
             [<Entity(uid='entity')>]
             >>> entity.tags.discard("tag")
+            >>> entity.tags |= {"IsPortable", "CanBurn", "OnFire"}  # Supports in-place syntax
+            >>> {"CanBurn", "OnFire"}.issubset(entity.tags)
+            True
+            >>> entity.tags -= {"OnFire"}
+            >>> {"CanBurn", "OnFire"}.issubset(entity.tags)
+            False
         """
         return EntityTags(self)
+
+    @tags.setter
+    def tags(self, value: EntityTags) -> None:
+        assert value.entity is self
 
     @property
     def relation_components(self) -> EntityComponentRelations:
@@ -428,6 +438,24 @@ class EntityTags(MutableSet[Any]):
     def __len__(self) -> int:
         """Return the number of tags this entity has."""
         return len(self.entity.world._tags_by_entity.get(self.entity, ()))
+
+    def __ior__(self, other: AbstractSet[object]) -> Self:
+        """Add tags in-place.
+
+        .. versionadded:: Unreleased
+        """
+        for to_add in other:
+            self.add(to_add)
+        return self
+
+    def __isub__(self, other: AbstractSet[Any]) -> Self:
+        """Remove tags in-place.
+
+        .. versionadded:: Unreleased
+        """
+        for to_discard in other:
+            self.discard(to_discard)
+        return self
 
 
 class EntityRelationsMapping(MutableSet[Entity]):
