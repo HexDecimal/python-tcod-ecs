@@ -129,18 +129,27 @@ class Entity:
 
         Example::
 
-            >>> entity.components[str] = "foo"  # Assign component.
-            >>> entity.components[("name", str)] = "my_name" # Assign named component.
+            >>> entity.components[str] = "foo"  # Assign component
+            >>> entity.components[("name", str)] = "my_name" # Assign named component
+            >>> entity.components |= {  # Update components in-place
+            ...     ("hp", int): 10,
+            ...     ("attack", int): 4,
+            ...     ("defense", int): 1,
+            ... }
             >>> ("name", str) in entity.components
             True
             >>> {str, ("name", str)}.issubset(entity.components.keys())
             True
-            >>> list(world.Q.all_of(components=[str]))  # Query components.
+            >>> list(world.Q.all_of(components=[str]))  # Query components
             [<Entity(uid='entity')>]
             >>> list(world.Q[tcod.ecs.Entity, str, ("name", str)])  # Query zip components.
             [(<Entity(uid='entity')>, 'foo', 'my_name')]
         """
         return EntityComponents(self)
+
+    @components.setter
+    def components(self, value: EntityComponents) -> None:
+        assert value.entity is self
 
     @property
     def tags(self) -> EntityTags:
@@ -382,6 +391,14 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
             key_name, key_component = key
             if key_component is component_type and isinstance(key_name, name_type):
                 yield key_name, key_component
+
+    def __ior__(self, value: Mapping[_ComponentKey[Any], Any] | Iterable[tuple[_ComponentKey[Any], Any]]) -> Self:
+        """Update components in-place.
+
+        .. versionadded:: Unreleased
+        """
+        self.update(value)
+        return self
 
     if TYPE_CHECKING:  # Type-hinted overrides
 

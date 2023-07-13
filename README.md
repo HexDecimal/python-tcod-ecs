@@ -107,7 +107,7 @@ KeyError: <Entity...>
 >>> entity.components[Vector2] = Vector2(1, 2)
 >>> entity.components[Vector2]
 Vector2(x=1, y=2)
->>> entity.components.update({int: 11, Vector2: Vector2(0, 0)})  # Multiple values can be assigned like a dict.
+>>> entity.components |= {int: 11, Vector2: Vector2(0, 0)}  # Multiple values can be assigned like a dict
 >>> entity.components[int]
 11
 >>> entity.components[Vector2]
@@ -149,15 +149,13 @@ Vector2(x=1, y=1)
 >>> @attrs.define(frozen=True)
 ... class Slot:
 ...     index: int
->>> entity.components.update(  # Like a dict Entity.components has the `.update()` method.
-...     {
-...         ("hp", int): 10,
-...         ("max_hp", int): 12,
-...         ("atk", int): 1,
-...         str: "foo",
-...         (Slot(1), str): "empty",
-...     }
-... )
+>>> entity.components |= {  # Like a dict Entity.components can use |= to update items in-place
+...     ("hp", int): 10,
+...     ("max_hp", int): 12,
+...     ("atk", int): 1,
+...     str: "foo",
+...     (Slot(1), str): "empty",
+... }
 >>> entity.components[("hp", int)]
 10
 >>> entity.components[str]
