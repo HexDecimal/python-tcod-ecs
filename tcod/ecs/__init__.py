@@ -442,7 +442,7 @@ class EntityTags(MutableSet[Any]):
     def __ior__(self, other: AbstractSet[object]) -> Self:
         """Add tags in-place.
 
-        .. versionadded:: Unreleased
+        .. versionadded:: 3.3
         """
         for to_add in other:
             self.add(to_add)
@@ -451,7 +451,7 @@ class EntityTags(MutableSet[Any]):
     def __isub__(self, other: AbstractSet[Any]) -> Self:
         """Remove tags in-place.
 
-        .. versionadded:: Unreleased
+        .. versionadded:: 3.3
         """
         for to_discard in other:
             self.discard(to_discard)
