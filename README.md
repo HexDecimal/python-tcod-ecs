@@ -36,7 +36,7 @@ Remove or update `tcod` to fix this issue.
 
 ```py
 >>> import tcod.ecs
->>> world = tcod.ecs.World()  # New empty world.
+>>> world = tcod.ecs.World()  # New empty world
 
 ```
 
@@ -98,7 +98,7 @@ True
 Traceback (most recent call last):
   ...
 KeyError: <Entity...>
->>> entity.components.get(int, "default")  # Test keys with `.get()` like a dictionary.
+>>> entity.components.get(int, "default")  # Test keys with `.get()` like a dictionary
 'default'
 >>> @attrs.define
 ... class Vector2:
@@ -113,19 +113,19 @@ Vector2(x=1, y=2)
 >>> entity.components[Vector2]
 Vector2(x=0, y=0)
 
-# Queries can be made on all entities of a world with matching components.
+# Queries can be made on all entities of a world with matching components
 >>> for e in world.Q.all_of(components=[Vector2]):
 ...     e.components[Vector2].x += 10
 >>> entity.components[Vector2]
 Vector2(x=10, y=0)
 
-# You can match components and iterate over them at the same time.  This can be combined with the above.
+# You can match components and iterate over them at the same time.  This can be combined with the above
 >>> for pos, i in world.Q[Vector2, int]:
 ...     print((pos, i))
 (Vector2(x=10, y=0), 11)
 
-# You can include `Entity` to iterate over entities with their components.
-# This always iterates over the entity itself instead of an Entity component.
+# You can include `Entity` to iterate over entities with their components
+# This always iterates over the entity itself instead of an Entity component
 >>> for e, pos, i in world.Q[tcod.ecs.Entity, Vector2, int]:
 ...     print((e, pos, i))
 (<Entity...>, Vector2(x=10, y=0), 11)
@@ -163,7 +163,7 @@ Vector2(x=1, y=1)
 >>> entity.components[(Slot(1), str)]
 'empty'
 
-# Queries can be made on all named components with the same syntax as normal ones.
+# Queries can be made on all named components with the same syntax as normal ones
 >>> for e in world.Q.all_of(components=[("hp", int), ("max_hp", int)]):
 ...     e.components[("hp", int)] = e.components[("max_hp", int)]
 >>> entity.components[("hp", int)]
@@ -202,9 +202,9 @@ Relations are unidirectional.
 
 ```py
 >>> @attrs.define
-... class OrbitOf:  # OrbitOf component.
+... class OrbitOf:  # OrbitOf component
 ...     dist: int
->>> LandedOn = "LandedOn"  # LandedOn tag.
+>>> LandedOn = "LandedOn"  # LandedOn tag
 >>> star = world.new_entity()
 >>> planet = world.new_entity()
 >>> moon = world.new_entity()
@@ -218,9 +218,9 @@ Relations are unidirectional.
 >>> player.relation_tag[LandedOn] = moon_rock
 >>> set(world.Q.all_of(relations=[(OrbitOf, planet)])) == {moon}
 True
->>> set(world.Q.all_of(relations=[(OrbitOf, ...)])) == {planet, moon}  # Get objects in an orbit.
+>>> set(world.Q.all_of(relations=[(OrbitOf, ...)])) == {planet, moon}  # Get objects in an orbit
 True
->>> set(world.Q.all_of(relations=[(..., OrbitOf, None)])) == {star, planet}  # Get objects being orbited.
+>>> set(world.Q.all_of(relations=[(..., OrbitOf, None)])) == {star, planet}  # Get objects being orbited
 True
 >>> set(world.Q.all_of(relations=[(LandedOn, ...)])) == {ship, moon_rock, player}
 True

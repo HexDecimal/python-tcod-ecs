@@ -79,7 +79,7 @@ class Entity:
         <Entity(uid=object at ...)>
         >>> entity = world["entity"]  # Get an entity from a specific identifier
         >>> other_entity = world["other"]
-    """  # Changes here should be reflected in conftest.py.
+    """  # Changes here should be reflected in conftest.py
 
     __slots__ = ("world", "uid", "__weakref__")
 
@@ -142,7 +142,7 @@ class Entity:
             True
             >>> list(world.Q.all_of(components=[str]))  # Query components
             [<Entity(uid='entity')>]
-            >>> list(world.Q[tcod.ecs.Entity, str, ("name", str)])  # Query zip components.
+            >>> list(world.Q[tcod.ecs.Entity, str, ("name", str)])  # Query zip components
             [(<Entity(uid='entity')>, 'foo', 'my_name')]
         """
         return EntityComponents(self)
@@ -157,10 +157,10 @@ class Entity:
 
         Example::
 
-            >>> entity.tags.add("tag") # Add tag.
-            >>> "tag" in entity.tags  # Check tag.
+            >>> entity.tags.add("tag") # Add tag
+            >>> "tag" in entity.tags  # Check tag
             True
-            >>> list(world.Q.all_of(tags=["tag"]))  # Query tags.
+            >>> list(world.Q.all_of(tags=["tag"]))  # Query tags
             [<Entity(uid='entity')>]
             >>> entity.tags.discard("tag")
             >>> entity.tags |= {"IsPortable", "CanBurn", "OnFire"}  # Supports in-place syntax
@@ -182,8 +182,8 @@ class Entity:
 
         Example::
 
-            >>> entity.relation_components[str][other_entity] = "foo" # Assign component to relation.
-            >>> entity.relation_components[("distance", int)][other_entity] = 42 # Also works for named components.
+            >>> entity.relation_components[str][other_entity] = "foo" # Assign component to relation
+            >>> entity.relation_components[("distance", int)][other_entity] = 42 # Also works for named components
             >>> other_entity in entity.relation_components[str]
             True
             >>> list(world.Q.all_of(relations=[(str, other_entity)]))
@@ -203,10 +203,10 @@ class Entity:
 
         Example::
 
-            >>> entity.relation_tag["ChildOf"] = other_entity  # Assign relation.
-            >>> list(world.Q.all_of(relations=[("ChildOf", other_entity)]))  # Get children of other_entity.
+            >>> entity.relation_tag["ChildOf"] = other_entity  # Assign relation
+            >>> list(world.Q.all_of(relations=[("ChildOf", other_entity)]))  # Get children of other_entity
             [<Entity(uid='entity')>]
-            >>> list(world.Q.all_of(relations=[(entity, "ChildOf", None)]))  # Get parents of entity.
+            >>> list(world.Q.all_of(relations=[(entity, "ChildOf", None)]))  # Get parents of entity
             [<Entity(uid='other')>]
             >>> del entity.relation_tag["ChildOf"]
         """
@@ -228,7 +228,7 @@ class Entity:
 
         Example::
 
-            >>> entity.relation_tags_many["KnownBy"].add(other_entity)  # Assign relation.
+            >>> entity.relation_tags_many["KnownBy"].add(other_entity)  # Assign relation
         """
         return EntityRelations(self)
 
@@ -239,13 +239,13 @@ class Entity:
             stacklevel=stacklevel + 1,
         )
         old_name = self.name
-        if old_name is not None:  # Remove self from names.
+        if old_name is not None:  # Remove self from names
             del self.world._names_by_name[old_name]
             del self.world._names_by_entity[self]
 
-        if value is not None:  # Add self to names.
+        if value is not None:  # Add self to names
             old_entity = self.world._names_by_name.get(value)
-            if old_entity is not None:  # Remove entity with old name, name will be overwritten.
+            if old_entity is not None:  # Remove entity with old name, name will be overwritten
                 del self.world._names_by_entity[old_entity]
             self.world._names_by_name[value] = self
             self.world._names_by_entity[self] = value
@@ -278,7 +278,7 @@ class Entity:
         uid_str = f"object at 0x{id(self.uid):X}" if self.uid.__class__ == object else repr(self.uid)
         items = [f"{self.__class__.__name__}(uid={uid_str})"]
         name = self.name
-        if name is not None:  # Switch to older style.
+        if name is not None:  # Switch to older style
             items = [self.__class__.__name__, f"name={name!r}"]
         return f"<{' '.join(items)}>"
 
@@ -384,7 +384,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
             This method has been deprecated. Iterate over items instead.
         """
         warnings.warn("This method has been deprecated. Iterate over items instead.", FutureWarning, stacklevel=2)
-        # Naive implementation until I feel like optimizing it.
+        # Naive implementation until I feel like optimizing it
         for key in self:
             if not isinstance(key, tuple):
                 continue
@@ -821,11 +821,11 @@ class World:
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         """Unpickle this object and handle state migration."""
-        global_: Entity | None = state.pop("global_", None)  # Migrate from version <=1.2.0.
+        global_: Entity | None = state.pop("global_", None)  # Migrate from version <=1.2.0
 
         self.__dict__.update(state)
 
-        if global_ is not None and global_.uid is not None:  # Migrate from version <=1.2.0.
+        if global_ is not None and global_.uid is not None:  # Migrate from version <=1.2.0
             global_._force_remap(None)
 
     def __getitem__(self, uid: object) -> Entity:
@@ -934,7 +934,7 @@ class Query:
             yield self.world._relations_lookup.get(relation, set())
 
     def _get_entities(self, extra_components: AbstractSet[_ComponentKey[object]] = frozenset()) -> set[Entity]:
-        # Place the smallest sets first to speed up intersections.
+        # Place the smallest sets first to speed up intersections
         requires = sorted(self.__iter_requires(extra_components), key=len)
         excludes = list(self.__iter_excludes())
 
