@@ -29,9 +29,9 @@ from tcod.ecs import _version
 
 __version__ = _version.__version__
 
-if sys.version_info >= (3, 10):
+if sys.version_info >= (3, 10):  # pragma: no cover
     from types import EllipsisType
-else:
+else:  # pragma: no cover
     EllipsisType = Any
 
 T = TypeVar("T")
