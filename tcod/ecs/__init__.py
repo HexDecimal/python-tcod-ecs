@@ -27,12 +27,15 @@ from typing_extensions import Self
 
 from tcod.ecs import _version
 
-__version__ = _version.__version__
+if TYPE_CHECKING:
+    from _typeshed import SupportsKeysAndGetItem
 
 if sys.version_info >= (3, 10):  # pragma: no cover
     from types import EllipsisType
 else:  # pragma: no cover
     EllipsisType = Any
+
+__version__ = _version.__version__
 
 T = TypeVar("T")
 _T1 = TypeVar("_T1")
@@ -392,7 +395,9 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
             if key_component is component_type and isinstance(key_name, name_type):
                 yield key_name, key_component
 
-    def __ior__(self, value: Mapping[_ComponentKey[Any], Any] | Iterable[tuple[_ComponentKey[Any], Any]]) -> Self:
+    def __ior__(
+        self, value: SupportsKeysAndGetItem[_ComponentKey[Any], Any] | Iterable[tuple[_ComponentKey[Any], Any]]
+    ) -> Self:
         """Update components in-place.
 
         .. versionadded:: 3.4

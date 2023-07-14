@@ -42,6 +42,7 @@
         "toctree",
         "Traceback",
         "typehints",
+        "typeshed",
         "undoc",
         "unpickling",
         "WASD",
