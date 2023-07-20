@@ -97,7 +97,7 @@ True
 >>> entity.components[int]  # Missing keys raise KeyError
 Traceback (most recent call last):
   ...
-KeyError: <Entity...>
+KeyError: <class 'int'>
 >>> entity.components.get(int, "default")  # Test keys with `.get()` like a dictionary
 'default'
 >>> @attrs.define

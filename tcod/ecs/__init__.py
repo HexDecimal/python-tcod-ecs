@@ -337,25 +337,25 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def __getitem__(self, key: _ComponentKey[T]) -> T:
         """Return a component belonging to this entity."""
         assert self.__assert_key(key)
-        return self.entity.world._components_by_type[key][self.entity]  # type: ignore[no-any-return]
+        return self.entity.world._components_by_entity[self.entity][key]  # type: ignore[no-any-return]
 
     def __setitem__(self, key: _ComponentKey[T], value: T) -> None:
         """Assign a component to an entity."""
         assert self.__assert_key(key)
-        self.entity.world._components_by_type[key][self.entity] = value
-        self.entity.world._components_by_entity[self.entity].add(key)
+        self.entity.world._components_by_entity[self.entity][key] = value
+        self.entity.world._components_lookup[key].add(self.entity)
 
     def __delitem__(self, key: type[object] | tuple[object, type[object]]) -> None:
         """Delete a component from an entity."""
         assert self.__assert_key(key)
 
-        del self.entity.world._components_by_type[key][self.entity]
-        if not self.entity.world._components_by_type[key]:
-            del self.entity.world._components_by_type[key]
-
-        self.entity.world._components_by_entity[self.entity].remove(key)
+        del self.entity.world._components_by_entity[self.entity][key]
         if not self.entity.world._components_by_entity[self.entity]:
             del self.entity.world._components_by_entity[self.entity]
+
+        self.entity.world._components_lookup[key].remove(self.entity)
+        if not self.entity.world._components_lookup[key]:
+            del self.entity.world._components_lookup[key]
 
     def __contains__(self, key: _ComponentKey[object]) -> bool:  # type: ignore[override]
         """Return True if this entity has the provided component."""
@@ -734,15 +734,15 @@ class World:
 
     def __init__(self) -> None:
         """Initialize a new world."""
-        self._components_by_type: defaultdict[_ComponentKey[object], dict[Entity, Any]] = defaultdict(dict)
-        """Query table entity components.
-
-        dict[ComponentKey][Entity] = component_instance
-        """
-        self._components_by_entity: defaultdict[Entity, set[_ComponentKey[object]]] = defaultdict(set)
+        self._components_by_entity: defaultdict[Entity, dict[_ComponentKey[object], Any]] = defaultdict(dict)
         """Random access entity components.
 
-        dict[Entity] = {component_keys_owned_by_entity}
+        dict[Entity][ComponentKey] = component_instance
+        """
+        self._components_lookup: defaultdict[_ComponentKey[object], set[Entity]] = defaultdict(set)
+        """Query table entity components.
+
+        dict[ComponentKey] = {entities_with_component}
         """
 
         self._tags_by_key: defaultdict[object, set[Entity]] = defaultdict(set)
@@ -826,6 +826,19 @@ class World:
     def __setstate__(self, state: dict[str, Any]) -> None:
         """Unpickle this object and handle state migration."""
         global_: Entity | None = state.pop("global_", None)  # Migrate from version <=1.2.0
+
+        if "_components_by_type" in state:  # Migrate from version <=3.4.0
+            _old_components_by_type: dict[_ComponentKey[object], dict[Entity, object]] = state["_components_by_type"]
+            del state["_components_by_type"]
+            del state["_components_by_entity"]
+            _components_by_entity: defaultdict[Entity, dict[_ComponentKey[object], object]] = defaultdict(dict)
+            _components_lookup: defaultdict[_ComponentKey[object], set[Entity]] = defaultdict(set)
+            for component_key, old_components in _old_components_by_type.items():
+                for entity, component in old_components.items():
+                    _components_by_entity[entity][component_key] = component
+                    _components_lookup[component_key].add(entity)
+            state["_components_by_entity"] = _components_by_entity
+            state["_components_lookup"] = _components_lookup
 
         self.__dict__.update(state)
 
@@ -923,7 +936,7 @@ class Query:
     def __iter_requires(self, extra_components: AbstractSet[_ComponentKey[object]]) -> Iterator[AbstractSet[Entity]]:
         collect_components = self._all_of_components | extra_components
         for component in collect_components:
-            yield self.world._components_by_type.get(component, {}).keys()
+            yield self.world._components_lookup.get(component, set())
         for tag in self._all_of_tags:
             yield self.world._tags_by_key.get(tag, set())
         for relation in self._all_of_relations:
@@ -931,7 +944,7 @@ class Query:
 
     def __iter_excludes(self) -> Iterator[AbstractSet[Entity]]:
         for component in self._none_of_components:
-            yield self.world._components_by_type.get(component, {}).keys()
+            yield self.world._components_lookup.get(component, set())
         for tag in self._none_of_tags:
             yield self.world._tags_by_key.get(tag, set())
         for relation in self._none_of_relations:
@@ -1042,6 +1055,5 @@ class Query:
             if component_key is Entity:
                 entity_components.append(entities)
                 continue
-            world_components = self.world._components_by_type[component_key]
-            entity_components.append([world_components[entity] for entity in entities])
+            entity_components.append([self.world._components_by_entity[entity][component_key] for entity in entities])
         return zip(*entity_components)
