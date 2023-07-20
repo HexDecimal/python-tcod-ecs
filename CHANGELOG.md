@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - Serialization format updated.
+- Reduced the size of the pickled World.
 
 ### Fixed
 - Missing components in `Entity.components` now returns the missing key in the KeyError exception instead of the entity.

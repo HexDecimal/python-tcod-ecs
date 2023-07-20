@@ -18,7 +18,7 @@ classifiers = [
 ]
 dynamic = ["version", "description"]
 requires-python = ">=3.8"
-dependencies = ["typing-extensions >=4.4.0"]
+dependencies = ["typing-extensions >=4.4.0", "cattrs>=23.1.2"]
 
 [tool.setuptools_scm]
 write_to = "tcod/ecs/_version.py"

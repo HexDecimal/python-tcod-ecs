@@ -8,6 +8,8 @@ from typing import (
     TYPE_CHECKING,
     AbstractSet,
     Any,
+    DefaultDict,
+    Dict,
     Final,
     Generic,
     Iterable,
@@ -15,6 +17,7 @@ from typing import (
     Mapping,
     MutableMapping,
     MutableSet,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -25,6 +28,7 @@ from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from typing_extensions import Self
 
+import tcod.ecs._converter
 from tcod.ecs import _version
 
 if TYPE_CHECKING:
@@ -842,8 +846,60 @@ class World:
 
         self.__dict__.update(state)
 
+        converter = tcod.ecs._converter._get_converter()
+        # Apply defaultdict types to unpickled dictionaries
+        self._components_by_entity = converter.structure(
+            state.pop("_components_by_entity"),
+            DefaultDict[Any, Dict[Any, Any]],
+        )
+        self._components_lookup = converter.structure(
+            state.pop("_components_lookup"),
+            DefaultDict[Any, Set[Any]],
+        )
+        self._tags_by_key = converter.structure(
+            state.pop("_tags_by_key"),
+            DefaultDict[Any, Set[Any]],
+        )
+        self._tags_by_entity = converter.structure(
+            state.pop("_tags_by_entity"),
+            DefaultDict[Any, Set[Any]],
+        )
+        self._relation_tags_by_entity = converter.structure(
+            state.pop("_relation_tags_by_entity"),
+            DefaultDict[Any, DefaultDict[Any, Set[Any]]],
+        )
+        self._relation_components_by_entity = converter.structure(
+            state.pop("_relation_components_by_entity"),
+            DefaultDict[Any, DefaultDict[Any, Dict[Any, Any]]],
+        )
+        self._relations_lookup = converter.structure(
+            state.pop("_relations_lookup"),
+            DefaultDict[Any, Set[Any]],
+        )
+
+        self._names_by_name = state.pop("_names_by_name")
+        self._names_by_entity = state.pop("_names_by_entity")
+
         if global_ is not None and global_.uid is not None:  # Migrate from version <=1.2.0
             global_._force_remap(None)
+
+    def __getstate__(self) -> dict[str, Any]:
+        """Pickle this object."""
+        converter = tcod.ecs._converter._get_converter()
+        # Replace defaultdict types with plain dict when saving
+        return {
+            "_components_by_entity": converter.structure(self._components_by_entity, Dict[Any, Dict[Any, Any]]),
+            "_components_lookup": converter.structure(self._components_lookup, Dict[Any, Any]),
+            "_tags_by_key": converter.structure(self._tags_by_key, Dict[Any, Any]),
+            "_tags_by_entity": converter.structure(self._tags_by_entity, Dict[Any, Any]),
+            "_relation_tags_by_entity": converter.structure(self._relation_tags_by_entity, Dict[Any, Dict[Any, Any]]),
+            "_relation_components_by_entity": converter.structure(
+                self._relation_components_by_entity, Dict[Any, Dict[Any, Any]]
+            ),
+            "_relations_lookup": converter.structure(self._relations_lookup, Dict[Any, Any]),
+            "_names_by_name": self._names_by_name,
+            "_names_by_entity": self._names_by_entity,
+        }
 
     def __getitem__(self, uid: object) -> Entity:
         """Return an entity associated with a unique id.
