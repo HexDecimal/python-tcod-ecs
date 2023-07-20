@@ -280,3 +280,9 @@ def test_by_name_type() -> None:
 def test_suspicious_tags() -> None:
     with pytest.warns(match=r"The tags parameter was given a str type"):
         tcod.ecs.World().Q.all_of(tags="Tags")
+
+
+def test_component_setdefault() -> None:
+    entity = tcod.ecs.World()[None]
+    assert entity.components.setdefault(int, 1) == 1
+    assert entity.components.setdefault(int, 2) == 1

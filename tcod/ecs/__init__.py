@@ -405,21 +405,20 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         self.update(value)
         return self
 
-    if TYPE_CHECKING:  # Type-hinted overrides
+    def get(self, __key: _ComponentKey[T], __default: T | None = None) -> T | None:
+        """Return a component, returns None or a default value when the component is missing."""
+        try:
+            return self[__key]
+        except KeyError:
+            return __default
 
-        @overload
-        def get(self, __key: _ComponentKey[T]) -> T | None:
-            ...
-
-        @overload
-        def get(self, __key: _ComponentKey[T], __default: T) -> T:
-            ...
-
-        def get(self, __key: _ComponentKey[T], __default: T | None = None) -> T | None:
-            """Return a component, returns None or a default value when the component is missing."""
-
-        def setdefault(self, __key: _ComponentKey[T], __default: T) -> T:  # type: ignore[override]
-            """Assign a default value if a component is missing, then returns the current value."""
+    def setdefault(self, __key: _ComponentKey[T], __default: T) -> T:  # type: ignore[override]
+        """Assign a default value if a component is missing, then returns the current value."""
+        try:
+            return self[__key]
+        except KeyError:
+            self[__key] = __default
+            return __default
 
 
 class EntityTags(MutableSet[Any]):
