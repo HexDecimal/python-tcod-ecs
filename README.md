@@ -194,11 +194,13 @@ True
 
 ## Relations
 
-Use `Entity.relation_components[component_key][target] = component` to associate a relation with data.
+Use `Entity.relation_components[component_key][target] = component` to associate a target entity with a component.
 Use `Entity.relation_tag[tag] = target` to associate a tag exclusively with a target entity.
 Use `Entity.relation_tags_many[tag].add(target)` to associate a tag with multiple targets.
-Tags and relations share the same space then queried, so tags can not be in the format of a component key.
-Relations are unidirectional.
+
+Relation queries are a little more complex than other queries.
+Relation tags and relation components share the same space then queried, so 'normal' tags should not be in the format of a component key.
+Relations are unidirectional, but you can query either end of a relation.
 
 ```py
 >>> @attrs.define
@@ -228,3 +230,13 @@ True
 True
 
 ```
+
+You can use the following table to help with constructing relation queries.
+`tag` is a component key if you are querying for a component relation.
+
+| Includes                                                              | Syntax |
+| --------------------------------------------------------------------- | :----: |
+| Entities with a relation tag to the given target                      | `(tag, target_entity)` |
+| Entities with a relation tag to any target                            | `(tag, ...)` |
+| Entities which are a relation target of a given entity                | `(origin_entity, tag, None)` |
+| Entities which are a target of any entity with the given relation tag | `(..., tag, None)` |
