@@ -1,15 +1,17 @@
-# ruff: noqa: D100 D103 ANN401 S301
+"""Tests for tcod-ecs."""
 from __future__ import annotations
 
 import io
 import pickle
 import pickletools
 import sys
-from typing import Any, Callable, Final, Iterator
+from typing import Callable, Final, Iterator
 
 import pytest
 
 import tcod.ecs
+
+# ruff: noqa: D103
 
 
 def test_world() -> None:
@@ -112,40 +114,6 @@ def test_naming() -> None:
         assert repr(world.new_entity(name="foo")) == "<Entity name='foo'>"
 
 
-def test_component_missing(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
-    benchmark(lambda: entity.components.get(str))
-
-
-def test_component_assign(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
-
-    @benchmark  # type: ignore[misc]
-    def _() -> None:
-        entity.components[str] = "value"
-
-
-def test_component_found(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
-    entity.components[str] = "value"
-    benchmark(lambda: entity.components[str])
-
-
-def test_tag_missing(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
-    benchmark(lambda: "value" in entity.tags)
-
-
-def test_tag_assign(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
-    benchmark(lambda: entity.tags.add("value"))
-
-
-def test_tag_found(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
-    benchmark(lambda: "value" in entity.tags)
-
-
 def sample_world_v1() -> tcod.ecs.World:
     """Return a sample world."""
     world = tcod.ecs.World()
@@ -244,7 +212,7 @@ def test_pickle(sample_version: str) -> None:
     pickled = pickle.dumps(sample_world(), protocol=4)
     print(pickled)
     assert pickle_disassemble(pickled) == pickle_disassemble(sample_data), "Check if data format has changed"
-    unpickled: tcod.ecs.World = pickle.loads(pickled)
+    unpickled: tcod.ecs.World = pickle.loads(pickled)  # noqa: S301
     check_world(unpickled)
 
 
@@ -255,7 +223,7 @@ def test_unpickle(sample_version: str, ecs_version: str) -> None:
     check_world: Callable[[tcod.ecs.World], None] = globals()[f"check_world_{sample_version}"]
     sample_data = PICKLED_SAMPLES[sample_version][ecs_version]
 
-    unpickled: tcod.ecs.World = pickle.loads(sample_data)
+    unpickled: tcod.ecs.World = pickle.loads(sample_data)  # noqa: S301
     check_world(unpickled)
 
 
