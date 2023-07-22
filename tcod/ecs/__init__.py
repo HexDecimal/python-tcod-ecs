@@ -844,8 +844,6 @@ class World:
             state["_components_by_entity"] = _components_by_entity
             state["_components_lookup"] = _components_lookup
 
-        self.__dict__.update(state)
-
         converter = tcod.ecs._converter._get_converter()
         # Apply defaultdict types to unpickled dictionaries
         self._components_by_entity = converter.structure(
