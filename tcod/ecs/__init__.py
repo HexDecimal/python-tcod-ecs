@@ -26,6 +26,7 @@ from typing import (
 )
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
+import attrs
 from typing_extensions import Self
 
 import tcod.ecs._converter
@@ -733,74 +734,125 @@ def _defaultdict_of_dict() -> defaultdict[_T1, dict[_T2, _T3]]:
     return defaultdict(dict)
 
 
+def _components_lookup_from_components_by_entity(
+    by_entity: defaultdict[Entity, dict[_ComponentKey[object], object]]
+) -> defaultdict[_ComponentKey[object], set[Entity]]:
+    """Return the component lookup table from the components sparse-set."""
+    components_lookup = defaultdict(set)
+    for entity, components in by_entity.items():
+        for component_key in components:
+            components_lookup[component_key].add(entity)
+    return components_lookup
+
+
+def _tags_by_key_from_tags_by_entity(by_entity: defaultdict[Entity, set[object]]) -> defaultdict[object, set[Entity]]:
+    """Return the tag lookup table from the tags sparse-set."""
+    tags_by_key = defaultdict(set)
+    for entity, tags in by_entity.items():
+        for tag in tags:
+            tags_by_key[tag].add(entity)
+    return tags_by_key
+
+
+def _relations_lookup_from(
+    tags_by_entity: defaultdict[Entity, defaultdict[object, set[Entity]]],
+    components_by_entity: defaultdict[Entity, defaultdict[_ComponentKey[object], dict[Entity, Any]]],
+) -> defaultdict[tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]]:
+    """Return the relation lookup table from the relations sparse-sets."""
+    relations_lookup: defaultdict[
+        tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]
+    ] = defaultdict(set)
+    for entity, tags in tags_by_entity.items():
+        for tag, targets in tags.items():
+            for target in targets:
+                relations_lookup[(tag, ...)].add(target)
+                relations_lookup[(tag, entity)].add(target)
+                relations_lookup[(target, tag, None)].add(entity)
+                relations_lookup[(..., tag, None)].add(entity)
+    for entity, components in components_by_entity.items():
+        for component_key, target_components in components.items():
+            for target in target_components:
+                relations_lookup[(component_key, ...)].add(target)
+                relations_lookup[(component_key, entity)].add(target)
+                relations_lookup[(target, component_key, None)].add(entity)
+                relations_lookup[(..., component_key, None)].add(entity)
+
+    return relations_lookup
+
+
+@attrs.define(eq=False)
 class World:
     """A container for entities and components."""
 
-    def __init__(self) -> None:
-        """Initialize a new world."""
-        self._components_by_entity: defaultdict[Entity, dict[_ComponentKey[object], Any]] = defaultdict(dict)
-        """Random access entity components.
+    _components_by_entity: defaultdict[Entity, dict[_ComponentKey[object], Any]] = attrs.field(
+        init=False, factory=lambda: defaultdict(dict)
+    )
+    """Random access entity components.
 
-        dict[Entity][ComponentKey] = component_instance
-        """
-        self._components_lookup: defaultdict[_ComponentKey[object], set[Entity]] = defaultdict(set)
-        """Query table entity components.
+    dict[Entity][ComponentKey] = component_instance
+    """
+    _components_lookup: defaultdict[_ComponentKey[object], set[Entity]] = attrs.field(
+        init=False, factory=lambda: defaultdict(set)
+    )
+    """Query table entity components.
 
-        dict[ComponentKey] = {entities_with_component}
-        """
+    dict[ComponentKey] = {entities_with_component}
+    """
 
-        self._tags_by_key: defaultdict[object, set[Entity]] = defaultdict(set)
-        """Query table entity tags.
+    _tags_by_key: defaultdict[object, set[Entity]] = attrs.field(init=False, factory=lambda: defaultdict(set))
+    """Query table entity tags.
 
-        dict[tag] = {all_entities_with_tag}
-        """
-        self._tags_by_entity: defaultdict[Entity, set[Any]] = defaultdict(set)
-        """Random access entity tags.
+    dict[tag] = {all_entities_with_tag}
+    """
+    _tags_by_entity: defaultdict[Entity, set[Any]] = attrs.field(init=False, factory=lambda: defaultdict(set))
+    """Random access entity tags.
 
-        dict[Entity] = {all_tags_for_entity}
-        """
+    dict[Entity] = {all_tags_for_entity}
+    """
 
-        self._relation_tags_by_entity: defaultdict[Entity, defaultdict[object, set[Entity]]] = defaultdict(
-            _defaultdict_of_set
-        )
-        """Random access tag multi-relations.
+    _relation_tags_by_entity: defaultdict[Entity, defaultdict[object, set[Entity]]] = attrs.field(
+        init=False, factory=lambda: defaultdict(_defaultdict_of_set)
+    )
+    """Random access tag multi-relations.
 
-        dict[entity][tag] = {target_entities}
-        """
-        self._relation_components_by_entity: defaultdict[
-            Entity, defaultdict[_ComponentKey[object], dict[Entity, Any]]
-        ] = defaultdict(_defaultdict_of_dict)
-        """Random access relations owning components.
+    dict[entity][tag] = {target_entities}
+    """
+    _relation_components_by_entity: defaultdict[
+        Entity, defaultdict[_ComponentKey[object], dict[Entity, Any]]
+    ] = attrs.field(init=False, factory=lambda: defaultdict(_defaultdict_of_dict))
+    """Random access relations owning components.
 
-        dict[entity][ComponentKey][target_entity] = component
-        """
-        self._relations_lookup: defaultdict[
-            tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]
-        ] = defaultdict(set)
-        """Relations query table.  Tags and components are mixed together.
+    dict[entity][ComponentKey][target_entity] = component
+    """
+    _relations_lookup: defaultdict[
+        tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]
+    ] = attrs.field(init=False, factory=lambda: defaultdict(set))
+    """Relations query table.  Tags and components are mixed together.
 
-        Tag:
-            dict[(tag, this_entity)] = {target_entities_for_entity}
-            dict[(tag, None)] = {target_entities_for_tag}
-            dict[(target_entity, tag, None)] = {origin_entities_for_target}
-            dict[(None, tag, None)] = {all_origen_entities_for_tag}
-        Component:
-            dict[(ComponentKey, target_entity)] = {origin_entities}
-            dict[(ComponentKey, None)] = {all_origin_entities}
-            dict[(origin_entity, ComponentKey, None)] = {target_entities}
-            dict[(None, ComponentKey, None)] = {all_target_entities}
-        """
+    ```
+    Tag:
+        dict[(tag, this_entity)] = {target_entities_for_entity}
+        dict[(tag, None)] = {target_entities_for_tag}
+        dict[(target_entity, tag, None)] = {origin_entities_for_target}
+        dict[(None, tag, None)] = {all_origen_entities_for_tag}
+    Component:
+        dict[(ComponentKey, target_entity)] = {origin_entities}
+        dict[(ComponentKey, None)] = {all_origin_entities}
+        dict[(origin_entity, ComponentKey, None)] = {target_entities}
+        dict[(None, ComponentKey, None)] = {all_target_entities}
+    ```
+    """
 
-        self._names_by_name: dict[object, Entity] = {}
-        """Name query table.
+    _names_by_name: dict[object, Entity] = attrs.field(init=False, factory=dict)
+    """Name query table.
 
-        dict[name] = named_entity
-        """
-        self._names_by_entity: dict[Entity, object] = {}
-        """Name lookup table.
+    dict[name] = named_entity
+    """
+    _names_by_entity: dict[Entity, object] = attrs.field(init=False, factory=dict)
+    """Name lookup table.
 
-        dict[Entity] = entities_name
-        """
+    dict[Entity] = entities_name
+    """
 
     @property
     def global_(self) -> Entity:
@@ -842,7 +894,16 @@ class World:
                     _components_by_entity[entity][component_key] = component
                     _components_lookup[component_key].add(entity)
             state["_components_by_entity"] = _components_by_entity
-            state["_components_lookup"] = _components_lookup
+
+        IGNORE_ATTRIBUTES = frozenset(
+            {
+                "_tags_by_key",  # <=3.4.0
+                "_relations_lookup",  # <=3.4.0
+                "_names_by_entity",  # <=3.4.0
+            }
+        )
+        for ignored in IGNORE_ATTRIBUTES:
+            state.pop(ignored, None)
 
         converter = tcod.ecs._converter._get_converter()
         # Apply defaultdict types to unpickled dictionaries
@@ -850,18 +911,14 @@ class World:
             state.pop("_components_by_entity"),
             DefaultDict[Any, Dict[Any, Any]],
         )
-        self._components_lookup = converter.structure(
-            state.pop("_components_lookup"),
-            DefaultDict[Any, Set[Any]],
-        )
-        self._tags_by_key = converter.structure(
-            state.pop("_tags_by_key"),
-            DefaultDict[Any, Set[Any]],
-        )
+        self._components_lookup = _components_lookup_from_components_by_entity(self._components_by_entity)
+
         self._tags_by_entity = converter.structure(
             state.pop("_tags_by_entity"),
             DefaultDict[Any, Set[Any]],
         )
+        self._tags_by_key = _tags_by_key_from_tags_by_entity(self._tags_by_entity)
+
         self._relation_tags_by_entity = converter.structure(
             state.pop("_relation_tags_by_entity"),
             DefaultDict[Any, DefaultDict[Any, Set[Any]]],
@@ -870,16 +927,18 @@ class World:
             state.pop("_relation_components_by_entity"),
             DefaultDict[Any, DefaultDict[Any, Dict[Any, Any]]],
         )
-        self._relations_lookup = converter.structure(
-            state.pop("_relations_lookup"),
-            DefaultDict[Any, Set[Any]],
+        self._relations_lookup = _relations_lookup_from(
+            self._relation_tags_by_entity, self._relation_components_by_entity
         )
 
         self._names_by_name = state.pop("_names_by_name")
-        self._names_by_entity = state.pop("_names_by_entity")
+        self._names_by_entity = {entity: name for name, entity in self._names_by_name.items()}
 
         if global_ is not None and global_.uid is not None:  # Migrate from version <=1.2.0
             global_._force_remap(None)
+
+        if state:
+            warnings.warn(f"These attributes were not unpacked {state.keys()}", RuntimeWarning, stacklevel=1)
 
     def __getstate__(self) -> dict[str, Any]:
         """Pickle this object."""
@@ -887,16 +946,12 @@ class World:
         # Replace defaultdict types with plain dict when saving
         return {
             "_components_by_entity": converter.structure(self._components_by_entity, Dict[Any, Dict[Any, Any]]),
-            "_components_lookup": converter.structure(self._components_lookup, Dict[Any, Any]),
-            "_tags_by_key": converter.structure(self._tags_by_key, Dict[Any, Any]),
             "_tags_by_entity": converter.structure(self._tags_by_entity, Dict[Any, Any]),
             "_relation_tags_by_entity": converter.structure(self._relation_tags_by_entity, Dict[Any, Dict[Any, Any]]),
             "_relation_components_by_entity": converter.structure(
                 self._relation_components_by_entity, Dict[Any, Dict[Any, Any]]
             ),
-            "_relations_lookup": converter.structure(self._relations_lookup, Dict[Any, Any]),
             "_names_by_name": self._names_by_name,
-            "_names_by_entity": self._names_by_entity,
         }
 
     def __getitem__(self, uid: object) -> Entity:
