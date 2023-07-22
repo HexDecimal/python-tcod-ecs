@@ -348,7 +348,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         """Assign a component to an entity."""
         assert self.__assert_key(key)
         self.entity.world._components_by_entity[self.entity][key] = value
-        self.entity.world._components_lookup[key].add(self.entity)
+        self.entity.world._components_by_type[key][self.entity] = value
 
     def __delitem__(self, key: type[object] | tuple[object, type[object]]) -> None:
         """Delete a component from an entity."""
@@ -358,9 +358,9 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         if not self.entity.world._components_by_entity[self.entity]:
             del self.entity.world._components_by_entity[self.entity]
 
-        self.entity.world._components_lookup[key].remove(self.entity)
-        if not self.entity.world._components_lookup[key]:
-            del self.entity.world._components_lookup[key]
+        del self.entity.world._components_by_type[key][self.entity]
+        if not self.entity.world._components_by_type[key]:
+            del self.entity.world._components_by_type[key]
 
     def __contains__(self, key: _ComponentKey[object]) -> bool:  # type: ignore[override]
         """Return True if this entity has the provided component."""
@@ -734,15 +734,15 @@ def _defaultdict_of_dict() -> defaultdict[_T1, dict[_T2, _T3]]:
     return defaultdict(dict)
 
 
-def _components_lookup_from_components_by_entity(
-    by_entity: defaultdict[Entity, dict[_ComponentKey[object], object]]
-) -> defaultdict[_ComponentKey[object], set[Entity]]:
+def _components_by_entity_from(
+    by_type: defaultdict[_ComponentKey[object], dict[Entity, Any]]
+) -> defaultdict[Entity, dict[_ComponentKey[object], Any]]:
     """Return the component lookup table from the components sparse-set."""
-    components_lookup = defaultdict(set)
-    for entity, components in by_entity.items():
-        for component_key in components:
-            components_lookup[component_key].add(entity)
-    return components_lookup
+    by_entity: defaultdict[Entity, dict[_ComponentKey[object], Any]] = defaultdict(dict)
+    for component_key, components in by_type.items():
+        for entity, component in components.items():
+            by_entity[entity][component_key] = component
+    return by_entity
 
 
 def _tags_by_key_from_tags_by_entity(by_entity: defaultdict[Entity, set[object]]) -> defaultdict[object, set[Entity]]:
@@ -791,8 +791,8 @@ class World:
 
     dict[Entity][ComponentKey] = component_instance
     """
-    _components_lookup: defaultdict[_ComponentKey[object], set[Entity]] = attrs.field(
-        init=False, factory=lambda: defaultdict(set)
+    _components_by_type: defaultdict[_ComponentKey[object], dict[Entity, Any]] = attrs.field(
+        init=False, factory=lambda: defaultdict(dict)
     )
     """Query table entity components.
 
@@ -883,35 +883,25 @@ class World:
         """Unpickle this object and handle state migration."""
         global_: Entity | None = state.pop("global_", None)  # Migrate from version <=1.2.0
 
-        if "_components_by_type" in state:  # Migrate from version <=3.4.0
-            _old_components_by_type: dict[_ComponentKey[object], dict[Entity, object]] = state["_components_by_type"]
-            del state["_components_by_type"]
-            del state["_components_by_entity"]
-            _components_by_entity: defaultdict[Entity, dict[_ComponentKey[object], object]] = defaultdict(dict)
-            _components_lookup: defaultdict[_ComponentKey[object], set[Entity]] = defaultdict(set)
-            for component_key, old_components in _old_components_by_type.items():
-                for entity, component in old_components.items():
-                    _components_by_entity[entity][component_key] = component
-                    _components_lookup[component_key].add(entity)
-            state["_components_by_entity"] = _components_by_entity
-
-        IGNORE_ATTRIBUTES = frozenset(
+        # These attributes contain redundant data and will be removed
+        REDUNDANT_ATTRIBUTES = frozenset(
             {
+                "_components_by_entity",  # <=3.4.0
                 "_tags_by_key",  # <=3.4.0
                 "_relations_lookup",  # <=3.4.0
                 "_names_by_entity",  # <=3.4.0
             }
         )
-        for ignored in IGNORE_ATTRIBUTES:
+        for ignored in REDUNDANT_ATTRIBUTES:
             state.pop(ignored, None)
 
         converter = tcod.ecs._converter._get_converter()
         # Apply defaultdict types to unpickled dictionaries
-        self._components_by_entity = converter.structure(
-            state.pop("_components_by_entity"),
+        self._components_by_type = converter.structure(
+            state.pop("_components_by_type"),
             DefaultDict[Any, Dict[Any, Any]],
         )
-        self._components_lookup = _components_lookup_from_components_by_entity(self._components_by_entity)
+        self._components_by_entity = _components_by_entity_from(self._components_by_type)
 
         self._tags_by_entity = converter.structure(
             state.pop("_tags_by_entity"),
@@ -945,7 +935,7 @@ class World:
         converter = tcod.ecs._converter._get_converter()
         # Replace defaultdict types with plain dict when saving
         return {
-            "_components_by_entity": converter.structure(self._components_by_entity, Dict[Any, Dict[Any, Any]]),
+            "_components_by_type": converter.structure(self._components_by_type, Dict[Any, Dict[Any, Any]]),
             "_tags_by_entity": converter.structure(self._tags_by_entity, Dict[Any, Any]),
             "_relation_tags_by_entity": converter.structure(self._relation_tags_by_entity, Dict[Any, Dict[Any, Any]]),
             "_relation_components_by_entity": converter.structure(
@@ -1045,7 +1035,7 @@ class Query:
     def __iter_requires(self, extra_components: AbstractSet[_ComponentKey[object]]) -> Iterator[AbstractSet[Entity]]:
         collect_components = self._all_of_components | extra_components
         for component in collect_components:
-            yield self.world._components_lookup.get(component, set())
+            yield self.world._components_by_type.get(component, {}).keys()
         for tag in self._all_of_tags:
             yield self.world._tags_by_key.get(tag, set())
         for relation in self._all_of_relations:
@@ -1053,7 +1043,7 @@ class Query:
 
     def __iter_excludes(self) -> Iterator[AbstractSet[Entity]]:
         for component in self._none_of_components:
-            yield self.world._components_lookup.get(component, set())
+            yield self.world._components_by_type.get(component, {}).keys()
         for tag in self._none_of_tags:
             yield self.world._tags_by_key.get(tag, set())
         for relation in self._none_of_relations:
@@ -1164,5 +1154,6 @@ class Query:
             if component_key is Entity:
                 entity_components.append(entities)
                 continue
-            entity_components.append([self.world._components_by_entity[entity][component_key] for entity in entities])
+            world_components = self.world._components_by_type[component_key]
+            entity_components.append([world_components[entity] for entity in entities])
         return zip(*entity_components)
