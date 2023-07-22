@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Missing components in `Entity.components` now returns the missing key in the KeyError exception instead of the entity.
+- Backwards relations for querying were not cleared on relation deletions.
 
 ## [3.4.0] - 2023-07-12
 ### Added

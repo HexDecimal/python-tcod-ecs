@@ -683,11 +683,11 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
         if not world._relations_lookup[(self.key, ...)]:
             del world._relations_lookup[(self.key, ...)]
 
-        world._relations_lookup[(self.entity, self.key, None)].discard(self.entity)
+        world._relations_lookup[(self.entity, self.key, None)].discard(target)
         if not world._relations_lookup[(self.entity, self.key, None)]:
             del world._relations_lookup[(self.entity, self.key, None)]
 
-        world._relations_lookup[(..., self.key, None)].discard(self.entity)
+        world._relations_lookup[(..., self.key, None)].discard(target)
         if not world._relations_lookup[(..., self.key, None)]:
             del world._relations_lookup[(..., self.key, None)]
 
