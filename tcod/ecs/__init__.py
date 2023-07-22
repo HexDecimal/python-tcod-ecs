@@ -723,6 +723,10 @@ class EntityComponentRelations:
         """Remove all relations associated with this component key."""
         EntityComponentRelationMapping(self.entity, key).clear()
 
+    def __contains__(self, key: _ComponentKey[object]) -> bool:
+        """Return True if this entity contains a relation component for this component key."""
+        return bool(EntityComponentRelationMapping(self.entity, key))
+
 
 def _defaultdict_of_set() -> defaultdict[_T1, set[_T2]]:
     """Return a new defaultdict of sets."""

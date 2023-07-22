@@ -50,7 +50,9 @@ def test_relations() -> None:
     entity_b = world["B"]
     entity_b.relation_tag[ChildOf] = entity_a
     entity_c = world["C"]
+    assert len(entity_c.relation_tag) == 0
     entity_c.relation_tag[ChildOf] = entity_a
+    assert len(entity_c.relation_tag) == 1
     entity_d = world["D"]
     entity_d.relation_tag[ChildOf] = entity_b
     assert set(world.Q.all_of(relations=[(ChildOf, entity_a)])) == {entity_b, entity_c}
@@ -62,6 +64,8 @@ def test_relations() -> None:
     for e in world.Q.all_of(relations=[(ChildOf, ...)]):
         e.relation_tag.clear()
     assert not set(world.Q.all_of(relations=[(ChildOf, ...)]))
+
+    del entity_c.relation_tags_many[ChildOf]
 
 
 def test_relations_old() -> None:
@@ -94,6 +98,10 @@ def test_relation_components() -> None:
 
     entity_b.relation_components[("named", int)][entity_a] = 0
     assert entity_b.relation_components[("named", int)][entity_a] == 0
+
+    assert ("named", int) in entity_b.relation_components
+    del entity_b.relation_components[("named", int)]
+    assert ("named", int) not in entity_b.relation_components
 
 
 def test_naming() -> None:
@@ -256,3 +264,27 @@ def test_component_setdefault() -> None:
     entity = tcod.ecs.World()[None]
     assert entity.components.setdefault(int, 1) == 1
     assert entity.components.setdefault(int, 2) == 1
+
+
+def test_query_exclude_components() -> None:
+    world = tcod.ecs.World()
+    world["A"].components[int] = 0
+    world["A"].components[str] = ""
+    world["B"].components[int] = 0
+    assert set(world.Q.all_of(components=[int]).none_of(components=[str])) == {world["B"]}
+
+
+def test_query_exclude_tags() -> None:
+    world = tcod.ecs.World()
+    world["A"].tags |= set("AB")
+    world["B"].tags |= set("B")
+    assert set(world.Q.all_of(tags=["B"]).none_of(tags=["A"])) == {world["B"]}
+
+
+def test_query_exclude_relations() -> None:
+    world = tcod.ecs.World()
+    world["B"].relation_tag["ChildOf"] = world["A"]
+    world["C"].relation_tags_many["ChildOf"] = {world["A"], world["B"]}
+    assert set(world.Q.all_of(relations=[("ChildOf", ...)]).none_of(relations=[("ChildOf", world["B"])])) == {
+        world["B"]
+    }
