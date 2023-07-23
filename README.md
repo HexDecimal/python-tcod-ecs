@@ -82,7 +82,8 @@ Worlds are normal Python objects and can be pickled as long as all stored compon
 ```
 
 Stability is a priority but changes may still break older saves.
-This project follows [Semantic Versioning](https://semver.org/), major version increments will break the API, the save format or both.
+Backwards compatibility is not a priority, pickled worlds should not be unpickled with an older version of the library.
+This project follows [Semantic Versioning](https://semver.org/), major version increments will break the API, the save format or both, minor version increments may break backwards compatibility.
 Check the [changelog](https://github.com/HexDecimal/python-tcod-ecs/blob/main/CHANGELOG.md) to be aware of format changes and breaks.
 There should always be a transition period before a format break, so keeping up with the latest version is a good idea.
 

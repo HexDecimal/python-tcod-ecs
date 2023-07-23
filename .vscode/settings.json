@@ -46,6 +46,8 @@
         "typehints",
         "typeshed",
         "undoc",
+        "unpickle",
+        "unpickled",
         "unpickling",
         "unstructure",
         "WASD",

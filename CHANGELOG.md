@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
-- Serialization format updated.
+- Serialization format updated, older versions will not be able to unpickle this version.
 - Reduced the size of the pickled World.
 
 ### Fixed
