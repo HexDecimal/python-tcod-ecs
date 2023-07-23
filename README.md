@@ -5,20 +5,20 @@
 [![Documentation Status](https://readthedocs.org/projects/python-tcod-ecs/badge/?version=latest)](https://python-tcod-ecs.readthedocs.io)
 [![codecov](https://codecov.io/gh/HexDecimal/python-tcod-ecs/branch/main/graph/badge.svg?token=4Ak5QpTLZB)](https://codecov.io/gh/HexDecimal/python-tcod-ecs)
 
-This is an [Entity-component-system](https://en.wikipedia.org/wiki/Entity_component_system) implemented in Python.
+`tcod-ecs` is a [Sparse-set](https://skypjack.github.io/2020-08-02-ecs-baf-part-9/) [Entity-component-system](https://en.wikipedia.org/wiki/Entity_component_system) implemented using Python's `dict` and `set` types.
 See the [ECS FAQ](https://github.com/SanderMertens/ecs-faq) for more info.
 
 This implementation focuses on type-hinting, organization, and is designed to work well with Python.
 The following features are currently implemented:
 
-- Entities can have store components which are instances of any Python object. Components are looked up by their type.
-- Entities can have one instance of a type, or multiple instances of a type with a string or other hashable to differentiate them.
-- Components can be registered as abstract, allowing a base type to hold subclasses of that component.
-- Entity tags are distinct from components, tags are any hashable Python object rather than empty class.
+- Entities can store components which are instances of any Python object. Components are looked up by their type.
+- Entities can have one instance of a type, or multiple instances of a type using a hashable tag to differentiate them.
 - Entity relationships are supported, either as many-to-many or many-to-one relationships.
-- ECS Queries can be made to fetch entities having a combination of components/tags/relations or the absence of such.
+- ECS Queries can be made to fetch entities having a combination of components/tags/relations or excluding such.
+- The ECS World object can be serialized with Python's pickle module for easy storage.
 
 A lightweight version which implements only the entity-component framework exists called [tcod-ec](https://pypi.org/project/tcod-ec/).
+`tcod-ec` was geared towards a dynamic-typed-dict style of syntax and is missing a lot of important features such as queries and named components.
 
 # Installation
 
@@ -42,9 +42,9 @@ Remove or update `tcod` to fix this issue.
 
 ## Entity
 
-Each Entity is identified by its unique id (`uid`) which can be any hashable object and the `world` it belongs to.
-New unique entities can be created with `World.new_entity` which uses a new `object()` as the `uid`.
-An entity always knows about its assigned world.
+Each Entity is identified by its unique id (`uid`) which can be any hashable object combined with the `world` it belongs.
+New unique entities can be created with `World.new_entity` which uses a new `object()` as the `uid`, this guarantees uniqueness which is not always desireable.
+An entity always knows about its assigned world, which can be access with the `Entity.world` property from any Entity instance.
 Worlds only know about their entities once the entity is assigned a name, component, tag, or relation.
 
 ```py
@@ -60,16 +60,19 @@ True
 >>> entity = world["MyEntity"]
 >>> entity
 <Entity(uid='MyEntity')>
->>> world["MyEntity"] is entity
+>>> world["MyEntity"] is entity  # Matching entities ALWAYS share a single identity
 True
 
 ```
 
 Use `World.new_entity` to create unique entities and use `World[x]` to reference a global entity or relation with an id.
+`World[None]` is recommend for use as a global entity when you want to store components in the world itself.
+
+Do not save the `uid`'s of entities to be used later with `World[uid]`, this process is slower than holding onto the Entity instance.
 
 ## Serialization
 
-Worlds are normal Python objects and can be pickled as long as all stored components can be pickled.
+Worlds are normal Python objects and can be pickled as long as all stored components are pickleable.
 
 ```py
 >>> import pickle
@@ -77,6 +80,11 @@ Worlds are normal Python objects and can be pickled as long as all stored compon
 >>> world = pickle.loads(pickled_data)
 
 ```
+
+Stability is a priority but changes may still break older saves.
+This project follows [Semantic Versioning](https://semver.org/), major version increments will break the API, the save format or both.
+Check the [changelog](https://github.com/HexDecimal/python-tcod-ecs/blob/main/CHANGELOG.md) to be aware of format changes and breaks.
+There should always be a transition period before a format break, so keeping up with the latest version is a good idea.
 
 ## Components
 
@@ -136,7 +144,7 @@ Vector2(x=10, y=0)
 
 Only one component can be assigned unless that component is given a unique name.
 You can name components with the key syntax `(name, type)` when assigning components.
-Names are not limited to strings, and can be any hashable or frozen object.
+Names are not limited to strings, they are a tag equivalent and can be any hashable or frozen object.
 The syntax `[type]` and `[(name, type)]` can be used interchangeably in all places accepting a component key.
 Queries on components access named components with the same syntax and must use names explicitly.
 

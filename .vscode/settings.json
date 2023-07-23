@@ -33,6 +33,7 @@
         "Numpad",
         "PAGEDOWN",
         "PAGEUP",
+        "pickleable",
         "pytest",
         "quickstart",
         "RMASK",
