@@ -30,7 +30,7 @@ from typing_extensions import Self
 
 import tcod.ecs._converter
 from tcod.ecs import _version
-from tcod.ecs.typing import EllipsisType, _ComponentKey
+from tcod.ecs.typing import EllipsisType, _ComponentKey, _RelationQuery
 
 if TYPE_CHECKING:
     from _typeshed import SupportsKeysAndGetItem
@@ -1025,10 +1025,8 @@ class Query:
         self._none_of_components: set[_ComponentKey[object]] = set()
         self._all_of_tags: set[object] = set()
         self._none_of_tags: set[object] = set()
-        self._all_of_relations: set[tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None]] = set()
-        self._none_of_relations: set[
-            tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None]
-        ] = set()
+        self._all_of_relations: set[_RelationQuery] = set()
+        self._none_of_relations: set[_RelationQuery] = set()
 
     def __iter_requires(self, extra_components: AbstractSet[_ComponentKey[object]]) -> Iterator[AbstractSet[Entity]]:
         collect_components = self._all_of_components | extra_components
@@ -1083,7 +1081,7 @@ class Query:
         components: Iterable[_ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
-        relations: Iterable[tuple[object, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None]] = (),
+        relations: Iterable[_RelationQuery] = (),
     ) -> Self:
         """Filter entities based on having all of the provided elements."""
         self.__check_suspicious_tags(tags)
@@ -1097,7 +1095,7 @@ class Query:
         components: Iterable[_ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
-        relations: Iterable[tuple[object, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None]] = (),
+        relations: Iterable[_RelationQuery] = (),
     ) -> Self:
         """Filter entities based on having none of the provided elements."""
         self.__check_suspicious_tags(tags)

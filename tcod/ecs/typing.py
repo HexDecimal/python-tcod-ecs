@@ -3,14 +3,35 @@ from __future__ import annotations
 
 import sys
 import types
-from typing import Any, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Tuple, Type, TypeVar, Union
+
+from typing_extensions import TypeAlias
+
+if TYPE_CHECKING:
+    from tcod.ecs import Entity
+else:
+    Entity = Any
 
 if sys.version_info >= (3, 10):  # pragma: no cover
-    EllipsisType = types.EllipsisType
+    EllipsisType: TypeAlias = types.EllipsisType
 else:  # pragma: no cover
     EllipsisType = Any
 
 T = TypeVar("T")
 
-_ComponentKey = Union[Type[T], Tuple[object, Type[T]]]
+_ComponentKey: TypeAlias = Union[Type[T], Tuple[object, Type[T]]]
 """ComponentKey is plain `type` or tuple `(tag, type)`."""
+
+_RelationTarget: TypeAlias = Union[Entity, EllipsisType]
+"""Possible target for relation queries."""
+
+_RelationQuery: TypeAlias = Union[Tuple[object, _RelationTarget], Tuple[_RelationTarget, object, None]]
+"""Query format for relations.
+
+One of 4 formats:
+
+* (tag, target)
+* (tag, ...)
+* (origin, tag, None)
+* (..., tag, None)
+"""
