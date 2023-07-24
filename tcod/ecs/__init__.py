@@ -1,7 +1,6 @@
 """A type-hinted Entity Component System based on Python dictionaries and sets."""
 from __future__ import annotations
 
-import sys
 import warnings
 from collections import defaultdict
 from typing import (
@@ -31,14 +30,11 @@ from typing_extensions import Self
 
 import tcod.ecs._converter
 from tcod.ecs import _version
+from tcod.ecs.typing import EllipsisType, _ComponentKey
 
 if TYPE_CHECKING:
     from _typeshed import SupportsKeysAndGetItem
 
-if sys.version_info >= (3, 10):  # pragma: no cover
-    from types import EllipsisType
-else:  # pragma: no cover
-    EllipsisType = Any
 
 __version__ = _version.__version__
 
@@ -48,8 +44,6 @@ _T2 = TypeVar("_T2")
 _T3 = TypeVar("_T3")
 _T4 = TypeVar("_T4")
 _T5 = TypeVar("_T5")
-_ComponentKey = Union[Type[T], Tuple[object, Type[T]]]
-"""ComponentKey is plain `type` or tuple `(tag, type)`."""
 
 
 def abstract_component(cls: type[T]) -> type[T]:
