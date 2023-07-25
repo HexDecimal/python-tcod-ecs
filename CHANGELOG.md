@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
-- The type returned by `World.Q` has been renamed from `Query` to `WorldQuery`.
+- The type returned by `World.Q` has been renamed from `tcod.ecs.Query` to `tcod.ecs.query.WorldQuery`.
 
 ## [3.5.0] - 2023-07-23
 ### Changed

@@ -2,15 +2,22 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, AbstractSet, Iterable, Iterator
+from typing import TYPE_CHECKING, AbstractSet, Any, Final, Iterable, Iterator, TypeVar, overload
 
 import attrs
 from typing_extensions import Self
 
+import tcod.ecs
 from tcod.ecs.typing import _ComponentKey, _RelationQuery
 
 if TYPE_CHECKING:
     from tcod.ecs import Entity, World
+
+_T1 = TypeVar("_T1")
+_T2 = TypeVar("_T2")
+_T3 = TypeVar("_T3")
+_T4 = TypeVar("_T4")
+_T5 = TypeVar("_T5")
 
 
 def _check_suspicious_tags(tags: Iterable[object], stacklevel: int = 2) -> None:
@@ -119,3 +126,89 @@ class Query:
             self._all_of_relations,
             self._none_of_relations.union(relations),
         )
+
+
+class WorldQuery:
+    """Collect a set of entities with the provided conditions."""
+
+    def __init__(self, world: World) -> None:
+        """Initialize a Query."""
+        self.world: Final = world
+        self._query = Query()
+
+    def _get_entities(self, extra_components: AbstractSet[_ComponentKey[object]] = frozenset()) -> set[Entity]:
+        return _fetch_query(self.world, self._query.all_of(components=extra_components))
+
+    def all_of(
+        self,
+        components: Iterable[_ComponentKey[object]] = (),
+        *,
+        tags: Iterable[object] = (),
+        relations: Iterable[_RelationQuery] = (),
+    ) -> Self:
+        """Filter entities based on having all of the provided elements."""
+        self._query = self._query.all_of(components=components, tags=tags, relations=relations, _stacklevel=2)
+        return self
+
+    def none_of(
+        self,
+        components: Iterable[_ComponentKey[object]] = (),
+        *,
+        tags: Iterable[object] = (),
+        relations: Iterable[_RelationQuery] = (),
+    ) -> Self:
+        """Filter entities based on having none of the provided elements."""
+        self._query = self._query.none_of(components=components, tags=tags, relations=relations, _stacklevel=2)
+        return self
+
+    def __iter__(self) -> Iterator[Entity]:
+        """Iterate over the matching entities."""
+        return iter(self._get_entities())
+
+    @overload
+    def __getitem__(self, key: tuple[_ComponentKey[_T1]]) -> Iterable[tuple[_T1]]:
+        ...
+
+    @overload
+    def __getitem__(self, key: tuple[_ComponentKey[_T1], _ComponentKey[_T2]]) -> Iterable[tuple[_T1, _T2]]:
+        ...
+
+    @overload
+    def __getitem__(
+        self, key: tuple[_ComponentKey[_T1], _ComponentKey[_T2], _ComponentKey[_T3]]
+    ) -> Iterable[tuple[_T1, _T2, _T3]]:
+        ...
+
+    @overload
+    def __getitem__(
+        self, key: tuple[_ComponentKey[_T1], _ComponentKey[_T2], _ComponentKey[_T3], _ComponentKey[_T4]]
+    ) -> Iterable[tuple[_T1, _T2, _T3, _T4]]:
+        ...
+
+    @overload
+    def __getitem__(
+        self,
+        key: tuple[_ComponentKey[_T1], _ComponentKey[_T2], _ComponentKey[_T3], _ComponentKey[_T4], _ComponentKey[_T5]],
+    ) -> Iterable[tuple[_T1, _T2, _T3, _T4, _T5]]:
+        ...
+
+    @overload
+    def __getitem__(self, key: tuple[_ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]:
+        ...
+
+    def __getitem__(self, key: tuple[_ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]:
+        """Collect components from a query."""
+        assert key is not None
+        assert isinstance(key, tuple)
+
+        Entity = tcod.ecs.Entity
+
+        entities = list(self._get_entities(set(key) - {Entity}))
+        entity_components = []
+        for component_key in key:
+            if component_key is Entity:
+                entity_components.append(entities)
+                continue
+            world_components = self.world._components_by_type[component_key]
+            entity_components.append([world_components[entity] for entity in entities])
+        return zip(*entity_components)
