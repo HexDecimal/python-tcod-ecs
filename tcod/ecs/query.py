@@ -7,11 +7,12 @@ from typing import TYPE_CHECKING, AbstractSet, Any, Final, Iterable, Iterator, T
 import attrs
 from typing_extensions import Self
 
-import tcod.ecs
+import tcod.ecs.entity
 from tcod.ecs.typing import _ComponentKey, _RelationQuery
 
 if TYPE_CHECKING:
-    from tcod.ecs import Entity, World
+    from tcod.ecs.entity import Entity
+    from tcod.ecs.world import World
 
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
@@ -201,7 +202,7 @@ class WorldQuery:
         assert key is not None
         assert isinstance(key, tuple)
 
-        Entity = tcod.ecs.Entity
+        Entity = tcod.ecs.entity.Entity
 
         entities = list(self._get_entities(set(key) - {Entity}))
         entity_components = []

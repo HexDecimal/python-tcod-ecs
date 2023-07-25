@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Tuple, Type, TypeVar, Union
 from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
-    from tcod.ecs import Entity
+    from tcod.ecs.entity import Entity
 else:
     Entity = Any
 
