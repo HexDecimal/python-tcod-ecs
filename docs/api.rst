@@ -5,6 +5,17 @@ API reference
    :members:
    :undoc-members:
    :show-inheritance:
+   :exclude-members: World, Entity
+
+.. automodule:: tcod.ecs.world
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: tcod.ecs.entity
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 .. automodule:: tcod.ecs.query
    :members:
