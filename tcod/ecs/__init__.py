@@ -29,6 +29,7 @@ import attrs
 from typing_extensions import Self
 
 import tcod.ecs._converter
+import tcod.ecs.query
 from tcod.ecs import _version
 from tcod.ecs.typing import EllipsisType, _ComponentKey, _RelationQuery
 
@@ -1006,75 +1007,24 @@ class World:
         return entity
 
     @property
-    def Q(self) -> Query:
+    def Q(self) -> WorldQuery:
         """Start a new Query for this world.
 
         Alias for ``tcod.ecs.Query(world)``.
         """
-        return Query(self)
+        return WorldQuery(self)
 
 
-class Query:
+class WorldQuery:
     """Collect a set of entities with the provided conditions."""
 
     def __init__(self, world: World) -> None:
         """Initialize a Query."""
         self.world: Final = world
-
-        self._all_of_components: set[_ComponentKey[object]] = set()
-        self._none_of_components: set[_ComponentKey[object]] = set()
-        self._all_of_tags: set[object] = set()
-        self._none_of_tags: set[object] = set()
-        self._all_of_relations: set[_RelationQuery] = set()
-        self._none_of_relations: set[_RelationQuery] = set()
-
-    def __iter_requires(self, extra_components: AbstractSet[_ComponentKey[object]]) -> Iterator[AbstractSet[Entity]]:
-        collect_components = self._all_of_components | extra_components
-        for component in collect_components:
-            yield self.world._components_by_type.get(component, {}).keys()
-        for tag in self._all_of_tags:
-            yield self.world._tags_by_key.get(tag, set())
-        for relation in self._all_of_relations:
-            yield self.world._relations_lookup.get(relation, set())
-
-    def __iter_excludes(self) -> Iterator[AbstractSet[Entity]]:
-        for component in self._none_of_components:
-            yield self.world._components_by_type.get(component, {}).keys()
-        for tag in self._none_of_tags:
-            yield self.world._tags_by_key.get(tag, set())
-        for relation in self._none_of_relations:
-            yield self.world._relations_lookup.get(relation, set())
+        self._query = tcod.ecs.query.Query()
 
     def _get_entities(self, extra_components: AbstractSet[_ComponentKey[object]] = frozenset()) -> set[Entity]:
-        # Place the smallest sets first to speed up intersections
-        requires = sorted(self.__iter_requires(extra_components), key=len)
-        excludes = list(self.__iter_excludes())
-
-        if not requires:
-            if excludes:
-                msg = "A Query can not function only excluding entities."
-            else:
-                msg = "This Query did not include any entities."
-            raise AssertionError(msg)
-
-        entities = set(requires[0])
-        for require in requires[1:]:
-            entities.intersection_update(require)
-        for exclude in excludes:
-            entities.difference_update(exclude)
-        return entities
-
-    @staticmethod
-    def __check_suspicious_tags(tags: Iterable[object], stacklevel: int = 2) -> None:
-        if isinstance(tags, str):
-            warnings.warn(
-                "The tags parameter was given a str type."
-                " This will split the string and check its individual letters as tags."
-                "\nAdd square brackets 'tags=[tag]' to check for a single string tag. (Recommended)"
-                "\nOtherwise use 'tags=list(tags)' to suppress this warning.",
-                RuntimeWarning,
-                stacklevel=stacklevel + 1,
-            )
+        return tcod.ecs.query._fetch_query(self.world, self._query.all_of(components=extra_components))
 
     def all_of(
         self,
@@ -1084,10 +1034,7 @@ class Query:
         relations: Iterable[_RelationQuery] = (),
     ) -> Self:
         """Filter entities based on having all of the provided elements."""
-        self.__check_suspicious_tags(tags)
-        self._all_of_components.update(components)
-        self._all_of_tags.update(tags)
-        self._all_of_relations.update(relations)
+        self._query = self._query.all_of(components=components, tags=tags, relations=relations, _stacklevel=2)
         return self
 
     def none_of(
@@ -1098,10 +1045,7 @@ class Query:
         relations: Iterable[_RelationQuery] = (),
     ) -> Self:
         """Filter entities based on having none of the provided elements."""
-        self.__check_suspicious_tags(tags)
-        self._none_of_components.update(components)
-        self._none_of_tags.update(tags)
-        self._none_of_relations.update(relations)
+        self._query = self._query.none_of(components=components, tags=tags, relations=relations, _stacklevel=2)
         return self
 
     def __iter__(self) -> Iterator[Entity]:
