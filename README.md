@@ -4,6 +4,7 @@
 [![PyPI - License](https://img.shields.io/pypi/l/tcod-ecs)](https://github.com/HexDecimal/python-tcod-ecs/blob/main/LICENSE)
 [![Documentation Status](https://readthedocs.org/projects/python-tcod-ecs/badge/?version=latest)](https://python-tcod-ecs.readthedocs.io)
 [![codecov](https://codecov.io/gh/HexDecimal/python-tcod-ecs/branch/main/graph/badge.svg?token=4Ak5QpTLZB)](https://codecov.io/gh/HexDecimal/python-tcod-ecs)
+[![CommitsSinceLastRelease](https://img.shields.io/github/commits-since/HexDecimal/python-tcod-ecs/latest)](https://github.com/HexDecimal/python-tcod-ecs/blob/main/CHANGELOG.md)
 
 `tcod-ecs` is a [Sparse-set](https://skypjack.github.io/2020-08-02-ecs-baf-part-9/) [Entity-component-system](https://en.wikipedia.org/wiki/Entity_component_system) implemented using Python's `dict` and `set` types.
 See the [ECS FAQ](https://github.com/SanderMertens/ecs-faq) for more info.
