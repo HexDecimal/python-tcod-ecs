@@ -1,8 +1,11 @@
 """Tools for querying  World objects."""
 from __future__ import annotations
 
+import itertools
 import warnings
+from collections import defaultdict
 from typing import TYPE_CHECKING, AbstractSet, Any, Final, Iterable, Iterator, TypeVar, overload
+from weakref import WeakKeyDictionary, WeakSet
 
 import attrs
 from typing_extensions import Self
@@ -19,6 +22,60 @@ _T2 = TypeVar("_T2")
 _T3 = TypeVar("_T3")
 _T4 = TypeVar("_T4")
 _T5 = TypeVar("_T5")
+
+
+_query_caches: WeakKeyDictionary[World, _QueryCache] = WeakKeyDictionary()
+"""The master table of cached queries."""
+
+
+@attrs.define
+class _QueryCache:
+    """Main data structure for the query cache."""
+
+    queries: dict[Query, set[Entity]] = attrs.field(factory=dict)
+    """Table of cached queries."""
+    by_components: defaultdict[_ComponentKey[object], WeakSet[Query]] = attrs.field(
+        factory=lambda: defaultdict(WeakSet)
+    )
+    """Which queries depend on which components."""
+    by_tags: defaultdict[object, WeakSet[Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
+    """Which queries depend on which tags."""
+    by_relations: defaultdict[_RelationQuery, WeakSet[Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
+    """Which queries depend on which relations."""
+
+
+def _touch_component(world: World, component: _ComponentKey[object]) -> None:
+    """Drop cached queries if a component change has invalidated them."""
+    cache = _query_caches.get(world)
+    if cache is None:
+        return
+    if component not in cache.by_components:
+        return
+    for touched_query in cache.by_components.pop(component, ()):
+        cache.queries.pop(touched_query, None)
+
+
+def _touch_tag(world: World, tag: object) -> None:
+    """Drop cached queries if a tag change has invalidated them."""
+    cache = _query_caches.get(world)
+    if cache is None:
+        return
+    if tag not in cache.by_tags:
+        return
+    for touched_query in cache.by_tags.pop(tag, ()):
+        cache.queries.pop(touched_query, None)
+
+
+def _touch_relations(world: World, relations: Iterable[_RelationQuery]) -> None:
+    """Drop cached queries if a relation change has invalidated them."""
+    cache = _query_caches.get(world)
+    if cache is None:
+        return
+    for relation in relations:
+        if relation not in cache.by_relations:
+            continue
+        for touched_query in cache.by_relations.pop(relation, ()):
+            cache.queries.pop(touched_query, None)
 
 
 def _check_suspicious_tags(tags: Iterable[object], stacklevel: int = 2) -> None:
@@ -49,8 +106,23 @@ def _fetch_lookup_tables(
         yield world._relations_lookup.get(relation, set())
 
 
-def _fetch_query(world: World, query: Query) -> set[Entity]:
-    """Return the entities for the given query and world."""
+def _add_query_to_cache(world: World, query: Query, entities: set[Entity]) -> None:
+    """Adds a query."""
+    cache = _query_caches.get(world)
+    if cache is None:
+        cache = _query_caches[world] = _QueryCache()
+
+    cache.queries[query] = entities
+    for component in itertools.chain(query._all_of_components, query._none_of_components):
+        cache.by_components[component].add(query)
+    for tag in itertools.chain(query._all_of_tags, query._none_of_tags):
+        cache.by_tags[tag].add(query)
+    for relation in itertools.chain(query._all_of_relations, query._none_of_relations):
+        cache.by_relations[relation].add(query)
+
+
+def _collect_query(world: World, query: Query) -> set[Entity]:
+    """Return the entities matching the given query."""
     requires = sorted(  # Place the smallest sets first to speed up intersections
         _fetch_lookup_tables(world, query._all_of_components, query._all_of_tags, query._all_of_relations), key=len
     )
@@ -70,6 +142,31 @@ def _fetch_query(world: World, query: Query) -> set[Entity]:
         entities.intersection_update(require)
     for exclude in excludes:
         entities.difference_update(exclude)
+    return entities
+
+
+def _get_query(world: World, query: Query) -> set[Entity]:
+    """Return the entities for the given query and world."""
+    cache = _query_caches.get(world)
+    if cache is not None:
+        cached_entities = cache.queries.get(query)
+        if cached_entities is not None:
+            return cached_entities  # Found a cached query
+    # Not in cache, build the cache and return the results
+
+    cache = _query_caches.get(world)
+    if cache is None:
+        cache = _query_caches[world] = _QueryCache()
+
+    cache.queries[query] = entities = _collect_query(world, query)
+
+    for component in itertools.chain(query._all_of_components, query._none_of_components):
+        cache.by_components[component].add(query)
+    for tag in itertools.chain(query._all_of_tags, query._none_of_tags):
+        cache.by_tags[tag].add(query)
+    for relation in itertools.chain(query._all_of_relations, query._none_of_relations):
+        cache.by_relations[relation].add(query)
+
     return entities
 
 
@@ -138,7 +235,7 @@ class WorldQuery:
         self._query = Query()
 
     def _get_entities(self, extra_components: AbstractSet[_ComponentKey[object]] = frozenset()) -> set[Entity]:
-        return _fetch_query(self.world, self._query.all_of(components=extra_components))
+        return _get_query(self.world, self._query.all_of(components=extra_components))
 
     def all_of(
         self,

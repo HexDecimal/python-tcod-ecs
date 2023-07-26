@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The type returned by `World.Q` has been renamed from `tcod.ecs.Query` to `tcod.ecs.query.WorldQuery`.
 - Serialization format updated.
 
+### Performance
+- Added a simple query cache.
+  A query is automatically cached until any of the components/tags/relations it depends on have changed.
+
 ## [3.5.0] - 2023-07-23
 ### Changed
 - Serialization format updated, older versions will not be able to unpickle this version.

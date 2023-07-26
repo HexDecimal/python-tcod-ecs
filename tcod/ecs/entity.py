@@ -21,6 +21,7 @@ from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from typing_extensions import Self
 
+import tcod.ecs.query
 from tcod.ecs.typing import _ComponentKey
 
 if TYPE_CHECKING:
@@ -313,6 +314,10 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def __setitem__(self, key: _ComponentKey[T], value: T) -> None:
         """Assign a component to an entity."""
         assert self.__assert_key(key)
+
+        if key not in self.entity.world._components_by_entity[self.entity]:
+            tcod.ecs.query._touch_component(self.entity.world, key)  # Component added
+
         self.entity.world._components_by_entity[self.entity][key] = value
         self.entity.world._components_by_type[key][self.entity] = value
 
@@ -327,6 +332,8 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         del self.entity.world._components_by_type[key][self.entity]
         if not self.entity.world._components_by_type[key]:
             del self.entity.world._components_by_type[key]
+
+        tcod.ecs.query._touch_component(self.entity.world, key)  # Component removed
 
     def __contains__(self, key: _ComponentKey[object]) -> bool:  # type: ignore[override]
         """Return True if this entity has the provided component."""
@@ -406,11 +413,19 @@ class EntityTags(MutableSet[Any]):
 
     def add(self, tag: object) -> None:
         """Add a tag to the entity."""
+        if tag in self.entity.world._tags_by_entity[self.entity]:
+            return  # Already has tag
+        tcod.ecs.query._touch_tag(self.entity.world, tag)  # Tag added
+
         self.entity.world._tags_by_entity[self.entity].add(tag)
         self.entity.world._tags_by_key[tag].add(self.entity)
 
     def discard(self, tag: object) -> None:
         """Discard a tag from an entity."""
+        if tag not in self.entity.world._tags_by_entity[self.entity]:
+            return  # Already doesn't have tag
+        tcod.ecs.query._touch_tag(self.entity.world, tag)  # Tag removed
+
         self.entity.world._tags_by_entity[self.entity].discard(tag)
         if not self.entity.world._tags_by_entity[self.entity]:
             del self.entity.world._tags_by_entity[self.entity]
@@ -474,6 +489,10 @@ class EntityRelationsMapping(MutableSet[Entity]):
         world._relations_lookup[(self.entity, self.key, None)].add(target)
         world._relations_lookup[(..., self.key, None)].add(target)
 
+        tcod.ecs.query._touch_relations(
+            world, ((self.key, target), (self.key, ...), (self.entity, self.key, None), (..., self.key, None))
+        )
+
     def discard(self, target: Entity) -> None:
         """Discard a relation target from this tag."""
         world = self.entity.world
@@ -500,6 +519,10 @@ class EntityRelationsMapping(MutableSet[Entity]):
         if not world._relations_lookup[(..., self.key, None)]:
             del world._relations_lookup[(..., self.key, None)]
 
+        tcod.ecs.query._touch_relations(
+            world, ((self.key, target), (self.key, ...), (self.entity, self.key, None), (..., self.key, None))
+        )
+
     def __contains__(self, target: Entity) -> bool:  # type: ignore[override]
         """Return True if this relation contains the given value."""
         return bool(self.entity.world._relations_lookup.get((self.key, target), ()))
@@ -513,6 +536,11 @@ class EntityRelationsMapping(MutableSet[Entity]):
         """Return the number of targets for this relation tag."""
         by_entity = self.entity.world._relation_tags_by_entity.get(self.entity)
         return len(by_entity.get(self.key, ())) if by_entity is not None else 0
+
+    def clear(self) -> None:
+        """Discard all targets for this tag relation."""
+        for key in list(self):
+            self.discard(key)
 
 
 class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
@@ -553,6 +581,11 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
     def __len__(self) -> int:
         """Return the number of unique relation tags this entity has."""
         return len(self.entity.world._relation_tags_by_entity.get(self.entity, {}))
+
+    def clear(self) -> None:
+        """Discard all tag relations from an entity."""
+        for key in list(self):
+            del self[key]
 
 
 class EntityRelationsExclusive(MutableMapping[object, Entity]):
@@ -600,6 +633,10 @@ class EntityRelationsExclusive(MutableMapping[object, Entity]):
     def __len__(self) -> int:
         """Return the number of relations this entity has."""
         return EntityRelations(self.entity).__len__()
+
+    def clear(self) -> None:
+        """Discard all tag relations from an entity."""
+        EntityRelations(self.entity).clear()
 
 
 class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
