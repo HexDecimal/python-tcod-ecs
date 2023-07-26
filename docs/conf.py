@@ -6,16 +6,12 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-import sys
-
-sys.path.append("..")
-
-from tcod.ecs import __version__  # noqa: E402
+import importlib.metadata
 
 project = "tcod-ecs"
 copyright = "2023, Kyle Benesch"
 author = "Kyle Benesch"
-release = __version__
+release = importlib.metadata.version(project)
 version = ".".join(release.split(".")[:2])
 
 # -- General configuration ---------------------------------------------------

@@ -1,11 +1,11 @@
 """A type-hinted Entity Component System based on Python dictionaries and sets."""
 from __future__ import annotations
 
+import importlib.metadata
 import warnings
 from collections import defaultdict
 from typing import TypeVar
 
-from tcod.ecs import _version
 from tcod.ecs.entity import Entity
 from tcod.ecs.world import World
 
@@ -16,7 +16,10 @@ __all__ = (
     "abstract_component",
 )
 
-__version__ = _version.__version__
+try:
+    __version__ = importlib.metadata.version("tcod-ecs")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = ""
 
 
 T = TypeVar("T")
