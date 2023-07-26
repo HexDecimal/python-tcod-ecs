@@ -110,4 +110,3 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           bodyFile: release_body.md
-          draft: true
