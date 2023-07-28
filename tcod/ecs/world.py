@@ -10,7 +10,7 @@ import attrs
 import tcod.ecs._converter
 import tcod.ecs.query
 from tcod.ecs.entity import Entity
-from tcod.ecs.typing import EllipsisType, _ComponentKey
+from tcod.ecs.typing import _ComponentKey, _RelationTargetLookup
 
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
@@ -50,10 +50,10 @@ def _tags_by_key_from_tags_by_entity(by_entity: defaultdict[Entity, set[object]]
 def _relations_lookup_from(
     tags_by_entity: defaultdict[Entity, defaultdict[object, set[Entity]]],
     components_by_entity: defaultdict[Entity, defaultdict[_ComponentKey[object], dict[Entity, Any]]],
-) -> defaultdict[tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]]:
+) -> defaultdict[tuple[Any, _RelationTargetLookup] | tuple[_RelationTargetLookup, Any, None], set[Entity]]:
     """Return the relation lookup table from the relations sparse-sets."""
     relations_lookup: defaultdict[
-        tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]
+        tuple[Any, _RelationTargetLookup] | tuple[_RelationTargetLookup, Any, None], set[Entity]
     ] = defaultdict(set)
     for entity, tags in tags_by_entity.items():
         for tag, targets in tags.items():
@@ -118,7 +118,7 @@ class World:
     dict[entity][ComponentKey][target_entity] = component
     """
     _relations_lookup: defaultdict[
-        tuple[Any, Entity | EllipsisType] | tuple[Entity | EllipsisType, Any, None], set[Entity]
+        tuple[Any, _RelationTargetLookup] | tuple[_RelationTargetLookup, Any, None], set[Entity]
     ] = attrs.field(init=False, factory=lambda: defaultdict(set))
     """Relations query table.  Tags and components are mixed together.
 

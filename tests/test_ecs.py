@@ -290,3 +290,12 @@ def test_query_exclude_relations() -> None:
     assert set(world.Q.all_of(relations=[("ChildOf", ...)]).none_of(relations=[("ChildOf", world["B"])])) == {
         world["B"]
     }
+
+
+def test_tag_query() -> None:
+    world = tcod.ecs.World()
+    assert not set(world.Q.all_of(tags=["A"]))
+    world["A"].tags.add("A")
+    assert set(world.Q.all_of(tags=["A"])) == {world["A"]}
+    world["A"].tags.remove("A")
+    assert not set(world.Q.all_of(tags=["A"]))
