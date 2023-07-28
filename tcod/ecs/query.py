@@ -4,7 +4,7 @@ from __future__ import annotations
 import itertools
 import warnings
 from collections import defaultdict
-from typing import TYPE_CHECKING, AbstractSet, Any, Final, Iterable, Iterator, TypeVar, overload
+from typing import TYPE_CHECKING, AbstractSet, Any, Iterable, Iterator, TypeVar, overload
 from weakref import WeakKeyDictionary, WeakSet
 
 import attrs
@@ -192,6 +192,7 @@ def _get_query(w_query: WorldQuery) -> set[Entity]:
     """Return the entities for the given query and world."""
     world = w_query.world
     query = w_query._query
+    assert query == query._normalized(), "Double checks that relations are correct"
     cache = _get_query_cache(world)
     if cache is not None:
         cached_entities = cache.queries.get(query)
@@ -202,6 +203,22 @@ def _get_query(w_query: WorldQuery) -> set[Entity]:
     entities = _collect_query(w_query)
     _add_query_to_cache(w_query, entities)
     return entities
+
+
+def _normalize_query_relation(relation: _RelationQuery) -> _RelationQuery:
+    """Normalize a relation query.
+
+    This adds the inverse lookup to the sub-query so that this only matches entities which have a relation.
+    """
+    if len(relation) == 2:  # noqa: PLR2004
+        tag, targets = relation  # type: ignore[misc] # https://github.com/python/mypy/issues/1178
+        if isinstance(targets, WorldQuery):  # (tag, targets)
+            return tag, targets.all_of(relations=[(..., tag, None)])
+        return relation
+    origin, tag, _ = relation  # type: ignore[misc] # https://github.com/python/mypy/issues/1178
+    if isinstance(origin, WorldQuery):  # (origins, tag, None)
+        return origin.all_of(relations=[(tag, ...)]), tag, None
+    return relation
 
 
 @attrs.define(frozen=True)
@@ -236,7 +253,7 @@ class Query:
             self._none_of_components,
             self._all_of_tags.union(tags),
             self._none_of_tags,
-            self._all_of_relations.union(relations),
+            self._all_of_relations.union(_normalize_query_relation(relation) for relation in relations),
             self._none_of_relations,
         )
 
@@ -256,7 +273,7 @@ class Query:
             self._all_of_tags,
             self._none_of_tags.union(tags),
             self._all_of_relations,
-            self._none_of_relations.union(relations),
+            self._none_of_relations.union(_normalize_query_relation(relation) for relation in relations),
         )
 
     def _iter_dependencies(self) -> Iterator[WorldQuery]:
@@ -268,14 +285,24 @@ class Query:
             elif isinstance(relation[0], WorldQuery):  # (origins, tag, None)
                 yield relation[0]
 
+    def _normalized(self) -> Query:
+        """Return a Query with relations normalized."""
+        return self.__class__(
+            self._all_of_components,
+            self._none_of_components,
+            self._all_of_tags,
+            self._none_of_tags,
+            frozenset(_normalize_query_relation(relation) for relation in self._all_of_relations),
+            frozenset(_normalize_query_relation(relation) for relation in self._none_of_relations),
+        )
 
+
+@attrs.define(frozen=True)
 class WorldQuery:
     """Collect a set of entities with the provided conditions."""
 
-    def __init__(self, world: World) -> None:
-        """Initialize a Query."""
-        self.world: Final = world
-        self._query = Query()
+    world: World
+    _query: Query = attrs.field(factory=Query)
 
     def _get_entities(self, extra_components: AbstractSet[_ComponentKey[object]] = frozenset()) -> set[Entity]:
         return _get_query(self.all_of(components=extra_components))
@@ -288,8 +315,9 @@ class WorldQuery:
         relations: Iterable[_RelationQuery] = (),
     ) -> Self:
         """Filter entities based on having all of the provided elements."""
-        self._query = self._query.all_of(components=components, tags=tags, relations=relations, _stacklevel=2)
-        return self
+        return self.__class__(
+            self.world, self._query.all_of(components=components, tags=tags, relations=relations, _stacklevel=2)
+        )
 
     def none_of(
         self,
@@ -299,8 +327,9 @@ class WorldQuery:
         relations: Iterable[_RelationQuery] = (),
     ) -> Self:
         """Filter entities based on having none of the provided elements."""
-        self._query = self._query.none_of(components=components, tags=tags, relations=relations, _stacklevel=2)
-        return self
+        return self.__class__(
+            self.world, self._query.none_of(components=components, tags=tags, relations=relations, _stacklevel=2)
+        )
 
     def __iter__(self) -> Iterator[Entity]:
         """Iterate over the matching entities."""

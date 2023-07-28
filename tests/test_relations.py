@@ -13,6 +13,7 @@ ChildOf: Final = "ChildOf"
 def test_conditional_relations() -> None:
     world = tcod.ecs.World()
     world["A"].relation_tag[ChildOf] = world["B"]
+    world["C"].components[int] = 42
     has_int_query = world.Q.all_of(components=[int])
     assert not set(world.Q.all_of(relations=[(ChildOf, has_int_query)]))
     assert not set(world.Q.all_of(relations=[(has_int_query, ChildOf, None)]))
