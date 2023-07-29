@@ -105,7 +105,7 @@ class Entity:
 
         Relations targeting this component are still kept.
 
-        .. versionadded:: Unreleased
+        .. versionadded:: 4.2.0
         """
         self.components.clear()
         self.tags.clear()
@@ -724,7 +724,7 @@ class EntityComponentRelations(MutableMapping[_ComponentKey[Any], EntityComponen
 
     See :any:`Entity.relation_components`.
 
-    ..versionchanged:: Unreleased
+    ..versionchanged:: 4.2.0
         Is now a :any:`MutableMapping` subtype.
     """
 
@@ -742,7 +742,7 @@ class EntityComponentRelations(MutableMapping[_ComponentKey[Any], EntityComponen
     def __setitem__(self, __key: _ComponentKey[T], __values: Mapping[Entity, object]) -> None:
         """Redefine the component relations for this entity.
 
-        ..versionadded:: Unreleased
+        ..versionadded:: 4.2.0
         """
         if isinstance(__values, EntityComponentRelationMapping) and __values.entity is self.entity:
             return

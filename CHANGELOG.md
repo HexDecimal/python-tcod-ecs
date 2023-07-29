@@ -6,10 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [4.2.0] - 2023-07-28
 ### Added
-- `Entity.relation_components` now has a MutableMapping functionality.
+- `Entity.relation_components` now has `MutableMapping` functionality.
 - You can now set the value of `Entity.relation_components[component_key] = {target: component}`.
 - Added the `Entity.clear` method which effectively deletes an entity by removing its components/tags/relations.
+  This does not delete relations targeting the cleared entity.
 
 ## [4.1.0] - 2023-07-28
 ### Added
