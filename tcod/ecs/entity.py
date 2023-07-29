@@ -100,6 +100,18 @@ class Entity:
         _entity_table[world][uid] = self
         return self
 
+    def clear(self) -> None:
+        """Deletes all of this entities components, tags, and relations.
+
+        Relations targeting this component are still kept.
+
+        .. versionadded:: Unreleased
+        """
+        self.components.clear()
+        self.tags.clear()
+        self.relation_tags_many.clear()
+        self.relation_components.clear()
+
     @property
     def components(self) -> EntityComponents:
         """Access an entities components.

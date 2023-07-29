@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `Entity.relation_components` now has a MutableMapping functionality.
 - You can now set the value of `Entity.relation_components[component_key] = {target: component}`.
+- Added the `Entity.clear` method which effectively deletes an entity by removing its components/tags/relations.
 
 ## [4.1.0] - 2023-07-28
 ### Added

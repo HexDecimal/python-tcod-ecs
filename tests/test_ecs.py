@@ -238,3 +238,25 @@ def test_tag_query() -> None:
     assert set(world.Q.all_of(tags=["A"])) == {world["A"]}
     world["A"].tags.remove("A")
     assert not set(world.Q.all_of(tags=["A"]))
+
+
+def test_entity_clear() -> None:
+    world = tcod.ecs.World()
+    entity = world["entity"]
+    other = world["other"]
+    entity.components[int] = 0
+    entity.tags.add(0)
+    entity.relation_tag["test"] = other
+    entity.relation_components[int][other] = 0
+    other.relation_tag["test"] = entity
+    other.relation_components[int][entity] = 0
+
+    entity.clear()
+    assert int not in entity.components
+    assert 0 not in entity.tags
+    assert "test" not in entity.relation_tag
+    assert int not in entity.relation_components
+
+    # Relations from other to entity are not cleared
+    assert other.relation_tag["test"] is entity
+    assert entity in other.relation_components[int]
