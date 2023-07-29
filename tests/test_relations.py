@@ -68,8 +68,14 @@ def test_relation_components() -> None:
     assert entity_b.relation_components[("named", int)][entity_a] == 0
 
     assert ("named", int) in entity_b.relation_components
+    assert len(entity_b.relation_components) == 1
     del entity_b.relation_components[("named", int)]
     assert ("named", int) not in entity_b.relation_components
+
+    entity_a.relation_components[int] = {world[1]: 1, world[2]: 2}
+    entity_a.relation_components[int] = entity_a.relation_components[int]
+
+    entity_a.relation_components.clear()
 
 
 def test_conditional_relations() -> None:

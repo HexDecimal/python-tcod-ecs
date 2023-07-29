@@ -10,6 +10,8 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
+    KeysView,
+    Mapping,
     MutableMapping,
     MutableSet,
     Tuple,
@@ -705,10 +707,13 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
         return 0 if by_entity is None else len(by_entity.get(self.key, ()))
 
 
-class EntityComponentRelations:
+class EntityComponentRelations(MutableMapping[_ComponentKey[Any], EntityComponentRelationMapping[Any]]):
     """Proxy to access the component relations of an entity.
 
     See :any:`Entity.relation_components`.
+
+    ..versionchanged:: Unreleased
+        Is now a :any:`MutableMapping` subtype.
     """
 
     __slots__ = ("entity",)
@@ -722,10 +727,42 @@ class EntityComponentRelations:
         """Access relations for this component key as a `{target: component}` dict-like object."""
         return EntityComponentRelationMapping(self.entity, key)
 
+    def __setitem__(self, __key: _ComponentKey[T], __values: Mapping[Entity, object]) -> None:
+        """Redefine the component relations for this entity.
+
+        ..versionadded:: Unreleased
+        """
+        if isinstance(__values, EntityComponentRelationMapping) and __values.entity is self.entity:
+            return
+        mapping: EntityComponentRelationMapping[object] = self[__key]
+        mapping.clear()
+        for target, component in __values.items():
+            mapping[target] = component
+
     def __delitem__(self, key: _ComponentKey[object]) -> None:
         """Remove all relations associated with this component key."""
         EntityComponentRelationMapping(self.entity, key).clear()
 
-    def __contains__(self, key: _ComponentKey[object]) -> bool:
+    def __contains__(self, key: object) -> bool:
         """Return True if this entity contains a relation component for this component key."""
-        return bool(EntityComponentRelationMapping(self.entity, key))
+        return key in self.keys()  # noqa: SIM118 # https://github.com/astral-sh/ruff/issues/6163
+
+    def clear(self) -> None:
+        """Clears the relation components this entity has with other entities.
+
+        Does not clear relations targeting this entity.
+        """
+        for component_key in list(self):
+            self[component_key].clear()
+
+    def keys(self) -> KeysView[_ComponentKey[object]]:
+        """Returns the components keys this entity has relations for."""
+        return self.entity.world._relation_components_by_entity.get(self.entity, {}).keys()
+
+    def __iter__(self) -> Iterator[_ComponentKey[object]]:
+        """Iterates over the component keys this entity has relations for."""
+        return iter(self.keys())
+
+    def __len__(self) -> int:
+        """Returns the number of unique component keys this entity has relations for."""
+        return len(self.entity.world._relation_components_by_entity.get(self.entity, ()))
