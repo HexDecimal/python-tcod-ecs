@@ -55,20 +55,20 @@ def _relations_lookup_from(
     relations_lookup: defaultdict[
         tuple[Any, _RelationTargetLookup] | tuple[_RelationTargetLookup, Any, None], set[Entity]
     ] = defaultdict(set)
-    for entity, tags in tags_by_entity.items():
+    for origin, tags in tags_by_entity.items():
         for tag, targets in tags.items():
             for target in targets:
-                relations_lookup[(tag, ...)].add(target)
-                relations_lookup[(tag, entity)].add(target)
-                relations_lookup[(target, tag, None)].add(entity)
-                relations_lookup[(..., tag, None)].add(entity)
-    for entity, components in components_by_entity.items():
+                relations_lookup[(tag, ...)].add(origin)
+                relations_lookup[(tag, target)].add(origin)
+                relations_lookup[(origin, tag, None)].add(target)
+                relations_lookup[(..., tag, None)].add(target)
+    for origin, components in components_by_entity.items():
         for component_key, target_components in components.items():
             for target in target_components:
-                relations_lookup[(component_key, ...)].add(target)
-                relations_lookup[(component_key, entity)].add(target)
-                relations_lookup[(target, component_key, None)].add(entity)
-                relations_lookup[(..., component_key, None)].add(entity)
+                relations_lookup[(component_key, ...)].add(origin)
+                relations_lookup[(component_key, origin)].add(origin)
+                relations_lookup[(origin, component_key, None)].add(target)
+                relations_lookup[(..., component_key, None)].add(target)
 
     return relations_lookup
 

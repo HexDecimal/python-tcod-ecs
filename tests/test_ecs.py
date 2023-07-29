@@ -84,6 +84,10 @@ def check_world_v1(world: tcod.ecs.World) -> None:
     assert "tag" in entity.tags
     entity_b = world.named["B"]
     assert entity_b.relation_tag["ChildOf"] == entity
+    assert set(world.Q.all_of(relations=[("ChildOf", ...)])) == {entity_b}
+    assert set(world.Q.all_of(relations=[("ChildOf", entity)])) == {entity_b}
+    assert set(world.Q.all_of(relations=[(..., "ChildOf", None)])) == {entity}
+    assert set(world.Q.all_of(relations=[(entity_b, "ChildOf", None)])) == {entity}
     assert entity_b.relation_components[str][entity] == "str"
     assert not world[None].components
 
