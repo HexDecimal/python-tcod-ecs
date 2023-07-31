@@ -23,6 +23,7 @@ from weakref import WeakKeyDictionary, WeakValueDictionary
 
 from typing_extensions import Self
 
+import tcod.ecs.callbacks
 import tcod.ecs.query
 from tcod.ecs.typing import ComponentKey
 
@@ -329,15 +330,21 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         """Assign a component to an entity."""
         assert self.__assert_key(key)
 
-        if key not in self.entity.world._components_by_entity[self.entity]:
+        old_value = self.entity.world._components_by_entity[self.entity].get(key)
+
+        if old_value is None:
             tcod.ecs.query._touch_component(self.entity.world, key)  # Component added
 
         self.entity.world._components_by_entity[self.entity][key] = value
         self.entity.world._components_by_type[key][self.entity] = value
 
+        tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, value)
+
     def __delitem__(self, key: type[object] | tuple[object, type[object]]) -> None:
         """Delete a component from an entity."""
         assert self.__assert_key(key)
+
+        old_value = self.entity.world._components_by_entity[self.entity].get(key)
 
         del self.entity.world._components_by_entity[self.entity][key]
         if not self.entity.world._components_by_entity[self.entity]:
@@ -348,6 +355,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
             del self.entity.world._components_by_type[key]
 
         tcod.ecs.query._touch_component(self.entity.world, key)  # Component removed
+        tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, None)
 
     def __contains__(self, key: ComponentKey[object]) -> bool:  # type: ignore[override]
         """Return True if this entity has the provided component."""

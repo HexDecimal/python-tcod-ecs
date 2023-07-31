@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `tcod.ecs.typing.ComponentKey` is now stable.
+- Can now register a callback to be called on component changes.
 
 ## [4.2.1] - 2023-07-28
 ### Fixed
