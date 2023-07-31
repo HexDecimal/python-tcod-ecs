@@ -10,7 +10,7 @@ import attrs
 import tcod.ecs._converter
 import tcod.ecs.query
 from tcod.ecs.entity import Entity
-from tcod.ecs.typing import _ComponentKey, _RelationTargetLookup
+from tcod.ecs.typing import ComponentKey, _RelationTargetLookup
 
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
@@ -28,10 +28,10 @@ def _defaultdict_of_dict() -> defaultdict[_T1, dict[_T2, _T3]]:
 
 
 def _components_by_entity_from(
-    by_type: defaultdict[_ComponentKey[object], dict[Entity, Any]]
-) -> defaultdict[Entity, dict[_ComponentKey[object], Any]]:
+    by_type: defaultdict[ComponentKey[object], dict[Entity, Any]]
+) -> defaultdict[Entity, dict[ComponentKey[object], Any]]:
     """Return the component lookup table from the components sparse-set."""
-    by_entity: defaultdict[Entity, dict[_ComponentKey[object], Any]] = defaultdict(dict)
+    by_entity: defaultdict[Entity, dict[ComponentKey[object], Any]] = defaultdict(dict)
     for component_key, components in by_type.items():
         for entity, component in components.items():
             by_entity[entity][component_key] = component
@@ -49,7 +49,7 @@ def _tags_by_key_from_tags_by_entity(by_entity: defaultdict[Entity, set[object]]
 
 def _relations_lookup_from(
     tags_by_entity: defaultdict[Entity, defaultdict[object, set[Entity]]],
-    components_by_entity: defaultdict[Entity, defaultdict[_ComponentKey[object], dict[Entity, Any]]],
+    components_by_entity: defaultdict[Entity, defaultdict[ComponentKey[object], dict[Entity, Any]]],
 ) -> defaultdict[tuple[Any, _RelationTargetLookup] | tuple[_RelationTargetLookup, Any, None], set[Entity]]:
     """Return the relation lookup table from the relations sparse-sets."""
     relations_lookup: defaultdict[
@@ -77,14 +77,14 @@ def _relations_lookup_from(
 class World:
     """A container for entities and components."""
 
-    _components_by_entity: defaultdict[Entity, dict[_ComponentKey[object], Any]] = attrs.field(
+    _components_by_entity: defaultdict[Entity, dict[ComponentKey[object], Any]] = attrs.field(
         init=False, factory=lambda: defaultdict(dict)
     )
     """Random access entity components.
 
     dict[Entity][ComponentKey] = component_instance
     """
-    _components_by_type: defaultdict[_ComponentKey[object], dict[Entity, Any]] = attrs.field(
+    _components_by_type: defaultdict[ComponentKey[object], dict[Entity, Any]] = attrs.field(
         init=False, factory=lambda: defaultdict(dict)
     )
     """Query table entity components.
@@ -111,7 +111,7 @@ class World:
     dict[entity][tag] = {target_entities}
     """
     _relation_components_by_entity: defaultdict[
-        Entity, defaultdict[_ComponentKey[object], dict[Entity, Any]]
+        Entity, defaultdict[ComponentKey[object], dict[Entity, Any]]
     ] = attrs.field(init=False, factory=lambda: defaultdict(_defaultdict_of_dict))
     """Random access relations owning components.
 
@@ -264,7 +264,7 @@ class World:
 
     def new_entity(
         self,
-        components: Iterable[object] | Mapping[_ComponentKey[object], object] = (),
+        components: Iterable[object] | Mapping[ComponentKey[object], object] = (),
         *,
         name: object = None,
         tags: Iterable[Any] = (),

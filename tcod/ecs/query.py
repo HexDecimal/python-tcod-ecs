@@ -11,7 +11,7 @@ import attrs
 from typing_extensions import Self
 
 import tcod.ecs.entity
-from tcod.ecs.typing import _ComponentKey, _RelationQuery
+from tcod.ecs.typing import ComponentKey, _RelationQuery
 
 if TYPE_CHECKING:
     from tcod.ecs.entity import Entity
@@ -34,9 +34,7 @@ class _QueryCache:
 
     queries: dict[Query, set[Entity]] = attrs.field(factory=dict)
     """Table of cached queries."""
-    by_components: defaultdict[_ComponentKey[object], WeakSet[Query]] = attrs.field(
-        factory=lambda: defaultdict(WeakSet)
-    )
+    by_components: defaultdict[ComponentKey[object], WeakSet[Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
     """Which queries depend on which components."""
     by_tags: defaultdict[object, WeakSet[Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
     """Which queries depend on which tags."""
@@ -57,7 +55,7 @@ def _drop_cached_query(cache: _QueryCache, query: Query) -> None:
         _drop_cached_query(_query_caches[sub_world], sub_query)
 
 
-def _touch_component(world: World, component: _ComponentKey[object]) -> None:
+def _touch_component(world: World, component: ComponentKey[object]) -> None:
     """Drop cached queries if a component change has invalidated them."""
     cache = _get_query_cache(world)
     if component not in cache.by_components:
@@ -123,7 +121,7 @@ def _fetch_relation_table(world: World, relation: _RelationQuery) -> AbstractSet
 
 def _fetch_lookup_tables(
     world: World,
-    components: frozenset[_ComponentKey[object]],
+    components: frozenset[ComponentKey[object]],
     tags: frozenset[object],
     relations: frozenset[_RelationQuery],
 ) -> Iterator[AbstractSet[Entity]]:
@@ -225,8 +223,8 @@ def _normalize_query_relation(relation: _RelationQuery) -> _RelationQuery:
 class Query:
     """A set of conditions used to lookup entities in a World."""
 
-    _all_of_components: frozenset[_ComponentKey[object]] = frozenset()
-    _none_of_components: frozenset[_ComponentKey[object]] = frozenset()
+    _all_of_components: frozenset[ComponentKey[object]] = frozenset()
+    _none_of_components: frozenset[ComponentKey[object]] = frozenset()
     _all_of_tags: frozenset[object] = frozenset()
     _none_of_tags: frozenset[object] = frozenset()
     _all_of_relations: frozenset[_RelationQuery] = frozenset()
@@ -240,7 +238,7 @@ class Query:
 
     def all_of(
         self,
-        components: Iterable[_ComponentKey[object]] = (),
+        components: Iterable[ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
         relations: Iterable[_RelationQuery] = (),
@@ -259,7 +257,7 @@ class Query:
 
     def none_of(
         self,
-        components: Iterable[_ComponentKey[object]] = (),
+        components: Iterable[ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
         relations: Iterable[_RelationQuery] = (),
@@ -304,12 +302,12 @@ class WorldQuery:
     world: World
     _query: Query = attrs.field(factory=Query)
 
-    def _get_entities(self, extra_components: AbstractSet[_ComponentKey[object]] = frozenset()) -> set[Entity]:
+    def _get_entities(self, extra_components: AbstractSet[ComponentKey[object]] = frozenset()) -> set[Entity]:
         return _get_query(self.all_of(components=extra_components))
 
     def all_of(
         self,
-        components: Iterable[_ComponentKey[object]] = (),
+        components: Iterable[ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
         relations: Iterable[_RelationQuery] = (),
@@ -321,7 +319,7 @@ class WorldQuery:
 
     def none_of(
         self,
-        components: Iterable[_ComponentKey[object]] = (),
+        components: Iterable[ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
         relations: Iterable[_RelationQuery] = (),
@@ -336,37 +334,37 @@ class WorldQuery:
         return iter(self._get_entities())
 
     @overload
-    def __getitem__(self, key: tuple[_ComponentKey[_T1]]) -> Iterable[tuple[_T1]]:
+    def __getitem__(self, key: tuple[ComponentKey[_T1]]) -> Iterable[tuple[_T1]]:
         ...
 
     @overload
-    def __getitem__(self, key: tuple[_ComponentKey[_T1], _ComponentKey[_T2]]) -> Iterable[tuple[_T1, _T2]]:
+    def __getitem__(self, key: tuple[ComponentKey[_T1], ComponentKey[_T2]]) -> Iterable[tuple[_T1, _T2]]:
         ...
 
     @overload
     def __getitem__(
-        self, key: tuple[_ComponentKey[_T1], _ComponentKey[_T2], _ComponentKey[_T3]]
+        self, key: tuple[ComponentKey[_T1], ComponentKey[_T2], ComponentKey[_T3]]
     ) -> Iterable[tuple[_T1, _T2, _T3]]:
         ...
 
     @overload
     def __getitem__(
-        self, key: tuple[_ComponentKey[_T1], _ComponentKey[_T2], _ComponentKey[_T3], _ComponentKey[_T4]]
+        self, key: tuple[ComponentKey[_T1], ComponentKey[_T2], ComponentKey[_T3], ComponentKey[_T4]]
     ) -> Iterable[tuple[_T1, _T2, _T3, _T4]]:
         ...
 
     @overload
     def __getitem__(
         self,
-        key: tuple[_ComponentKey[_T1], _ComponentKey[_T2], _ComponentKey[_T3], _ComponentKey[_T4], _ComponentKey[_T5]],
+        key: tuple[ComponentKey[_T1], ComponentKey[_T2], ComponentKey[_T3], ComponentKey[_T4], ComponentKey[_T5]],
     ) -> Iterable[tuple[_T1, _T2, _T3, _T4, _T5]]:
         ...
 
     @overload
-    def __getitem__(self, key: tuple[_ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]:
+    def __getitem__(self, key: tuple[ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]:
         ...
 
-    def __getitem__(self, key: tuple[_ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]:
+    def __getitem__(self, key: tuple[ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]:
         """Collect components from a query."""
         assert key is not None
         assert isinstance(key, tuple)

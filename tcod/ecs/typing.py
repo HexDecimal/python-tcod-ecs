@@ -19,9 +19,9 @@ if sys.version_info >= (3, 10):  # pragma: no cover
 else:  # pragma: no cover
     EllipsisType = Any
 
-T = TypeVar("T")
+_T = TypeVar("_T")
 
-_ComponentKey: TypeAlias = Union[Type[T], Tuple[object, Type[T]]]
+ComponentKey: TypeAlias = Union[Type[_T], Tuple[object, Type[_T]]]
 """ComponentKey is plain `type` or tuple `(tag, type)`."""
 
 _RelationTargetLookup: TypeAlias = Union[Entity, EllipsisType]

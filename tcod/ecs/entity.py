@@ -24,7 +24,7 @@ from weakref import WeakKeyDictionary, WeakValueDictionary
 from typing_extensions import Self
 
 import tcod.ecs.query
-from tcod.ecs.typing import _ComponentKey
+from tcod.ecs.typing import ComponentKey
 
 if TYPE_CHECKING:
     from _typeshed import SupportsKeysAndGetItem
@@ -311,7 +311,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         self[key] = value
 
     @staticmethod
-    def __assert_key(key: _ComponentKey[Any]) -> bool:
+    def __assert_key(key: ComponentKey[Any]) -> bool:
         """Verify that abstract classes are accessed correctly."""
         if isinstance(key, tuple):
             key = key[1]
@@ -320,12 +320,12 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         ), "Abstract components must be accessed via the base class."
         return True
 
-    def __getitem__(self, key: _ComponentKey[T]) -> T:
+    def __getitem__(self, key: ComponentKey[T]) -> T:
         """Return a component belonging to this entity."""
         assert self.__assert_key(key)
         return self.entity.world._components_by_entity[self.entity][key]  # type: ignore[no-any-return]
 
-    def __setitem__(self, key: _ComponentKey[T], value: T) -> None:
+    def __setitem__(self, key: ComponentKey[T], value: T) -> None:
         """Assign a component to an entity."""
         assert self.__assert_key(key)
 
@@ -349,11 +349,11 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
 
         tcod.ecs.query._touch_component(self.entity.world, key)  # Component removed
 
-    def __contains__(self, key: _ComponentKey[object]) -> bool:  # type: ignore[override]
+    def __contains__(self, key: ComponentKey[object]) -> bool:  # type: ignore[override]
         """Return True if this entity has the provided component."""
         return key in self.entity.world._components_by_entity.get(self.entity, ())
 
-    def __iter__(self) -> Iterator[_ComponentKey[Any]]:
+    def __iter__(self) -> Iterator[ComponentKey[Any]]:
         """Iterate over the component types belonging to this entity."""
         return iter(self.entity.world._components_by_entity.get(self.entity, ()))
 
@@ -388,7 +388,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
                 yield key_name, key_component
 
     def __ior__(
-        self, value: SupportsKeysAndGetItem[_ComponentKey[Any], Any] | Iterable[tuple[_ComponentKey[Any], Any]]
+        self, value: SupportsKeysAndGetItem[ComponentKey[Any], Any] | Iterable[tuple[ComponentKey[Any], Any]]
     ) -> Self:
         """Update components in-place.
 
@@ -397,14 +397,14 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         self.update(value)
         return self
 
-    def get(self, __key: _ComponentKey[T], __default: T | None = None) -> T | None:
+    def get(self, __key: ComponentKey[T], __default: T | None = None) -> T | None:
         """Return a component, returns None or a default value when the component is missing."""
         try:
             return self[__key]
         except KeyError:
             return __default
 
-    def setdefault(self, __key: _ComponentKey[T], __default: T) -> T:  # type: ignore[override]
+    def setdefault(self, __key: ComponentKey[T], __default: T) -> T:  # type: ignore[override]
         """Assign a default value if a component is missing, then returns the current value."""
         try:
             return self[__key]
@@ -661,11 +661,11 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
 
     __slots__ = ("entity", "key")
 
-    def __init__(self, entity: Entity, key: _ComponentKey[T]) -> None:
+    def __init__(self, entity: Entity, key: ComponentKey[T]) -> None:
         """Initialize this attribute for the given entity."""
         assert isinstance(entity, Entity), entity
         self.entity: Final = entity
-        self.key: _ComponentKey[T] = key
+        self.key: ComponentKey[T] = key
 
     def __getitem__(self, target: Entity) -> T:
         """Return the component related to a target entity."""
@@ -719,13 +719,13 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
         return 0 if by_entity is None else len(by_entity.get(self.key, ()))
 
 
-class EntityComponentRelations(MutableMapping[_ComponentKey[Any], EntityComponentRelationMapping[Any]]):
+class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponentRelationMapping[Any]]):
     """Proxy to access the component relations of an entity.
 
     See :any:`Entity.relation_components`.
 
     ..versionchanged:: 4.2.0
-        Is now a :any:`MutableMapping` subtype.
+        Is now a :any:`collections.abc.MutableMapping` subtype.
     """
 
     __slots__ = ("entity",)
@@ -735,11 +735,11 @@ class EntityComponentRelations(MutableMapping[_ComponentKey[Any], EntityComponen
         assert isinstance(entity, Entity), entity
         self.entity: Final = entity
 
-    def __getitem__(self, key: _ComponentKey[T]) -> EntityComponentRelationMapping[T]:
+    def __getitem__(self, key: ComponentKey[T]) -> EntityComponentRelationMapping[T]:
         """Access relations for this component key as a `{target: component}` dict-like object."""
         return EntityComponentRelationMapping(self.entity, key)
 
-    def __setitem__(self, __key: _ComponentKey[T], __values: Mapping[Entity, object]) -> None:
+    def __setitem__(self, __key: ComponentKey[T], __values: Mapping[Entity, object]) -> None:
         """Redefine the component relations for this entity.
 
         ..versionadded:: 4.2.0
@@ -751,7 +751,7 @@ class EntityComponentRelations(MutableMapping[_ComponentKey[Any], EntityComponen
         for target, component in __values.items():
             mapping[target] = component
 
-    def __delitem__(self, key: _ComponentKey[object]) -> None:
+    def __delitem__(self, key: ComponentKey[object]) -> None:
         """Remove all relations associated with this component key."""
         EntityComponentRelationMapping(self.entity, key).clear()
 
@@ -767,11 +767,11 @@ class EntityComponentRelations(MutableMapping[_ComponentKey[Any], EntityComponen
         for component_key in list(self):
             self[component_key].clear()
 
-    def keys(self) -> KeysView[_ComponentKey[object]]:
+    def keys(self) -> KeysView[ComponentKey[object]]:
         """Returns the components keys this entity has relations for."""
         return self.entity.world._relation_components_by_entity.get(self.entity, {}).keys()
 
-    def __iter__(self) -> Iterator[_ComponentKey[object]]:
+    def __iter__(self) -> Iterator[ComponentKey[object]]:
         """Iterates over the component keys this entity has relations for."""
         return iter(self.keys())
 
