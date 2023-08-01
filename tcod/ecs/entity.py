@@ -778,7 +778,7 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
 
     def __contains__(self, key: object) -> bool:
         """Return True if this entity contains a relation component for this component key."""
-        return key in self.keys()  # noqa: SIM118 # https://github.com/astral-sh/ruff/issues/6163
+        return key in self.keys()
 
     def clear(self) -> None:
         """Clears the relation components this entity has with other entities.
