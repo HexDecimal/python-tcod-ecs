@@ -239,8 +239,10 @@ def test_tag_query() -> None:
     world = tcod.ecs.World()
     assert not set(world.Q.all_of(tags=["A"]))
     world["A"].tags.add("A")
+    world["A"].tags.add("A")  # Cover redundant add
     assert set(world.Q.all_of(tags=["A"])) == {world["A"]}
     world["A"].tags.remove("A")
+    world["A"].tags.discard("A")  # Cover redundant discard
     assert not set(world.Q.all_of(tags=["A"]))
 
 

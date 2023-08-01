@@ -334,6 +334,8 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
 
         if old_value is None:
             tcod.ecs.query._touch_component(self.entity.world, key)  # Component added
+        elif old_value == value:
+            return
 
         self.entity.world._components_by_entity[self.entity][key] = value
         self.entity.world._components_by_type[key][self.entity] = value
@@ -682,8 +684,15 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
     def __setitem__(self, target: Entity, component: T) -> None:
         """Assign a component to the target entity."""
         world = self.entity.world
-        if target in world._relation_components_by_entity[self.entity][self.key] is not None:
-            del self[target]
+
+        old_value = world._relation_components_by_entity[self.entity][self.key].get(target)
+        if old_value is None:  # Relation added
+            tcod.ecs.query._touch_relations(
+                world, ((self.key, target), (self.key, ...), (self.entity, self.key, None), (..., self.key, None))
+            )
+        elif old_value == component:
+            return
+
         world._relation_components_by_entity[self.entity][self.key][target] = component
 
         world._relations_lookup[(self.key, target)] = {self.entity}
@@ -715,6 +724,10 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
         world._relations_lookup[(..., self.key, None)].discard(target)
         if not world._relations_lookup[(..., self.key, None)]:
             del world._relations_lookup[(..., self.key, None)]
+
+        tcod.ecs.query._touch_relations(
+            world, ((self.key, target), (self.key, ...), (self.entity, self.key, None), (..., self.key, None))
+        )
 
     def __iter__(self) -> Iterator[Entity]:
         """Iterate over the targets with assigned components."""

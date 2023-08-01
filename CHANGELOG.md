@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tcod.ecs.typing.ComponentKey` is now stable.
 - Can now register a callback to be called on component changes.
 
+### Fixed
+- Fixed stale caches for relation components.
+
 ## [4.2.1] - 2023-07-28
 ### Fixed
 - Unpickled worlds had reversed relations from what were saved.

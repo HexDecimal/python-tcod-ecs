@@ -74,8 +74,13 @@ def test_relation_components() -> None:
 
     entity_a.relation_components[int] = {world[1]: 1, world[2]: 2}
     entity_a.relation_components[int] = entity_a.relation_components[int]
+    entity_a.relation_components[int][world[1]] = 1
+
+    assert set(world.Q.all_of(relations=[(int, world[1])])) == {entity_a}
 
     entity_a.relation_components.clear()
+
+    assert not set(world.Q.all_of(relations=[(int, world[1])]))
 
 
 def test_conditional_relations() -> None:
