@@ -96,3 +96,67 @@ def test_conditional_relations() -> None:
     del world["B"].components[int]
     assert not set(world.Q.all_of(relations=[(ChildOf, has_int_query)]))
     assert not set(world.Q.all_of(relations=[(has_int_query, ChildOf, None)]))
+
+
+def test_relation_component_tables() -> None:
+    w = tcod.ecs.World()
+    e1 = w["e1"]
+    e2 = w["e2"]
+    e3 = w["e3"]
+
+    assert not set(w.Q.all_of(relations=[(int, e2)]))
+    e1.relation_components[int][e2] = 1
+    assert set(w.Q.all_of(relations=[(int, e2)])) == {e1}
+    e3.relation_components[int][e2] = 2
+    assert set(w.Q.all_of(relations=[(int, e2)])) == {e1, e3}
+    assert set(w.Q.all_of(relations=[(int, ...)])) == {e1, e3}
+    assert set(w.Q.all_of(relations=[(..., int, None)])) == {e2}
+    assert set(w.Q.all_of(relations=[(e1, int, None)])) == {e2}
+    assert set(w.Q.all_of(relations=[(e3, int, None)])) == {e2}
+
+    e3.relation_components[int][e1] = 3
+    assert set(w.Q.all_of(relations=[(e3, int, None)])) == {e1, e2}
+    assert set(w.Q.all_of(relations=[(..., int, None)])) == {e1, e2}
+    assert set(w.Q.all_of(relations=[(int, ...)])) == {e1, e3}
+
+    del e3.relation_components[int][e1]
+    assert set(w.Q.all_of(relations=[(e3, int, None)])) == {e2}
+    assert set(w.Q.all_of(relations=[(..., int, None)])) == {e2}
+    assert set(w.Q.all_of(relations=[(int, ...)])) == {e1, e3}
+
+    del e3.relation_components[int][e2]
+    assert set(w.Q.all_of(relations=[(..., int, None)])) == {e2}
+    assert set(w.Q.all_of(relations=[(e1, int, None)])) == {e2}
+    assert not set(w.Q.all_of(relations=[(e3, int, None)]))
+
+
+def test_relation_tag_tables() -> None:
+    w = tcod.ecs.World()
+    e1 = w["e1"]
+    e2 = w["e2"]
+    e3 = w["e3"]
+
+    assert not set(w.Q.all_of(relations=[("tag", e2)]))
+    e1.relation_tag["tag"] = e2
+    assert set(w.Q.all_of(relations=[("tag", e2)])) == {e1}
+    e3.relation_tag["tag"] = e2
+    assert set(w.Q.all_of(relations=[("tag", e2)])) == {e1, e3}
+    assert set(w.Q.all_of(relations=[("tag", ...)])) == {e1, e3}
+    assert set(w.Q.all_of(relations=[(..., "tag", None)])) == {e2}
+    assert set(w.Q.all_of(relations=[(e1, "tag", None)])) == {e2}
+    assert set(w.Q.all_of(relations=[(e3, "tag", None)])) == {e2}
+
+    e3.relation_tags_many["tag"].add(e1)
+    assert set(w.Q.all_of(relations=[(e3, "tag", None)])) == {e1, e2}
+    assert set(w.Q.all_of(relations=[(..., "tag", None)])) == {e1, e2}
+    assert set(w.Q.all_of(relations=[("tag", ...)])) == {e1, e3}
+
+    e3.relation_tags_many["tag"].discard(e1)
+    assert set(w.Q.all_of(relations=[(e3, "tag", None)])) == {e2}
+    assert set(w.Q.all_of(relations=[(..., "tag", None)])) == {e2}
+    assert set(w.Q.all_of(relations=[("tag", ...)])) == {e1, e3}
+
+    del e3.relation_tag["tag"]
+    assert set(w.Q.all_of(relations=[(..., "tag", None)])) == {e2}
+    assert set(w.Q.all_of(relations=[(e1, "tag", None)])) == {e2}
+    assert not set(w.Q.all_of(relations=[(e3, "tag", None)]))

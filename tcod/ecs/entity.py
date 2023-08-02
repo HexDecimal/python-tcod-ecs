@@ -531,17 +531,17 @@ class EntityRelationsMapping(MutableSet[Entity]):
         if not world._relations_lookup[(self.key, target)]:
             del world._relations_lookup[(self.key, target)]
 
-        world._relations_lookup[(self.key, ...)].discard(self.entity)
-        if not world._relations_lookup[(self.key, ...)]:
-            del world._relations_lookup[(self.key, ...)]
+            world._relations_lookup[(..., self.key, None)].discard(target)
+            if not world._relations_lookup[(..., self.key, None)]:
+                del world._relations_lookup[(..., self.key, None)]
 
         world._relations_lookup[(self.entity, self.key, None)].discard(target)
         if not world._relations_lookup[(self.entity, self.key, None)]:
             del world._relations_lookup[(self.entity, self.key, None)]
 
-        world._relations_lookup[(..., self.key, None)].discard(target)
-        if not world._relations_lookup[(..., self.key, None)]:
-            del world._relations_lookup[(..., self.key, None)]
+            world._relations_lookup[(self.key, ...)].discard(self.entity)
+            if not world._relations_lookup[(self.key, ...)]:
+                del world._relations_lookup[(self.key, ...)]
 
         tcod.ecs.query._touch_relations(
             world, ((self.key, target), (self.key, ...), (self.entity, self.key, None), (..., self.key, None))
@@ -695,9 +695,9 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
 
         world._relation_components_by_entity[self.entity][self.key][target] = component
 
-        world._relations_lookup[(self.key, target)] = {self.entity}
+        world._relations_lookup[(self.key, target)].add(self.entity)
         world._relations_lookup[(self.key, ...)].add(self.entity)
-        world._relations_lookup[(self.entity, self.key, None)] = {target}
+        world._relations_lookup[(self.entity, self.key, None)].add(target)
         world._relations_lookup[(..., self.key, None)].add(target)
 
     def __delitem__(self, target: Entity) -> None:
@@ -713,17 +713,17 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
         if not world._relations_lookup[(self.key, target)]:
             del world._relations_lookup[(self.key, target)]
 
-        world._relations_lookup[(self.key, ...)].discard(self.entity)
-        if not world._relations_lookup[(self.key, ...)]:
-            del world._relations_lookup[(self.key, ...)]
+            world._relations_lookup[(..., self.key, None)].discard(target)
+            if not world._relations_lookup[(..., self.key, None)]:
+                del world._relations_lookup[(..., self.key, None)]
 
         world._relations_lookup[(self.entity, self.key, None)].discard(target)
         if not world._relations_lookup[(self.entity, self.key, None)]:
             del world._relations_lookup[(self.entity, self.key, None)]
 
-        world._relations_lookup[(..., self.key, None)].discard(target)
-        if not world._relations_lookup[(..., self.key, None)]:
-            del world._relations_lookup[(..., self.key, None)]
+            world._relations_lookup[(self.key, ...)].discard(self.entity)
+            if not world._relations_lookup[(self.key, ...)]:
+                del world._relations_lookup[(self.key, ...)]
 
         tcod.ecs.query._touch_relations(
             world, ((self.key, target), (self.key, ...), (self.entity, self.key, None), (..., self.key, None))
