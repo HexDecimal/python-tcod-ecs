@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [4.3.1] - 2023-08-02
 ### Fixed
 - Relation component lookup tables were replacing previous entries instead of adding to them.
 - Relation ellipsis lookup tables were discarding entities which still had a relevant relation.
