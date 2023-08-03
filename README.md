@@ -241,6 +241,8 @@ True
 
 ```
 
+### Relation queries
+
 You can use the following table to help with constructing relation queries.
 `tag` is a component key if you are querying for a component relation.
 
