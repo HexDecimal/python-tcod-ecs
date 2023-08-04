@@ -334,8 +334,6 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
 
         if old_value is None:
             tcod.ecs.query._touch_component(self.entity.world, key)  # Component added
-        elif old_value == value:
-            return
 
         self.entity.world._components_by_entity[self.entity][key] = value
         self.entity.world._components_by_type[key][self.entity] = value
@@ -695,8 +693,6 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
             tcod.ecs.query._touch_relations(
                 world, ((self.key, target), (self.key, ...), (self.entity, self.key, None), (..., self.key, None))
             )
-        elif old_value == component:
-            return
 
         world._relation_components_by_entity[self.entity][self.key][target] = component
 
