@@ -266,3 +266,8 @@ def test_entity_clear() -> None:
     # Relations from other to entity are not cleared
     assert other.relation_tag["test"] is entity
     assert entity in other.relation_components[int]
+
+
+def test_world_iter() -> None:
+    with pytest.raises(TypeError, match=r"is not iterable"):
+        iter(tcod.ecs.World())  # Not iterable for now, maybe later

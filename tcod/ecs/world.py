@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import warnings
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, Iterable, Mapping, Set, TypeVar
+from typing import Any, DefaultDict, Dict, Iterable, Mapping, NoReturn, Set, TypeVar
 
 import attrs
 
@@ -252,6 +252,11 @@ class World:
         """
         assert uid is not object, "This is reserved."
         return Entity(self, uid)
+
+    def __iter__(self) -> NoReturn:
+        """Raises TypeError, :any:`World` is not iterable."""
+        msg = "'World' object is not iterable."
+        raise TypeError(msg)
 
     @property
     def named(self) -> Mapping[object, Entity]:
