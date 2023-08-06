@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Fixed
-- Removed an optimization which would check the equality of component values, since this would fail when comparing some types such as Numpy arrays.
+- Removed an optimization which would check the equality of component values, since this would fail when comparing some types such as NumPy arrays.
 - Removed unintentional iteration behavior from `World`. https://github.com/HexDecimal/python-tcod-ecs/issues/8
 
 ## [4.3.1] - 2023-08-02
