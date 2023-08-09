@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Set
 from typing import (
     TYPE_CHECKING,
-    AbstractSet,
     Any,
     Final,
     Generic,
@@ -468,7 +468,7 @@ class EntityTags(MutableSet[Any]):
         """Return the number of tags this entity has."""
         return len(self.entity.world._tags_by_entity.get(self.entity, ()))
 
-    def __ior__(self, other: AbstractSet[object]) -> Self:
+    def __ior__(self, other: Set[object]) -> Self:
         """Add tags in-place.
 
         .. versionadded:: 3.3
@@ -477,7 +477,7 @@ class EntityTags(MutableSet[Any]):
             self.add(to_add)
         return self
 
-    def __isub__(self, other: AbstractSet[Any]) -> Self:
+    def __isub__(self, other: Set[Any]) -> Self:
         """Remove tags in-place.
 
         .. versionadded:: 3.3

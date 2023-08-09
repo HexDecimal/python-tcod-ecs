@@ -4,7 +4,8 @@ from __future__ import annotations
 import itertools
 import warnings
 from collections import defaultdict
-from typing import TYPE_CHECKING, AbstractSet, Any, Iterable, Iterator, TypeVar, overload
+from collections.abc import Set
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, TypeVar, overload
 from weakref import WeakKeyDictionary, WeakSet
 
 import attrs
@@ -96,7 +97,7 @@ def _check_suspicious_tags(tags: Iterable[object], stacklevel: int = 2) -> None:
         )
 
 
-def _fetch_relation_table(world: World, relation: _RelationQuery) -> AbstractSet[Entity]:
+def _fetch_relation_table(world: World, relation: _RelationQuery) -> Set[Entity]:
     """Get the entity table for this relation.
 
     For simple cases where target/origin is `Entity | ...` this returns the set directly from the lookup table.
@@ -124,7 +125,7 @@ def _fetch_lookup_tables(
     components: frozenset[ComponentKey[object]],
     tags: frozenset[object],
     relations: frozenset[_RelationQuery],
-) -> Iterator[AbstractSet[Entity]]:
+) -> Iterator[Set[Entity]]:
     """Iterate over the relevant sets for this world and query."""
     for component in components:
         yield world._components_by_type.get(component, {}).keys()
@@ -302,8 +303,14 @@ class WorldQuery:
     world: World
     _query: Query = attrs.field(factory=Query)
 
-    def _get_entities(self, extra_components: AbstractSet[ComponentKey[object]] = frozenset()) -> set[Entity]:
-        return _get_query(self.all_of(components=extra_components))
+    def get_entities(self) -> Set[Entity]:
+        """Return entities matching the current query as a read-only set.
+
+        This is useful for post-processing the results of a query using set operations.
+
+        .. versionadded:: Unreleased
+        """
+        return _get_query(self)
 
     def all_of(
         self,
@@ -331,7 +338,7 @@ class WorldQuery:
 
     def __iter__(self) -> Iterator[Entity]:
         """Iterate over the matching entities."""
-        return iter(self._get_entities())
+        return iter(self.get_entities())
 
     @overload
     def __getitem__(self, key: tuple[ComponentKey[_T1]]) -> Iterable[tuple[_T1]]:
@@ -371,7 +378,7 @@ class WorldQuery:
 
         Entity = tcod.ecs.entity.Entity
 
-        entities = list(self._get_entities(set(key) - {Entity}))
+        entities = list(self.all_of(components=set(key) - {Entity}).get_entities())
         entity_components = []
         for component_key in key:
             if component_key is Entity:

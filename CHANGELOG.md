@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Added `WorldQuery.get_entities` for returning query results as a set.
+
 ### Fixed
 - Removed an optimization which would check the equality of component values, since this would fail when comparing some types such as NumPy arrays.
 - Removed unintentional iteration behavior from `World`. https://github.com/HexDecimal/python-tcod-ecs/issues/8
