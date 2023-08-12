@@ -308,7 +308,7 @@ class WorldQuery:
 
         This is useful for post-processing the results of a query using set operations.
 
-        .. versionadded:: Unreleased
+        .. versionadded:: 4.4
         """
         return _get_query(self)
 
