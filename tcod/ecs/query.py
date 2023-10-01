@@ -5,7 +5,7 @@ import itertools
 import warnings
 from collections import defaultdict
 from collections.abc import Set
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Protocol, TypeVar, overload
 from weakref import WeakKeyDictionary, WeakSet
 
 import attrs
@@ -33,23 +33,25 @@ _query_caches: WeakKeyDictionary[World, _QueryCache] = WeakKeyDictionary()
 class _QueryCache:
     """Main data structure for the query cache."""
 
-    queries: dict[Query, set[Entity]] = attrs.field(factory=dict)
+    queries: dict[_Query, Set[Entity]] = attrs.field(factory=dict)
     """Table of cached queries."""
-    by_components: defaultdict[ComponentKey[object], WeakSet[Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
+    by_components: defaultdict[ComponentKey[object], WeakSet[_Query]] = attrs.field(
+        factory=lambda: defaultdict(WeakSet)
+    )
     """Which queries depend on which components."""
-    by_tags: defaultdict[object, WeakSet[Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
+    by_tags: defaultdict[object, WeakSet[_Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
     """Which queries depend on which tags."""
-    by_relations: defaultdict[_RelationQuery, WeakSet[Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
+    by_relations: defaultdict[_RelationQuery, WeakSet[_Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
     """Which queries depend on which relations."""
 
-    dependencies: dict[Query, set[tuple[World, Query]]] = attrs.field(factory=lambda: defaultdict(set))
+    dependencies: dict[_Query, set[tuple[World, _Query]]] = attrs.field(factory=lambda: defaultdict(set))
     """Tracks which queries depend on the queries of the current world.
 
     `dependencies[dependency] = {dependant}`
     """
 
 
-def _drop_cached_query(cache: _QueryCache, query: Query) -> None:
+def _drop_cached_query(cache: _QueryCache, query: _Query) -> None:
     """Drop a cached query and all of its dependant queries."""
     cache.queries.pop(query, None)
     for sub_world, sub_query in cache.dependencies.pop(query, ()):
@@ -120,21 +122,6 @@ def _fetch_relation_table(world: World, relation: _RelationQuery) -> Set[Entity]
     return set().union(*(world._relations_lookup.get((entity, tag, None), ()) for entity in origin))
 
 
-def _fetch_lookup_tables(
-    world: World,
-    components: frozenset[ComponentKey[object]],
-    tags: frozenset[object],
-    relations: frozenset[_RelationQuery],
-) -> Iterator[Set[Entity]]:
-    """Iterate over the relevant sets for this world and query."""
-    for component in components:
-        yield world._components_by_type.get(component, {}).keys()
-    for tag in tags:
-        yield world._tags_by_key.get(tag, set())
-    for relation in relations:
-        yield _fetch_relation_table(world, relation)
-
-
 def _get_query_cache(world: World) -> _QueryCache:
     """Return the global cache for the given world, creating it if it does not exist."""
     cache = _query_caches.get(world)
@@ -143,55 +130,8 @@ def _get_query_cache(world: World) -> _QueryCache:
     return cache
 
 
-def _add_query_to_cache(w_query: WorldQuery, entities: set[Entity]) -> None:
-    """Adds a query."""
-    world = w_query.world
-    query = w_query._query
-    cache = _get_query_cache(world)
-
-    cache.queries[query] = entities
-    for component in itertools.chain(query._all_of_components, query._none_of_components):
-        cache.by_components[component].add(query)
-    for tag in itertools.chain(query._all_of_tags, query._none_of_tags):
-        cache.by_tags[tag].add(query)
-    for relation in itertools.chain(query._all_of_relations, query._none_of_relations):
-        cache.by_relations[relation].add(query)
-
-    for depends in query._iter_dependencies():
-        _get_query_cache(depends.world).dependencies[depends._query].add((world, query))
-
-
-def _collect_query(w_query: WorldQuery) -> set[Entity]:
-    """Return the entities matching the given query."""
-    world = w_query.world
-    query = w_query._query
-    requires = sorted(  # Place the smallest sets first to speed up intersections
-        _fetch_lookup_tables(world, query._all_of_components, query._all_of_tags, query._all_of_relations), key=len
-    )
-    excludes = list(
-        _fetch_lookup_tables(world, query._none_of_components, query._none_of_tags, query._none_of_relations)
-    )
-
-    if not requires:
-        if excludes:
-            msg = "A Query can not function only excluding entities."
-        else:
-            msg = "This Query did not include any entities."
-        raise AssertionError(msg)
-
-    entities = set(requires[0])
-    for require in requires[1:]:
-        entities.intersection_update(require)
-    for exclude in excludes:
-        entities.difference_update(exclude)
-    return entities
-
-
-def _get_query(w_query: WorldQuery) -> set[Entity]:
+def _get_query(world: World, query: _Query) -> Set[Entity]:
     """Return the entities for the given query and world."""
-    world = w_query.world
-    query = w_query._query
-    assert query == query._normalized(), "Double checks that relations are correct"
     cache = _get_query_cache(world)
     if cache is not None:
         cached_entities = cache.queries.get(query)
@@ -199,8 +139,8 @@ def _get_query(w_query: WorldQuery) -> set[Entity]:
             return cached_entities  # Found a cached query
     # Not in cache, build the cache and return the results
 
-    entities = _collect_query(w_query)
-    _add_query_to_cache(w_query, entities)
+    cache.queries[query] = entities = query._compile(world, cache)
+    query._add_to_cache(world, cache)
     return entities
 
 
@@ -220,80 +160,119 @@ def _normalize_query_relation(relation: _RelationQuery) -> _RelationQuery:
     return relation
 
 
-@attrs.define(frozen=True)
-class Query:
-    """A set of conditions used to lookup entities in a World."""
+class _Query(Protocol):
+    """Abstract query class."""
 
-    _all_of_components: frozenset[ComponentKey[object]] = frozenset()
-    _none_of_components: frozenset[ComponentKey[object]] = frozenset()
-    _all_of_tags: frozenset[object] = frozenset()
-    _none_of_tags: frozenset[object] = frozenset()
-    _all_of_relations: frozenset[_RelationQuery] = frozenset()
-    _none_of_relations: frozenset[_RelationQuery] = frozenset()
+    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+        """Add this query to the local cache."""
+        ...
+
+    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+        """Compile the entities of this query, returning a set which must not be modified."""
+        ...
+
+
+@attrs.define(frozen=True)
+class _QueryComponent:
+    """Query all entities with the given component."""
+
+    _component: ComponentKey[object]
+
+    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+        cache.by_components[self._component].add(self)
+
+    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+        return world._components_by_type.get(self._component, {}).keys()
+
+
+@attrs.define(frozen=True)
+class _QueryTag:
+    """Query all entities with the given tag."""
+
+    _tag: object
+
+    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+        cache.by_tags[self._tag].add(self)
+
+    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+        return world._tags_by_key.get(self._tag, set())
+
+
+@attrs.define(frozen=True)
+class _QueryRelation:
+    """Query all entities with the given relation."""
+
+    _relation: _RelationQuery = attrs.field(converter=_normalize_query_relation)
+
+    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+        """Add this query to the cache and mark it dependant on a world query if the relation uses one."""
+
+        def _get_world_query() -> WorldQuery | None:
+            """Return the world query of a relation if it exists."""
+            if isinstance(self._relation[0], WorldQuery):
+                return self._relation[0]
+            if isinstance(self._relation[-1], WorldQuery):
+                return self._relation[-1]
+            return None
+
+        cache.by_relations[self._relation].add(self)
+        w_query = _get_world_query()
+        if w_query is not None:
+            _get_query_cache(w_query.world).dependencies[w_query._query].add((world, self))
+
+    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+        return _fetch_relation_table(world, self._relation)
+
+
+@attrs.define(frozen=True)
+class _QueryLogicalAnd:
+    """Combines queries so that entities match all of a set of queries except those excluded by another set.
+
+    This is the typical ECS 'entity must include all of these components' query.
+    """
+
+    _all_of: frozenset[_Query] = frozenset()
+    _none_of: frozenset[_Query] = frozenset()
 
     def __attrs_post_init__(self) -> None:
         """Verify the current state."""
-        assert self._all_of_components.isdisjoint(self._none_of_components)
-        assert self._all_of_tags.isdisjoint(self._none_of_tags)
-        assert self._all_of_relations.isdisjoint(self._none_of_relations)
+        assert self._all_of.isdisjoint(self._none_of)
 
-    def all_of(
-        self,
-        components: Iterable[ComponentKey[object]] = (),
-        *,
-        tags: Iterable[object] = (),
-        relations: Iterable[_RelationQuery] = (),
-        _stacklevel: int = 1,
-    ) -> Self:
-        """Filter entities based on having all of the provided elements."""
-        _check_suspicious_tags(tags, stacklevel=_stacklevel + 1)
-        return self.__class__(
-            self._all_of_components.union(components),
-            self._none_of_components,
-            self._all_of_tags.union(tags),
-            self._none_of_tags,
-            self._all_of_relations.union(_normalize_query_relation(relation) for relation in relations),
-            self._none_of_relations,
+    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+        for dependency in itertools.chain(self._all_of, self._none_of):
+            cache.dependencies[dependency].add((world, self))
+
+    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+        requires = sorted(  # Place the smallest sets first to speed up intersections
+            (_get_query(world, q) for q in self._all_of), key=len
         )
+        entities = set(requires[0])
+        for required_set in requires[1:]:
+            entities.intersection_update(required_set)
+        for excluded_query in self._none_of:
+            entities.difference_update(_get_query(world, excluded_query))
+        return entities
 
-    def none_of(
-        self,
-        components: Iterable[ComponentKey[object]] = (),
-        *,
-        tags: Iterable[object] = (),
-        relations: Iterable[_RelationQuery] = (),
-        _stacklevel: int = 1,
-    ) -> Self:
-        """Filter entities based on having none of the provided elements."""
-        _check_suspicious_tags(tags, stacklevel=_stacklevel + 1)
-        return self.__class__(
-            self._all_of_components,
-            self._none_of_components.union(components),
-            self._all_of_tags,
-            self._none_of_tags.union(tags),
-            self._all_of_relations,
-            self._none_of_relations.union(_normalize_query_relation(relation) for relation in relations),
-        )
+    def __and__(self, other: _Query) -> Self:
+        if isinstance(other, _QueryLogicalAnd):
+            return self.__class__(all_of=self._all_of | other._all_of, none_of=self._none_of | other._none_of)
+        return self.__class__(all_of=self._all_of | {other}, none_of=self._none_of)
 
-    def _iter_dependencies(self) -> Iterator[WorldQuery]:
-        """Extract WorldQuery's from relations."""
-        for relation in itertools.chain(self._all_of_relations, self._none_of_relations):
-            if len(relation) == 2:  # noqa: PLR2004
-                if isinstance(relation[1], WorldQuery):  # (tag, targets)
-                    yield relation[1]
-            elif isinstance(relation[0], WorldQuery):  # (origins, tag, None)
-                yield relation[0]
 
-    def _normalized(self) -> Query:
-        """Return a Query with relations normalized."""
-        return self.__class__(
-            self._all_of_components,
-            self._none_of_components,
-            self._all_of_tags,
-            self._none_of_tags,
-            frozenset(_normalize_query_relation(relation) for relation in self._all_of_relations),
-            frozenset(_normalize_query_relation(relation) for relation in self._none_of_relations),
-        )
+@attrs.define(frozen=True)
+class _QueryLogicalOr:
+    """Combines queries so that entities matching *any* of a set of queries are all included."""
+
+    _any_of: frozenset[_Query] = frozenset()
+
+    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+        for dependency in self._any_of:
+            cache.dependencies[dependency].add((world, self))
+
+    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+        entities: set[Entity] = set()
+        entities.update(*(_get_query(world, q) for q in self._any_of))
+        return entities
 
 
 @attrs.define(frozen=True)
@@ -301,7 +280,7 @@ class WorldQuery:
     """Collect a set of entities with the provided conditions."""
 
     world: World
-    _query: Query = attrs.field(factory=Query)
+    _query: _Query = attrs.field(factory=_QueryLogicalAnd)
 
     def get_entities(self) -> Set[Entity]:
         """Return entities matching the current query as a read-only set.
@@ -310,7 +289,18 @@ class WorldQuery:
 
         .. versionadded:: 4.4
         """
-        return _get_query(self)
+        return _get_query(self.world, self._query)
+
+    @staticmethod
+    def __as_queries(
+        components: Iterable[ComponentKey[object]] = (),
+        tags: Iterable[object] = (),
+        relations: Iterable[_RelationQuery] = (),
+    ) -> Iterator[_Query]:
+        """Convert parameters into queries."""
+        yield from (_QueryComponent(component) for component in components)
+        yield from (_QueryTag(tag) for tag in tags)
+        yield from (_QueryRelation(relations) for relations in relations)
 
     def all_of(
         self,
@@ -320,8 +310,10 @@ class WorldQuery:
         relations: Iterable[_RelationQuery] = (),
     ) -> Self:
         """Filter entities based on having all of the provided elements."""
+        _check_suspicious_tags(tags, stacklevel=2)
         return self.__class__(
-            self.world, self._query.all_of(components=components, tags=tags, relations=relations, _stacklevel=2)
+            self.world,
+            _QueryLogicalAnd(all_of=frozenset(self.__as_queries(components, tags, relations))) & self._query,
         )
 
     def none_of(
@@ -332,8 +324,10 @@ class WorldQuery:
         relations: Iterable[_RelationQuery] = (),
     ) -> Self:
         """Filter entities based on having none of the provided elements."""
+        _check_suspicious_tags(tags, stacklevel=2)
         return self.__class__(
-            self.world, self._query.none_of(components=components, tags=tags, relations=relations, _stacklevel=2)
+            self.world,
+            _QueryLogicalAnd(none_of=frozenset(self.__as_queries(components, tags, relations))) & self._query,
         )
 
     def __iter__(self) -> Iterator[Entity]:
