@@ -6,12 +6,14 @@ import warnings
 from collections import defaultdict
 from typing import TypeVar
 
+from tcod.ecs.constants import IsA
 from tcod.ecs.entity import Entity
 from tcod.ecs.world import World
 
 __all__ = (
     "__version__",
     "Entity",
+    "IsA",
     "World",
     "abstract_component",
 )

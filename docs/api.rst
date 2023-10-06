@@ -27,6 +27,11 @@ API reference
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: tcod.ecs.constants
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 .. automodule:: tcod.ecs.typing
    :members:
    :undoc-members:
