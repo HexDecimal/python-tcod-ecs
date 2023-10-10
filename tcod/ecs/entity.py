@@ -25,6 +25,7 @@ from typing_extensions import Self
 
 import tcod.ecs.callbacks
 import tcod.ecs.query
+from tcod.ecs.constants import IsA
 from tcod.ecs.typing import ComponentKey
 
 if TYPE_CHECKING:
@@ -291,11 +292,35 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     See :any:`Entity.components`.
     """
 
-    __slots__ = ("entity",)
+    __slots__ = ("entity", "traverse")
 
-    def __init__(self, entity: Entity) -> None:
+    def __init__(self, entity: Entity, traverse: object = IsA) -> None:
         """Initialize this attribute for the given entity."""
         self.entity: Final = entity
+        self.traverse = traverse
+
+    def __call__(self, *, traverse: object) -> Self:
+        """Update this components view with alternative parameters, such as a specific traversal relation."""
+        return self.__class__(self.entity, traverse)
+
+    def __up(self) -> Self | None:
+        """Return the parent view of this view."""
+        if self.traverse is None:
+            return None
+        next_entity = self.entity.relation_tag.get(self.traverse)
+        if next_entity is None:
+            return None
+        return self.__class__(next_entity, self.traverse)
+
+    def __traverse_entities(self) -> Iterator[Entity]:
+        """Iterate over all entities this one inherits from, including itself."""
+        if self.traverse is None:
+            yield self.entity
+            return
+        entity: Entity | None = self.entity
+        while entity is not None:
+            yield entity
+            entity = entity.relation_tag.get(self.traverse)
 
     def set(self, value: object, *, _stacklevel: int = 1) -> None:
         """Assign or overwrite a component, automatically deriving the key.
@@ -322,9 +347,17 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         return True
 
     def __getitem__(self, key: ComponentKey[T]) -> T:
-        """Return a component belonging to this entity."""
+        """Return a component belonging to this entity, or an indirect parent."""
         assert self.__assert_key(key)
-        return self.entity.world._components_by_entity[self.entity][key]  # type: ignore[no-any-return]
+        try:
+            return self.entity.world._components_by_entity[self.entity][key]  # type: ignore[no-any-return]
+        except KeyError:
+            if self.traverse is None:
+                raise
+            up = self.__up()
+            if up is None:
+                raise
+            return up[key]
 
     def __setitem__(self, key: ComponentKey[T], value: T) -> None:
         """Assign a component to an entity."""
@@ -357,17 +390,26 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         tcod.ecs.query._touch_component(self.entity.world, key)  # Component removed
         tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, None)
 
+    def keys(self) -> Set[ComponentKey[object]]:  # type: ignore[override]
+        """Return the components held by this entity, including inherited components."""
+        _components_by_entity = self.entity.world._components_by_entity
+        if self.traverse is None:
+            return _components_by_entity.get(self.entity, {}).keys()
+        set_: set[ComponentKey[object]] = set()
+        return set_.union(*(_components_by_entity.get(entity, ()) for entity in self.__traverse_entities()))
+
     def __contains__(self, key: ComponentKey[object]) -> bool:  # type: ignore[override]
         """Return True if this entity has the provided component."""
-        return key in self.entity.world._components_by_entity.get(self.entity, ())
+        _components_by_entity = self.entity.world._components_by_entity
+        return any(key in _components_by_entity.get(entity, ()) for entity in self.__traverse_entities())
 
     def __iter__(self) -> Iterator[ComponentKey[Any]]:
         """Iterate over the component types belonging to this entity."""
-        return iter(self.entity.world._components_by_entity.get(self.entity, ()))
+        return iter(self.keys())
 
     def __len__(self) -> int:
         """Return the number of components belonging to this entity."""
-        return len(self.entity.world._components_by_entity.get(self.entity, ()))
+        return len(self.keys())
 
     def update_values(self, values: Iterable[object], *, _stacklevel: int = 1) -> None:
         """Add or overwrite multiple components inplace, deriving the keys from the values.
