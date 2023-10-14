@@ -9,12 +9,16 @@ from tcod.ecs import IsA, World
 
 def test_component_traversal() -> None:
     world = World()
+    assert not world.Q.all_of(components=[str]).get_entities()
     world["derived"].relation_tag[IsA] = world["base"]
     world["instance"].relation_tag[IsA] = world["derived"]
     world["base"].components[str] = "base"
     assert world["base"].components[str] == "base"
     assert world["derived"].components[str] == "base"  # Inherit from direct parent
     assert world["instance"].components[str] == "base"  # Inherit from parents parent
+    assert world.Q.all_of(components=[str]).get_entities() == {world["base"], world["derived"], world["instance"]}
+    assert world.Q.all_of(components=[str], depth=1).get_entities() == {world["base"], world["derived"]}
+    assert world.Q.all_of(components=[str], depth=0).get_entities() == {world["base"]}
 
     world["derived"].components[str] = "derived"
     assert world["base"].components[str] == "base"
@@ -39,8 +43,10 @@ def test_component_traversal() -> None:
     assert str not in world["base"].components
     assert str not in world["derived"].components
     assert world["instance"].components[str] == "instance"
+    assert world.Q.all_of(components=[str]).get_entities() == {world["instance"]}
 
     del world["instance"].components[str]
+    assert not world.Q.all_of(components=[str]).get_entities()
     assert str not in world["base"].components
     assert str not in world["derived"].components
     assert str not in world["instance"].components
@@ -63,3 +69,11 @@ def test_component_traversal_alternate() -> None:
     assert set(world["derived"].components.keys()) == {str}
     assert set(world["derived"].components(traverse="alt").keys()) == {str}
     assert not set(world["derived"].components(traverse=None).keys())
+
+    assert world.Q.all_of(components=[str]).get_entities() == {world["base"], world["alt"], world["derived"]}
+    assert world.Q.all_of(components=[str], traverse="alt").get_entities() == {
+        world["base"],
+        world["alt"],
+        world["derived"],
+    }
+    assert world.Q.all_of(components=[str], depth=0).get_entities() == {world["base"], world["alt"]}

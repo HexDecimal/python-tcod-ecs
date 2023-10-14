@@ -12,6 +12,7 @@ import attrs
 from typing_extensions import Self
 
 import tcod.ecs.entity
+from tcod.ecs.constants import IsA
 from tcod.ecs.typing import ComponentKey, _RelationQuery
 
 if TYPE_CHECKING:
@@ -276,6 +277,42 @@ class _QueryLogicalOr:
 
 
 @attrs.define(frozen=True)
+class _QueryTraversalPropagation:
+    """Propagate a query via a traversal key."""
+
+    _sub_query: _Query
+    """Query to propagate."""
+    _traverse_key: object
+    """The key used for traversal relations."""
+    _max_depth: int | None
+    """Max depth to propagate to. None for infinite."""
+
+    def _get_traverse_query(self) -> _QueryRelation:
+        """Return the relation query for the provided traverse key."""
+        return _QueryRelation((..., self._traverse_key, None))
+
+    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+        cache.dependencies[self._sub_query].add((world, self))
+        cache.dependencies[self._get_traverse_query()].add((world, self))
+
+    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+        cumulative_set = set(_get_query(world, self._sub_query))  # All entities touched by this traversal
+        relations_set = _get_query(world, self._get_traverse_query())  # The subset of entities which can propagate from
+        unchecked_set = cumulative_set & relations_set  # Most recently touched entities which can propagate farther
+        depth = 0
+        while unchecked_set and (self._max_depth is None or depth < self._max_depth):
+            depth += 1
+            new_set: set[Entity] = set()
+            empty_set: frozenset[Entity] = frozenset()
+            for unchecked in unchecked_set:
+                new_set |= world._relations_lookup.get((self._traverse_key, unchecked), empty_set)
+            new_set -= cumulative_set
+            cumulative_set |= new_set
+            unchecked_set = new_set
+        return cumulative_set
+
+
+@attrs.define(frozen=True)
 class WorldQuery:
     """Collect a set of entities with the provided conditions."""
 
@@ -296,38 +333,46 @@ class WorldQuery:
         components: Iterable[ComponentKey[object]] = (),
         tags: Iterable[object] = (),
         relations: Iterable[_RelationQuery] = (),
+        traverse: object = IsA,
+        depth: int | None = None,
     ) -> Iterator[_Query]:
         """Convert parameters into queries."""
-        yield from (_QueryComponent(component) for component in components)
+        yield from (_QueryTraversalPropagation(_QueryComponent(component), traverse, depth) for component in components)
         yield from (_QueryTag(tag) for tag in tags)
         yield from (_QueryRelation(relations) for relations in relations)
 
-    def all_of(
+    def all_of(  # noqa: PLR0913
         self,
         components: Iterable[ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
         relations: Iterable[_RelationQuery] = (),
+        traverse: object = IsA,
+        depth: int | None = None,
     ) -> Self:
         """Filter entities based on having all of the provided elements."""
         _check_suspicious_tags(tags, stacklevel=2)
         return self.__class__(
             self.world,
-            _QueryLogicalAnd(all_of=frozenset(self.__as_queries(components, tags, relations))) & self._query,
+            _QueryLogicalAnd(all_of=frozenset(self.__as_queries(components, tags, relations, traverse, depth)))
+            & self._query,
         )
 
-    def none_of(
+    def none_of(  # noqa: PLR0913
         self,
         components: Iterable[ComponentKey[object]] = (),
         *,
         tags: Iterable[object] = (),
         relations: Iterable[_RelationQuery] = (),
+        traverse: object = IsA,
+        depth: int | None = None,
     ) -> Self:
         """Filter entities based on having none of the provided elements."""
         _check_suspicious_tags(tags, stacklevel=2)
         return self.__class__(
             self.world,
-            _QueryLogicalAnd(none_of=frozenset(self.__as_queries(components, tags, relations))) & self._query,
+            _QueryLogicalAnd(none_of=frozenset(self.__as_queries(components, tags, relations, traverse, depth)))
+            & self._query,
         )
 
     def __iter__(self) -> Iterator[Entity]:
