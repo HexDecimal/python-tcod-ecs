@@ -286,15 +286,31 @@ class Entity:
         self.uid = new_uid  # type: ignore[misc]
 
 
-def _traverse_entities(start: Entity, traverse: object) -> Iterator[Entity]:
+def _traverse_entities(start: Entity, traverse_parents: tuple[object, ...]) -> Iterator[Entity]:
     """Iterate over all entities this one inherits from, including itself."""
-    if traverse is None:
+    if not traverse_parents:
         yield start
         return
-    entity: Entity | None = start
-    while entity is not None:
+    traverse_parents = traverse_parents[::-1]
+    visited = {start}
+    stack = [start]
+    _relation_tags_by_entity = start.world._relation_tags_by_entity
+    while stack:
+        entity = stack.pop()
         yield entity
-        entity = entity.relation_tag.get(traverse)
+        entity_relations = _relation_tags_by_entity.get(entity)
+        if entity_relations is None:
+            continue
+        for traverse_key in traverse_parents:
+            relations = entity_relations.get(traverse_key)
+            if relations is None:
+                continue
+            assert len(relations) == 1
+            next_entity = next(iter(relations))
+            if next_entity in visited:
+                continue
+            visited.add(next_entity)
+            stack.append(next_entity)
 
 
 class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]], Any]):
@@ -305,12 +321,12 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
 
     __slots__ = ("entity", "traverse")
 
-    def __init__(self, entity: Entity, traverse: object = IsA) -> None:
+    def __init__(self, entity: Entity, traverse: Iterable[object] = (IsA,)) -> None:
         """Initialize this attribute for the given entity."""
         self.entity: Final = entity
-        self.traverse = traverse
+        self.traverse = tuple(traverse)
 
-    def __call__(self, *, traverse: object) -> Self:
+    def __call__(self, *, traverse: Iterable[object]) -> Self:
         """Update this components view with alternative parameters, such as a specific traversal relation."""
         return self.__class__(self.entity, traverse)
 
@@ -383,7 +399,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def keys(self) -> Set[ComponentKey[object]]:  # type: ignore[override]
         """Return the components held by this entity, including inherited components."""
         _components_by_entity = self.entity.world._components_by_entity
-        if self.traverse is None:
+        if not self.traverse:
             return _components_by_entity.get(self.entity, {}).keys()
         set_: set[ComponentKey[object]] = set()
         return set_.union(

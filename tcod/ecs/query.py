@@ -282,14 +282,16 @@ class _QueryTraversalPropagation:
 
     _sub_query: _Query
     """Query to propagate."""
-    _traverse_key: object
+    _traverse_keys: tuple[object, ...]
     """The key used for traversal relations."""
     _max_depth: int | None
     """Max depth to propagate to. None for infinite."""
 
-    def _get_traverse_query(self) -> _QueryRelation:
+    def _get_traverse_query(self) -> _QueryLogicalOr:
         """Return the relation query for the provided traverse key."""
-        return _QueryRelation((..., self._traverse_key, None))
+        return _QueryLogicalOr(
+            any_of=frozenset(_QueryRelation((..., traverse_key, None)) for traverse_key in self._traverse_keys)
+        )
 
     def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
         cache.dependencies[self._sub_query].add((world, self))
@@ -304,8 +306,9 @@ class _QueryTraversalPropagation:
             depth += 1
             new_set: set[Entity] = set()
             empty_set: frozenset[Entity] = frozenset()
-            for unchecked in unchecked_set:
-                new_set |= world._relations_lookup.get((self._traverse_key, unchecked), empty_set)
+            for traverse_key in self._traverse_keys:
+                for unchecked in unchecked_set:
+                    new_set |= world._relations_lookup.get((traverse_key, unchecked), empty_set)
             new_set -= cumulative_set
             cumulative_set |= new_set
             unchecked_set = new_set
@@ -333,10 +336,11 @@ class WorldQuery:
         components: Iterable[ComponentKey[object]] = (),
         tags: Iterable[object] = (),
         relations: Iterable[_RelationQuery] = (),
-        traverse: object = IsA,
+        traverse: Iterable[object] = (IsA,),
         depth: int | None = None,
     ) -> Iterator[_Query]:
         """Convert parameters into queries."""
+        traverse = tuple(traverse)
         yield from (_QueryTraversalPropagation(_QueryComponent(component), traverse, depth) for component in components)
         yield from (_QueryTag(tag) for tag in tags)
         yield from (_QueryRelation(relations) for relations in relations)
@@ -347,7 +351,7 @@ class WorldQuery:
         *,
         tags: Iterable[object] = (),
         relations: Iterable[_RelationQuery] = (),
-        traverse: object = IsA,
+        traverse: Iterable[object] = (IsA,),
         depth: int | None = None,
     ) -> Self:
         """Filter entities based on having all of the provided elements."""
@@ -364,7 +368,7 @@ class WorldQuery:
         *,
         tags: Iterable[object] = (),
         relations: Iterable[_RelationQuery] = (),
-        traverse: object = IsA,
+        traverse: Iterable[object] = (IsA,),
         depth: int | None = None,
     ) -> Self:
         """Filter entities based on having none of the provided elements."""
