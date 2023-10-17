@@ -286,6 +286,17 @@ class Entity:
         self.uid = new_uid  # type: ignore[misc]
 
 
+def _traverse_entities(start: Entity, traverse: object) -> Iterator[Entity]:
+    """Iterate over all entities this one inherits from, including itself."""
+    if traverse is None:
+        yield start
+        return
+    entity: Entity | None = start
+    while entity is not None:
+        yield entity
+        entity = entity.relation_tag.get(traverse)
+
+
 class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]], Any]):
     """A proxy attribute to access an entities components like a dictionary.
 
@@ -302,25 +313,6 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def __call__(self, *, traverse: object) -> Self:
         """Update this components view with alternative parameters, such as a specific traversal relation."""
         return self.__class__(self.entity, traverse)
-
-    def __up(self) -> Self | None:
-        """Return the parent view of this view."""
-        if self.traverse is None:
-            return None
-        next_entity = self.entity.relation_tag.get(self.traverse)
-        if next_entity is None:
-            return None
-        return self.__class__(next_entity, self.traverse)
-
-    def __traverse_entities(self) -> Iterator[Entity]:
-        """Iterate over all entities this one inherits from, including itself."""
-        if self.traverse is None:
-            yield self.entity
-            return
-        entity: Entity | None = self.entity
-        while entity is not None:
-            yield entity
-            entity = entity.relation_tag.get(self.traverse)
 
     def set(self, value: object, *, _stacklevel: int = 1) -> None:
         """Assign or overwrite a component, automatically deriving the key.
@@ -349,18 +341,16 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def __getitem__(self, key: ComponentKey[T]) -> T:
         """Return a component belonging to this entity, or an indirect parent."""
         assert self.__assert_key(key)
-        try:
-            return self.entity.world._components_by_entity[self.entity][key]  # type: ignore[no-any-return]
-        except KeyError:
-            if self.traverse is None:
-                raise
-            up = self.__up()
-            if up is None:
-                raise
-            return up[key]
+        _components_by_entity = self.entity.world._components_by_entity
+        for entity in _traverse_entities(self.entity, self.traverse):
+            try:
+                return _components_by_entity[entity][key]  # type: ignore[no-any-return]
+            except KeyError:
+                pass
+        raise KeyError(key)
 
     def __setitem__(self, key: ComponentKey[T], value: T) -> None:
-        """Assign a component to an entity."""
+        """Assign a component directly to an entity."""
         assert self.__assert_key(key)
 
         old_value = self.entity.world._components_by_entity[self.entity].get(key)
@@ -374,7 +364,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, value)
 
     def __delitem__(self, key: type[object] | tuple[object, type[object]]) -> None:
-        """Delete a component from an entity."""
+        """Delete a directly held component from an entity."""
         assert self.__assert_key(key)
 
         old_value = self.entity.world._components_by_entity[self.entity].get(key)
@@ -396,12 +386,16 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         if self.traverse is None:
             return _components_by_entity.get(self.entity, {}).keys()
         set_: set[ComponentKey[object]] = set()
-        return set_.union(*(_components_by_entity.get(entity, ()) for entity in self.__traverse_entities()))
+        return set_.union(
+            *(_components_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse))
+        )
 
     def __contains__(self, key: ComponentKey[object]) -> bool:  # type: ignore[override]
         """Return True if this entity has the provided component."""
         _components_by_entity = self.entity.world._components_by_entity
-        return any(key in _components_by_entity.get(entity, ()) for entity in self.__traverse_entities())
+        return any(
+            key in _components_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse)
+        )
 
     def __iter__(self) -> Iterator[ComponentKey[Any]]:
         """Iterate over the component types belonging to this entity."""
