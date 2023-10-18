@@ -324,10 +324,13 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def __init__(self, entity: Entity, traverse: Iterable[object] = (IsA,)) -> None:
         """Initialize this attribute for the given entity."""
         self.entity: Final = entity
-        self.traverse = tuple(traverse)
+        self.traverse: Final = tuple(traverse)
 
     def __call__(self, *, traverse: Iterable[object]) -> Self:
-        """Update this components view with alternative parameters, such as a specific traversal relation."""
+        """Update this view with alternative parameters, such as a specific traversal relation.
+
+        .. versionadded:: Unreleased
+        """
         return self.__class__(self.entity, traverse)
 
     def set(self, value: object, *, _stacklevel: int = 1) -> None:
@@ -479,11 +482,19 @@ class EntityTags(MutableSet[Any]):
     See :any:`Entity.tags`.
     """
 
-    __slots__ = ("entity",)
+    __slots__ = ("entity", "traverse")
 
-    def __init__(self, entity: Entity) -> None:
+    def __init__(self, entity: Entity, traverse: Iterable[object] = (IsA,)) -> None:
         """Initialize this attribute for the given entity."""
         self.entity: Final = entity
+        self.traverse: Final = tuple(traverse)
+
+    def __call__(self, *, traverse: Iterable[object]) -> Self:
+        """Update this view with alternative parameters, such as a specific traversal relation.
+
+        .. versionadded:: Unreleased
+        """
+        return self.__class__(self.entity, traverse)
 
     def add(self, tag: object) -> None:
         """Add a tag to the entity."""
@@ -495,7 +506,7 @@ class EntityTags(MutableSet[Any]):
         self.entity.world._tags_by_key[tag].add(self.entity)
 
     def discard(self, tag: object) -> None:
-        """Discard a tag from an entity."""
+        """Discard a tag directly held by an entity."""
         if tag not in self.entity.world._tags_by_entity[self.entity]:
             return  # Already doesn't have tag
         tcod.ecs.query._touch_tag(self.entity.world, tag)  # Tag removed
@@ -508,17 +519,31 @@ class EntityTags(MutableSet[Any]):
         if not self.entity.world._tags_by_key[tag]:
             del self.entity.world._tags_by_key[tag]
 
+    def remove(self, tag: object) -> None:
+        """Remove a tag directly held by an entity."""
+        if tag not in self.entity.world._tags_by_entity[self.entity]:
+            raise KeyError(tag)
+        self.discard(tag)
+
     def __contains__(self, x: object) -> bool:
         """Return True if this entity has the given tag."""
-        return x in self.entity.world._tags_by_entity.get(self.entity, ())
+        _tags_by_entity = self.entity.world._tags_by_entity
+        return any(x in _tags_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse))
+
+    def _as_set(self) -> set[object]:
+        """Return all tags inherited by traversal rules into a single set."""
+        _tags_by_entity = self.entity.world._tags_by_entity
+        return set().union(
+            *(_tags_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse))
+        )
 
     def __iter__(self) -> Iterator[Any]:
         """Iterate over this entities tags."""
-        return iter(self.entity.world._tags_by_entity.get(self.entity, ()))
+        return iter(self._as_set())
 
     def __len__(self) -> int:
         """Return the number of tags this entity has."""
-        return len(self.entity.world._tags_by_entity.get(self.entity, ()))
+        return len(self._as_set())
 
     def __ior__(self, other: Set[object]) -> Self:
         """Add tags in-place.

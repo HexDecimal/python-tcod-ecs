@@ -342,7 +342,7 @@ class WorldQuery:
         """Convert parameters into queries."""
         traverse = tuple(traverse)
         yield from (_QueryTraversalPropagation(_QueryComponent(component), traverse, depth) for component in components)
-        yield from (_QueryTag(tag) for tag in tags)
+        yield from (_QueryTraversalPropagation(_QueryTag(tag), traverse, depth) for tag in tags)
         yield from (_QueryRelation(relations) for relations in relations)
 
     def all_of(  # noqa: PLR0913

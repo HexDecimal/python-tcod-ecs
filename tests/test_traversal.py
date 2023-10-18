@@ -124,3 +124,41 @@ def test_cyclic_inheritance() -> None:
     assert world["B"].components[str] == "A"
     assert world["C"].components[str] == "C"
     assert world["D"].components[str] == "C"
+
+
+def test_tag_traversal() -> None:
+    world = World()
+    world["B"].relation_tag[IsA] = world["A"]
+    world["C"].relation_tag[IsA] = world["B"]
+
+    assert not set(world["C"].tags)
+    assert not world.Q.all_of(tags=["A"]).get_entities()
+    world["A"].tags.add("A")
+    assert world.Q.all_of(tags=["A"]).get_entities() == {world["A"], world["B"], world["C"]}
+    assert set(world["C"].tags) == {"A"}
+    assert not world.Q.all_of(tags=["B"]).get_entities()
+    world["B"].tags.add("B")
+    assert world.Q.all_of(tags=["B"]).get_entities() == {world["B"], world["C"]}
+    assert set(world["C"].tags) == {"A", "B"}
+    world["C"].tags.add("C")
+    assert set(world["A"].tags) == {"A"}
+    assert set(world["B"].tags) == {"A", "B"}
+    assert set(world["C"].tags) == {"A", "B", "C"}
+    assert "A" in world["C"].tags
+    assert "C" not in world["A"].tags
+
+    world["C"].tags.discard("A")
+    assert set(world["C"].tags) == {"A", "B", "C"}
+
+    with pytest.raises(KeyError):
+        world["C"].tags.remove("A")
+
+    world["C"].tags.add("A")
+    assert set(world["C"].tags) == {"A", "B", "C"}
+    world["C"].tags.remove("A")
+    assert set(world["C"].tags) == {"A", "B", "C"}
+
+    assert set(world["C"].tags(traverse=())) == {"C"}
+
+    world["A"].tags.remove("A")
+    assert not world.Q.all_of(tags=["A"]).get_entities()
