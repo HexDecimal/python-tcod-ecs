@@ -115,6 +115,61 @@ class Entity:
         self.relation_tags_many.clear()
         self.relation_components.clear()
 
+    def instantiate(self) -> Self:
+        """Return a new entity which inherits the components, tags, and relations of this entity.
+
+        This creates a new unique entity and assigns an :any:`IsA` relationship with `self` to the new entity.
+        The :any:`IsA` relation is the only data this new entity directly holds.
+
+        Example::
+
+            # 'child = entity.instantiate()' is equivalent to the following:
+            >>> from tcod.ecs import IsA
+            >>> child = world[object()]  # New unique entity
+            >>> child.relation_tag[IsA] = entity  # Configure IsA relation
+
+        Example::
+
+            >>> parent = world.new_entity()
+            >>> parent.components[str] = "baz"
+            >>> child = parent.instantiate()
+            >>> child.components[str]  # Inherits components from parent
+            'baz'
+            >>> parent.components[str] = "foo"
+            >>> child.components[str]  # Changes in parent and reflected in children
+            'foo'
+            >>> child.components[str] += "bar"  # In-place assignment operators will copy-on-write immutable objects
+            >>> child.components[str]
+            'foobar'
+            >>> parent.components[str]
+            'foo'
+            >>> del child.components[str]
+            >>> child.components[str]
+            'foo'
+
+            # Note: Mutable objects have the same gotchas as in other Python examples:
+            >>> from typing import List, Tuple
+            >>> parent.components[List[str]] = ["foo"]
+            >>> child.components[List[str]] += ["bar"]  # Will modify list in-place then assign that same list to child
+            >>> parent.components[List[str]]  # Parent references the same list as the child now
+            ['foo', 'bar']
+            >>> child.components[List[str]]
+            ['foo', 'bar']
+            >>> parent.components[List[str]] is child.components[List[str]]
+            True
+            >>> parent.components[Tuple[str, ...]] = ("foo",)  # Prefer immutable types to avoid the above issue
+            >>> child.components[Tuple[str, ...]] += ("bar",)
+            >>> child.components[Tuple[str, ...]]
+            ('foo', 'bar')
+            >>> parent.components[Tuple[str, ...]]
+            ('foo',)
+
+        .. versionadded:: Unreleased
+        """
+        new_entity = self.__class__(self.world, object())
+        new_entity.relation_tag[IsA] = self
+        return new_entity
+
     @property
     def components(self) -> EntityComponents:
         """Access an entities components.
