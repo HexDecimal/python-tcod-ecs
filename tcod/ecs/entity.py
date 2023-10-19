@@ -21,6 +21,7 @@ from typing import (
 )
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
+import attrs
 from typing_extensions import Self
 
 import tcod.ecs.callbacks
@@ -313,25 +314,22 @@ def _traverse_entities(start: Entity, traverse_parents: tuple[object, ...]) -> I
             stack.append(next_entity)
 
 
+@attrs.define(eq=False, frozen=True, weakref_slot=False)
 class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]], Any]):
     """A proxy attribute to access an entities components like a dictionary.
 
     See :any:`Entity.components`.
     """
 
-    __slots__ = ("entity", "traverse")
-
-    def __init__(self, entity: Entity, traverse: Iterable[object] = (IsA,)) -> None:
-        """Initialize this attribute for the given entity."""
-        self.entity: Final = entity
-        self.traverse: Final = tuple(traverse)
+    entity: Entity
+    traverse: tuple[object, ...] = (IsA,)
 
     def __call__(self, *, traverse: Iterable[object]) -> Self:
         """Update this view with alternative parameters, such as a specific traversal relation.
 
         .. versionadded:: Unreleased
         """
-        return self.__class__(self.entity, traverse)
+        return self.__class__(self.entity, tuple(traverse))
 
     def set(self, value: object, *, _stacklevel: int = 1) -> None:
         """Assign or overwrite a component, automatically deriving the key.
@@ -476,25 +474,22 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
             return __default
 
 
+@attrs.define(eq=False, frozen=True, weakref_slot=False)
 class EntityTags(MutableSet[Any]):
     """A proxy attribute to access an entities tags like a set.
 
     See :any:`Entity.tags`.
     """
 
-    __slots__ = ("entity", "traverse")
-
-    def __init__(self, entity: Entity, traverse: Iterable[object] = (IsA,)) -> None:
-        """Initialize this attribute for the given entity."""
-        self.entity: Final = entity
-        self.traverse: Final = tuple(traverse)
+    entity: Entity
+    traverse: tuple[object, ...] = (IsA,)
 
     def __call__(self, *, traverse: Iterable[object]) -> Self:
         """Update this view with alternative parameters, such as a specific traversal relation.
 
         .. versionadded:: Unreleased
         """
-        return self.__class__(self.entity, traverse)
+        return self.__class__(self.entity, tuple(traverse))
 
     def add(self, tag: object) -> None:
         """Add a tag to the entity."""
@@ -594,19 +589,21 @@ def _relations_lookup_discard(world: World, origin: Entity, tag: object, target:
     tcod.ecs.query._touch_relations(world, ((tag, target), (tag, ...), (origin, tag, None), (..., tag, None)))
 
 
+@attrs.define(eq=False, frozen=True, weakref_slot=False)
 class EntityRelationsMapping(MutableSet[Entity]):
     """A proxy attribute to access entity relation targets like a set.
 
     See :any:`Entity.relation_tags_many`.
     """
 
-    __slots__ = ("entity", "key")
+    entity: Entity
+    key: object
 
-    def __init__(self, entity: Entity, key: object) -> None:
-        """Initialize this attribute for the given entity."""
-        self.entity: Final = entity
-        self.key: Final = key
-        assert key not in {None, Ellipsis}
+    if __debug__:
+
+        def __attrs_post_init__(self) -> None:
+            """Validate attributes."""
+            assert self.key not in {None, Ellipsis}
 
     def add(self, target: Entity) -> None:
         """Add a relation target to this tag."""
@@ -647,17 +644,14 @@ class EntityRelationsMapping(MutableSet[Entity]):
             self.discard(key)
 
 
+@attrs.define(eq=False, frozen=True, weakref_slot=False)
 class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
     """A proxy attribute to access entity relations like a dict of sets.
 
     See :any:`Entity.relation_tags_many`.
     """
 
-    __slots__ = ("entity",)
-
-    def __init__(self, entity: Entity) -> None:
-        """Initialize this attribute for the given entity."""
-        self.entity: Final = entity
+    entity: Entity
 
     def __getitem__(self, key: object) -> EntityRelationsMapping:
         """Return the relation mapping for a tag."""
@@ -692,17 +686,14 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
             del self[key]
 
 
+@attrs.define(eq=False, frozen=True, weakref_slot=False)
 class EntityRelationsExclusive(MutableMapping[object, Entity]):
     """A proxy attribute to access entity relations exclusively.
 
     See :any:`Entity.relation_tag`.
     """
 
-    __slots__ = ("entity",)
-
-    def __init__(self, entity: Entity) -> None:
-        """Initialize this attribute for the given entity."""
-        self.entity: Final = entity
+    entity: Entity
 
     def __getitem__(self, key: object) -> Entity:
         """Return the relation target for a key.
@@ -743,19 +734,21 @@ class EntityRelationsExclusive(MutableMapping[object, Entity]):
         EntityRelations(self.entity).clear()
 
 
+@attrs.define(eq=False, frozen=True, weakref_slot=False)
 class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
     """An entity-component mapping to access the relation target component objects.
 
     See :any:`Entity.relation_components`.
     """
 
-    __slots__ = ("entity", "key")
+    entity: Entity
+    key: ComponentKey[T]
 
-    def __init__(self, entity: Entity, key: ComponentKey[T]) -> None:
-        """Initialize this attribute for the given entity."""
-        assert isinstance(entity, Entity), entity
-        self.entity: Final = entity
-        self.key: ComponentKey[T] = key
+    if __debug__:
+
+        def __attrs_post_init__(self) -> None:
+            """Validate attributes."""
+            assert isinstance(self.entity, Entity), self.entity
 
     def __getitem__(self, target: Entity) -> T:
         """Return the component related to a target entity."""
@@ -797,6 +790,7 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
         return 0 if by_entity is None else len(by_entity.get(self.key, ()))
 
 
+@attrs.define(eq=False, frozen=True, weakref_slot=False)
 class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponentRelationMapping[Any]]):
     """Proxy to access the component relations of an entity.
 
@@ -806,12 +800,13 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
         Is now a :any:`collections.abc.MutableMapping` subtype.
     """
 
-    __slots__ = ("entity",)
+    entity: Entity
 
-    def __init__(self, entity: Entity) -> None:
-        """Initialize this attribute for the given entity."""
-        assert isinstance(entity, Entity), entity
-        self.entity: Final = entity
+    if __debug__:
+
+        def __attrs_post_init__(self) -> None:
+            """Validate attributes."""
+            assert isinstance(self.entity, Entity), self.entity
 
     def __getitem__(self, key: ComponentKey[T]) -> EntityComponentRelationMapping[T]:
         """Access relations for this component key as a `{target: component}` dict-like object."""
