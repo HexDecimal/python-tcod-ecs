@@ -6,8 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Added the `tcod.ecs.IsA` sentinel value.
+- Entities will automatically inherit components/tags/relations from entities they have an `IsA` relationship with. https://github.com/HexDecimal/python-tcod-ecs/pull/15
+- Entities can be used as prefabs, use `Entity.instantiate()` to make a new entities inheriting the base entities components/tags/relations.
+
 ### Removed
 - `tcod.ecs.query.Query` removed due to a refactor.
+
+### Fixed
+- Fix for `x in Entity.relation_tags_many` not checking the correct values.
 
 ## [4.4.0] - 2023-08-11
 ### Added

@@ -162,3 +162,38 @@ def test_tag_traversal() -> None:
 
     world["A"].tags.remove("A")
     assert not world.Q.all_of(tags=["A"]).get_entities()
+
+
+def test_relation_traversal() -> None:
+    world = World()
+    world["B"].relation_tag[IsA] = world["A"]
+    world["C"].relation_tag[IsA] = world["B"]
+    assert set(world["C"].relation_tags_many[IsA]) == {world["A"], world["B"]}
+    assert world["C"].relation_tag[IsA] == world["B"]
+    assert set(world["C"].relation_tag) == {IsA}
+    assert world.Q.all_of(relations=[(IsA, world["A"])]).get_entities() == {world["B"], world["C"]}
+
+    world["A"].relation_tag["test"] = world["foo"]
+    world["B"].relation_tag["test"] = world["bar"]
+    assert set(world["C"].relation_tags_many["test"]) == {world["foo"], world["bar"]}
+    assert len(world["C"].relation_tags_many["test"]) == 2  # noqa: PLR2004
+    assert world["C"].relation_tag["test"] == world["bar"]
+    assert world.Q.all_of(relations=[("test", ...)]).get_entities() == {world["A"], world["B"], world["C"]}
+
+    del world["B"].relation_tag["test"]
+    assert set(world["C"].relation_tags_many["test"]) == {world["foo"]}
+    assert world["C"].relation_tag["test"] == world["foo"]
+    with pytest.raises(KeyError):
+        world["C"].relation_tags_many["test"].remove(world["foo"])
+    world["A"].relation_tags_many["test"].remove(world["foo"])
+
+    world["A"].relation_components[str][world["foo"]] = "foo"
+    assert world.Q.all_of(relations=[(str, ...)]).get_entities() == {world["A"], world["B"], world["C"]}
+
+    world["B"].relation_components[str][world["bar"]] = "bar"
+    world["C"].relation_components[str][world["bar"]] = "replaced"
+    assert dict(world["B"].relation_components[str].items()) == {world["foo"]: "foo", world["bar"]: "bar"}
+    assert dict(world["C"].relation_components[str].items()) == {world["foo"]: "foo", world["bar"]: "replaced"}
+    assert len(world["C"].relation_components[str]) == 2  # noqa: PLR2004
+    world["C"].relation_components[int][world["foo"]] = 0
+    assert set(world["C"].relation_components) == {str, int}

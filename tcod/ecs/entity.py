@@ -10,7 +10,6 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
-    KeysView,
     Mapping,
     MutableMapping,
     MutableSet,
@@ -192,7 +191,7 @@ class Entity:
             >>> list(world.Q[tcod.ecs.Entity, str, ("name", str)])  # Query zip components
             [(<Entity(uid='entity')>, 'foo', 'my_name')]
         """
-        return EntityComponents(self)
+        return EntityComponents(self, (IsA,))
 
     @components.setter
     def components(self, value: EntityComponents) -> None:
@@ -217,7 +216,7 @@ class Entity:
             >>> {"CanBurn", "OnFire"}.issubset(entity.tags)
             False
         """
-        return EntityTags(self)
+        return EntityTags(self, (IsA,))
 
     @tags.setter
     def tags(self, value: EntityTags) -> None:
@@ -242,7 +241,7 @@ class Entity:
             >>> list(world.Q.all_of(relations=[(..., str, None)]))
             [<Entity(uid='other')>]
         """
-        return EntityComponentRelations(self)
+        return EntityComponentRelations(self, (IsA,))
 
     @property
     def relation_tag(self) -> EntityRelationsExclusive:
@@ -257,7 +256,7 @@ class Entity:
             [<Entity(uid='other')>]
             >>> del entity.relation_tag["ChildOf"]
         """
-        return EntityRelationsExclusive(self)
+        return EntityRelationsExclusive(self, (IsA,))
 
     @property
     def relation_tags(self) -> EntityRelationsExclusive:
@@ -267,7 +266,7 @@ class Entity:
             This attribute was renamed to :any:`relation_tag`.
         """
         warnings.warn("The '.relation_tags' attribute has been renamed to '.relation_tag'", FutureWarning, stacklevel=2)
-        return EntityRelationsExclusive(self)
+        return EntityRelationsExclusive(self, (IsA,))
 
     @property
     def relation_tags_many(self) -> EntityRelations:
@@ -277,7 +276,7 @@ class Entity:
 
             >>> entity.relation_tags_many["KnownBy"].add(other_entity)  # Assign relation
         """
-        return EntityRelations(self)
+        return EntityRelations(self, (IsA,))
 
     def _set_name(self, value: object, stacklevel: int = 1) -> None:
         warnings.warn(
@@ -377,7 +376,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     """
 
     entity: Entity
-    traverse: tuple[object, ...] = (IsA,)
+    traverse: tuple[object, ...]
 
     def __call__(self, *, traverse: Iterable[object]) -> Self:
         """Update this view with alternative parameters, such as a specific traversal relation.
@@ -537,7 +536,7 @@ class EntityTags(MutableSet[Any]):
     """
 
     entity: Entity
-    traverse: tuple[object, ...] = (IsA,)
+    traverse: tuple[object, ...]
 
     def __call__(self, *, traverse: Iterable[object]) -> Self:
         """Update this view with alternative parameters, such as a specific traversal relation.
@@ -571,7 +570,8 @@ class EntityTags(MutableSet[Any]):
 
     def remove(self, tag: object) -> None:
         """Remove a tag directly held by an entity."""
-        if tag not in self.entity.world._tags_by_entity[self.entity]:
+        tags = self.entity.world._tags_by_entity.get(self.entity)
+        if tags is None or tag not in tags:
             raise KeyError(tag)
         self.discard(tag)
 
@@ -581,7 +581,7 @@ class EntityTags(MutableSet[Any]):
         return any(x in _tags_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse))
 
     def _as_set(self) -> set[object]:
-        """Return all tags inherited by traversal rules into a single set."""
+        """Return all tags inherited by traversal rules into a single set with no duplicates."""
         _tags_by_entity = self.entity.world._tags_by_entity
         return set().union(
             *(_tags_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse))
@@ -653,6 +653,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
     entity: Entity
     key: object
+    traverse: tuple[object, ...]
 
     if __debug__:
 
@@ -668,7 +669,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
         _relations_lookup_add(world, self.entity, self.key, target)
 
     def discard(self, target: Entity) -> None:
-        """Discard a relation target from this tag."""
+        """Discard a directly held relation target from this tag."""
         world = self.entity.world
 
         world._relation_tags_by_entity[self.entity][self.key].discard(target)
@@ -679,23 +680,55 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
         _relations_lookup_discard(world, self.entity, self.key, target)
 
+    def remove(self, target: Entity) -> None:
+        """Remove a directly held relation target from this tag.
+
+        This will raise KeyError of only an indirect relation target exists.
+        """
+        relations = self.entity.world._relation_tags_by_entity.get(self.entity)
+        if relations is None:
+            raise KeyError(target)
+        targets = relations.get(self.key)
+        if targets is None or target not in targets:
+            raise KeyError(target)
+        self.discard(target)
+
     def __contains__(self, target: Entity) -> bool:  # type: ignore[override]
         """Return True if this relation contains the given value."""
-        return bool(self.entity.world._relations_lookup.get((self.key, target), ()))
+        _relation_tags_by_entity = self.entity.world._relation_tags_by_entity
+        for entity in _traverse_entities(self.entity, self.traverse):
+            by_entity = _relation_tags_by_entity.get(entity)
+            if by_entity is None:
+                continue
+            if target in by_entity.get(self.key, ()):
+                return True
+        return False
+
+    def _as_set(self) -> set[Entity]:
+        """Return the combined targets of this mapping via traversal with duplicates removed."""
+        _relation_tags_by_entity = self.entity.world._relation_tags_by_entity
+        results: set[Entity] = set()
+        for entity in _traverse_entities(self.entity, self.traverse):
+            by_entity = _relation_tags_by_entity.get(entity)
+            if by_entity is None:
+                continue
+            results.update(by_entity.get(self.key, ()))
+        return results
 
     def __iter__(self) -> Iterator[Entity]:
         """Iterate over this relation tags targets."""
-        by_entity = self.entity.world._relation_tags_by_entity.get(self.entity)
-        return iter(by_entity.get(self.key, ())) if by_entity is not None else iter(())
+        yield from self._as_set()
 
     def __len__(self) -> int:
         """Return the number of targets for this relation tag."""
-        by_entity = self.entity.world._relation_tags_by_entity.get(self.entity)
-        return len(by_entity.get(self.key, ())) if by_entity is not None else 0
+        return len(self._as_set())
 
     def clear(self) -> None:
         """Discard all targets for this tag relation."""
-        for key in list(self):
+        by_entity = self.entity.world._relation_tags_by_entity.get(self.entity)
+        if by_entity is None:
+            return
+        for key in list(by_entity.get(self.key, ())):
             self.discard(key)
 
 
@@ -707,15 +740,16 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
     """
 
     entity: Entity
+    traverse: tuple[object, ...]
 
     def __getitem__(self, key: object) -> EntityRelationsMapping:
         """Return the relation mapping for a tag."""
-        return EntityRelationsMapping(self.entity, key)
+        return EntityRelationsMapping(self.entity, key, self.traverse)
 
     def __setitem__(self, key: object, values: Iterable[Entity]) -> None:
         """Overwrite the targets of a relation tag with the new values."""
         assert not isinstance(values, Entity), "Did you mean `entity.relations[key] = (target,)`?"
-        mapping = EntityRelationsMapping(self.entity, key)
+        mapping = EntityRelationsMapping(self.entity, key, self.traverse)
         mapping.clear()
         for v in values:
             mapping.add(v)
@@ -729,15 +763,22 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
 
     def __iter__(self) -> Iterator[Any]:
         """Iterate over the unique relation tags of this entity."""
-        return iter(self.entity.world._relation_tags_by_entity.get(self.entity, {}).keys())
+        _relation_tags_by_entity = self.entity.world._relation_tags_by_entity
+        EMPTY_DICT: dict[object, set[Entity]] = {}
+        yield from set().union(
+            *(
+                _relation_tags_by_entity.get(entity, EMPTY_DICT).keys()
+                for entity in _traverse_entities(self.entity, self.traverse)
+            )
+        )
 
     def __len__(self) -> int:
         """Return the number of unique relation tags this entity has."""
-        return len(self.entity.world._relation_tags_by_entity.get(self.entity, {}))
+        return len(list(self.__iter__()))
 
     def clear(self) -> None:
         """Discard all tag relations from an entity."""
-        for key in list(self):
+        for key in list(self.entity.world._relation_tags_by_entity.get(self.entity, ())):
             del self[key]
 
 
@@ -749,6 +790,7 @@ class EntityRelationsExclusive(MutableMapping[object, Entity]):
     """
 
     entity: Entity
+    traverse: tuple[object, ...]
 
     def __getitem__(self, key: object) -> Entity:
         """Return the relation target for a key.
@@ -756,37 +798,44 @@ class EntityRelationsExclusive(MutableMapping[object, Entity]):
         If the relation has no target then raises KeyError.
         If the relation is not exclusive then raises ValueError.
         """
-        values = tuple(EntityRelationsMapping(self.entity, key))
-        if not values:
-            raise KeyError(key)
-        try:
-            (target,) = values
-        except ValueError:
-            msg = "Entity relation has multiple targets but an exclusive value was expected."
-            raise ValueError(msg) from None
-        return target
+        _relation_tags_by_entity = self.entity.world._relation_tags_by_entity
+        for entity in _traverse_entities(self.entity, self.traverse):
+            by_entity = _relation_tags_by_entity.get(entity)
+            if by_entity is None:
+                continue
+            values = by_entity.get(key)
+            if not values:
+                continue
+            try:
+                (target,) = values
+            except ValueError:
+                msg = "Entity relation has multiple targets but an exclusive value was expected."
+                raise ValueError(msg) from None
+            return target
+
+        raise KeyError(key)
 
     def __setitem__(self, key: object, target: Entity) -> None:
         """Set a relation exclusively to a new target."""
-        mapping = EntityRelationsMapping(self.entity, key)
+        mapping = EntityRelationsMapping(self.entity, key, self.traverse)
         mapping.clear()
         mapping.add(target)
 
     def __delitem__(self, key: object) -> None:
         """Clear the relation targets of a relation key."""
-        EntityRelationsMapping(self.entity, key).clear()
+        EntityRelationsMapping(self.entity, key, self.traverse).clear()
 
     def __iter__(self) -> Iterator[Any]:
         """Iterate over the keys of this entities relations."""
-        return EntityRelations(self.entity).__iter__()
+        return EntityRelations(self.entity, self.traverse).__iter__()
 
     def __len__(self) -> int:
         """Return the number of relations this entity has."""
-        return EntityRelations(self.entity).__len__()
+        return EntityRelations(self.entity, self.traverse).__len__()
 
     def clear(self) -> None:
         """Discard all tag relations from an entity."""
-        EntityRelations(self.entity).clear()
+        EntityRelations(self.entity, self.traverse).clear()
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
@@ -798,6 +847,7 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
 
     entity: Entity
     key: ComponentKey[T]
+    traverse: tuple[object, ...]
 
     if __debug__:
 
@@ -807,7 +857,18 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
 
     def __getitem__(self, target: Entity) -> T:
         """Return the component related to a target entity."""
-        return self.entity.world._relation_components_by_entity[self.entity][self.key][target]  # type: ignore[no-any-return]
+        _relation_components_by_entity = self.entity.world._relation_components_by_entity
+        for entity in _traverse_entities(self.entity, self.traverse):
+            by_entity = _relation_components_by_entity.get(entity)
+            if by_entity is None:
+                continue
+            by_key = by_entity.get(self.key)
+            if by_key is None or target not in by_key:
+                continue
+
+            return by_key[target]  # type: ignore[no-any-return]
+
+        raise KeyError(target)
 
     def __setitem__(self, target: Entity, component: T) -> None:
         """Assign a component to the target entity."""
@@ -834,15 +895,24 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
 
         _relations_lookup_discard(world, self.entity, self.key, target)
 
+    def keys(self) -> Set[Entity]:  # type: ignore[override]
+        """Return all entities with an associated component value."""
+        _relation_components_by_entity = self.entity.world._relation_components_by_entity
+        result: set[Entity] = set()
+        for entity in _traverse_entities(self.entity, self.traverse):
+            by_entity = _relation_components_by_entity.get(entity)
+            if by_entity is None:
+                continue
+            result.update(by_entity.get(self.key, ()))
+        return result
+
     def __iter__(self) -> Iterator[Entity]:
         """Iterate over the targets with assigned components."""
-        by_entity = self.entity.world._relation_components_by_entity.get(self.entity)
-        return iter(()) if by_entity is None else iter(by_entity.get(self.key, ()))
+        yield from self.keys()
 
     def __len__(self) -> int:
         """Return the count of targets for this component relation."""
-        by_entity = self.entity.world._relation_components_by_entity.get(self.entity)
-        return 0 if by_entity is None else len(by_entity.get(self.key, ()))
+        return len(self.keys())
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
@@ -856,6 +926,7 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
     """
 
     entity: Entity
+    traverse: tuple[object, ...]
 
     if __debug__:
 
@@ -865,7 +936,7 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
 
     def __getitem__(self, key: ComponentKey[T]) -> EntityComponentRelationMapping[T]:
         """Access relations for this component key as a `{target: component}` dict-like object."""
-        return EntityComponentRelationMapping(self.entity, key)
+        return EntityComponentRelationMapping(self.entity, key, self.traverse)
 
     def __setitem__(self, __key: ComponentKey[T], __values: Mapping[Entity, object]) -> None:
         """Redefine the component relations for this entity.
@@ -881,23 +952,29 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
 
     def __delitem__(self, key: ComponentKey[object]) -> None:
         """Remove all relations associated with this component key."""
-        EntityComponentRelationMapping(self.entity, key).clear()
+        EntityComponentRelationMapping(self.entity, key, self.traverse).clear()
 
     def __contains__(self, key: object) -> bool:
         """Return True if this entity contains a relation component for this component key."""
         return key in self.keys()
 
     def clear(self) -> None:
-        """Clears the relation components this entity has with other entities.
+        """Clears the relation components this entity directly has with other entities.
 
         Does not clear relations targeting this entity.
         """
-        for component_key in list(self):
+        for component_key in list(self.entity.world._relation_components_by_entity.get(self.entity, ())):
             self[component_key].clear()
 
-    def keys(self) -> KeysView[ComponentKey[object]]:
+    def keys(self) -> Set[ComponentKey[object]]:  # type: ignore[override]
         """Returns the components keys this entity has relations for."""
-        return self.entity.world._relation_components_by_entity.get(self.entity, {}).keys()
+        _relation_components_by_entity = self.entity.world._relation_components_by_entity
+        return set().union(
+            *(
+                _relation_components_by_entity.get(entity, ())
+                for entity in _traverse_entities(self.entity, self.traverse)
+            )
+        )
 
     def __iter__(self) -> Iterator[ComponentKey[object]]:
         """Iterates over the component keys this entity has relations for."""
@@ -905,4 +982,4 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
 
     def __len__(self) -> int:
         """Returns the number of unique component keys this entity has relations for."""
-        return len(self.entity.world._relation_components_by_entity.get(self.entity, ()))
+        return len(self.keys())

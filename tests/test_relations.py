@@ -50,6 +50,10 @@ def test_relations_many() -> None:
 
     with pytest.raises(KeyError):
         entity_a.relation_tag["foo"]
+    with pytest.raises(KeyError):
+        entity_a.relation_tags_many["foo"].remove(entity_a)
+    assert entity_a not in entity_a.relation_tags_many["foo"]
+
     entity_a.relation_tags_many["foo"] = (entity_b, entity_c)
     with pytest.raises(ValueError, match=r"Entity relation has multiple targets but an exclusive value was expected\."):
         entity_a.relation_tag["foo"]
@@ -59,6 +63,9 @@ def test_relation_components() -> None:
     world = tcod.ecs.World()
     entity_a = world["A"]
     entity_b = world["B"]
+
+    with pytest.raises(KeyError):
+        entity_b.relation_components[int][entity_a]
 
     entity_b.relation_components[int][entity_a] = 1
     assert entity_b.relation_components[int][entity_a] == 1
