@@ -175,10 +175,14 @@ def test_relation_traversal() -> None:
 
     world["A"].relation_tag["test"] = world["foo"]
     world["B"].relation_tag["test"] = world["bar"]
+
     assert set(world["C"].relation_tags_many["test"]) == {world["foo"], world["bar"]}
     assert len(world["C"].relation_tags_many["test"]) == 2  # noqa: PLR2004
     assert world["C"].relation_tag["test"] == world["bar"]
     assert world.Q.all_of(relations=[("test", ...)]).get_entities() == {world["A"], world["B"], world["C"]}
+    assert not set(world["C"].relation_tags_many(traverse=())["test"])
+    with pytest.raises(KeyError):
+        world["C"].relation_tag(traverse=())["test"]
 
     del world["B"].relation_tag["test"]
     assert set(world["C"].relation_tags_many["test"]) == {world["foo"]}
@@ -189,6 +193,7 @@ def test_relation_traversal() -> None:
 
     world["A"].relation_components[str][world["foo"]] = "foo"
     assert world.Q.all_of(relations=[(str, ...)]).get_entities() == {world["A"], world["B"], world["C"]}
+    assert not set(world["C"].relation_components(traverse=()))
 
     world["B"].relation_components[str][world["bar"]] = "bar"
     world["C"].relation_components[str][world["bar"]] = "replaced"

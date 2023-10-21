@@ -163,7 +163,7 @@ class Entity:
             >>> parent.components[Tuple[str, ...]]
             ('foo',)
 
-        .. versionadded:: Unreleased
+        .. versionadded:: 5.0
         """
         new_entity = self.__class__(self.world, object())
         new_entity.relation_tag[IsA] = self
@@ -381,7 +381,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def __call__(self, *, traverse: Iterable[object]) -> Self:
         """Update this view with alternative parameters, such as a specific traversal relation.
 
-        .. versionadded:: Unreleased
+        .. versionadded:: 5.0
         """
         return self.__class__(self.entity, tuple(traverse))
 
@@ -538,7 +538,7 @@ class EntityTags(MutableSet[Any]):
     def __call__(self, *, traverse: Iterable[object]) -> Self:
         """Update this view with alternative parameters, such as a specific traversal relation.
 
-        .. versionadded:: Unreleased
+        .. versionadded:: 5.0
         """
         return self.__class__(self.entity, tuple(traverse))
 
@@ -739,6 +739,13 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
     entity: Entity
     traverse: tuple[object, ...]
 
+    def __call__(self, *, traverse: Iterable[object]) -> Self:
+        """Update this view with alternative parameters, such as a specific traversal relation.
+
+        .. versionadded:: 5.0
+        """
+        return self.__class__(self.entity, tuple(traverse))
+
     def __getitem__(self, key: object) -> EntityRelationsMapping:
         """Return the relation mapping for a tag."""
         return EntityRelationsMapping(self.entity, key, self.traverse)
@@ -788,6 +795,13 @@ class EntityRelationsExclusive(MutableMapping[object, Entity]):
 
     entity: Entity
     traverse: tuple[object, ...]
+
+    def __call__(self, *, traverse: Iterable[object]) -> Self:
+        """Update this view with alternative parameters, such as a specific traversal relation.
+
+        .. versionadded:: 5.0
+        """
+        return self.__class__(self.entity, tuple(traverse))
 
     def __getitem__(self, key: object) -> Entity:
         """Return the relation target for a key.
@@ -930,6 +944,13 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
         def __attrs_post_init__(self) -> None:
             """Validate attributes."""
             assert isinstance(self.entity, Entity), self.entity
+
+    def __call__(self, *, traverse: Iterable[object]) -> Self:
+        """Update this view with alternative parameters, such as a specific traversal relation.
+
+        .. versionadded:: 5.0
+        """
+        return self.__class__(self.entity, tuple(traverse))
 
     def __getitem__(self, key: ComponentKey[T]) -> EntityComponentRelationMapping[T]:
         """Access relations for this component key as a `{target: component}` dict-like object."""
