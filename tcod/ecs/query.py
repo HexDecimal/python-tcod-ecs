@@ -244,6 +244,8 @@ class _QueryLogicalAnd:
             cache.dependencies[dependency].add((world, self))
 
     def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+        if len(self._all_of) == 1 and not self._none_of:  # Only one sub-query, simply return the results of it
+            return _get_query(world, next(iter(self._all_of)))  # Avoids an extra copy of a set
         requires = sorted(  # Place the smallest sets first to speed up intersections
             (_get_query(world, q) for q in self._all_of), key=len
         )
@@ -271,6 +273,8 @@ class _QueryLogicalOr:
             cache.dependencies[dependency].add((world, self))
 
     def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+        if len(self._any_of) == 1:  # If there is only one sub-query then simply return the results of it
+            return _get_query(world, next(iter(self._any_of)))  # Avoids an extra copy of a set
         entities: set[Entity] = set()
         entities.update(*(_get_query(world, q) for q in self._any_of))
         return entities
