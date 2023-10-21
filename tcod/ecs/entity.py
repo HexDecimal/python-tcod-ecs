@@ -396,7 +396,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
             FutureWarning,
             stacklevel=_stacklevel + 1,
         )
-        key = getattr(value, "_TCOD_BASE_COMPONENT", value.__class__)
+        key = value.__class__
         self[key] = value
 
     @staticmethod
@@ -404,9 +404,6 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         """Verify that abstract classes are accessed correctly."""
         if isinstance(key, tuple):
             key = key[1]
-        assert (
-            getattr(key, "_TCOD_BASE_COMPONENT", key) is key
-        ), "Abstract components must be accessed via the base class."
         return True
 
     def __getitem__(self, key: ComponentKey[T]) -> T:

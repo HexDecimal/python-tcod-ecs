@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import importlib.metadata
-import warnings
 from collections import defaultdict
 from typing import TypeVar
 
@@ -15,7 +14,6 @@ __all__ = (
     "Entity",
     "IsA",
     "World",
-    "abstract_component",
 )
 
 try:
@@ -24,25 +22,9 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = ""
 
 
-T = TypeVar("T")
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
 _T3 = TypeVar("_T3")
-
-
-def abstract_component(cls: type[T]) -> type[T]:
-    """Register class `cls` as an abstract component and return it.
-
-    .. deprecated:: 3.1
-        This decorator is deprecated since abstract components should always be explicit.
-    """
-    warnings.warn(
-        "This decorator is deprecated since abstract components should always be explicit.",
-        FutureWarning,
-        stacklevel=2,
-    )
-    cls._TCOD_BASE_COMPONENT = cls  # type: ignore[attr-defined]
-    return cls
 
 
 def _defaultdict_of_set() -> defaultdict[_T1, set[_T2]]:  # Migrate from <=3.4

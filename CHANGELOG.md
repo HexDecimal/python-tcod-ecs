@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - `tcod.ecs.query.Query` removed due to a refactor.
+- `abstract_component` decorator removed.
 
 ### Fixed
 - Fix for `x in Entity.relation_tags_many` not checking the correct values.
