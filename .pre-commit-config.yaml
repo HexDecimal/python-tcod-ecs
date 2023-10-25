@@ -14,18 +14,11 @@ repos:
       - id: debug-statements
       - id: fix-byte-order-marker
       - id: detect-private-key
-  - repo: https://github.com/psf/black
-    rev: 23.10.1
-    hooks:
-      - id: black
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.1
+    rev: v0.1.2
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
+      - id: ruff-format
 default_language_version:
   python: python3.11

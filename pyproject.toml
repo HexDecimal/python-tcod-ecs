@@ -119,6 +119,8 @@ ignore = [
     "S101",   # assert
     "ANN101", # missing-type-self
     "ANN102", # missing-type-cls
+    "D206",   # indent-with-spaces
+    "W191",   # tab-indentation
 ]
 line-length = 120
 

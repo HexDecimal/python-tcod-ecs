@@ -54,7 +54,6 @@
         "WAXD",
         "WINDOWLEAVE"
     ],
-    "python.formatting.provider": "none",
     "editor.codeActionsOnSave": {
         "source.fixAll": true,
     },
@@ -64,6 +63,6 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
+        "editor.defaultFormatter": "charliermarsh.ruff"
     },
 }
