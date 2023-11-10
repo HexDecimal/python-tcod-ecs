@@ -108,16 +108,15 @@ def _fetch_relation_table(world: World, relation: _RelationQuery) -> Set[Entity]
     For advanced cases `WorldQuery` this returns the subset of entities following the query condition.
     """
     if len(relation) == 2:  # noqa: PLR2004
-        tag, target = relation  # type: ignore[misc] # https://github.com/python/mypy/issues/1178
+        tag, target = relation
         if not isinstance(target, WorldQuery):
             return world._relations_lookup.get((tag, target), frozenset())
 
         world = target.world
         return set().union(*(world._relations_lookup.get((tag, entity), ()) for entity in target))
-
-    origin, tag, target = relation  # type: ignore[misc] # https://github.com/python/mypy/issues/1178
+    origin, tag, target_none = relation
     if not isinstance(origin, WorldQuery):
-        return world._relations_lookup.get((origin, tag, target), frozenset())
+        return world._relations_lookup.get((origin, tag, target_none), frozenset())
 
     world = origin.world
     return set().union(*(world._relations_lookup.get((entity, tag, None), ()) for entity in origin))
@@ -151,11 +150,11 @@ def _normalize_query_relation(relation: _RelationQuery) -> _RelationQuery:
     This adds the inverse lookup to the sub-query so that this only matches entities which have a relation.
     """
     if len(relation) == 2:  # noqa: PLR2004
-        tag, targets = relation  # type: ignore[misc] # https://github.com/python/mypy/issues/1178
+        tag, targets = relation
         if isinstance(targets, WorldQuery):  # (tag, targets)
             return tag, targets.all_of(relations=[(..., tag, None)])
         return relation
-    origin, tag, _ = relation  # type: ignore[misc] # https://github.com/python/mypy/issues/1178
+    origin, tag, _ = relation
     if isinstance(origin, WorldQuery):  # (origins, tag, None)
         return origin.all_of(relations=[(tag, ...)]), tag, None
     return relation
