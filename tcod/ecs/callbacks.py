@@ -19,7 +19,8 @@ _on_component_changed_callbacks: dict[ComponentKey[Any], list[_OnComponentChange
 
 
 def register_component_changed(
-    *, component: ComponentKey[Any]
+    *,
+    component: ComponentKey[Any],
 ) -> Callable[[_OnComponentChangedFuncT], _OnComponentChangedFuncT]:
     """Return a decorator to register on-component-changed callback functions.
 
