@@ -9,7 +9,7 @@
 import importlib.metadata
 
 project = "tcod-ecs"
-copyright = "2023, Kyle Benesch"
+copyright = "2023-2024, Kyle Benesch"
 author = "Kyle Benesch"
 release = importlib.metadata.version(project)
 version = ".".join(release.split(".")[:2])

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0] - 2024-02-13
+
 ### Changed
 
 - Renamed `World` to the more standard name `Registry` in multiple places.
