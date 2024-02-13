@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Renamed `World` to the more standard name `Registry`.
+- Renamed `World` to the more standard name `Registry` in multiple places.
 
 ### Deprecated
 
-- `World` is deprecated and has been renamed to `Registry`.
+- `World` is now `Registry`
+- `WorldQuery` is now `BoundQuery`
+- `.world` attributes of `Entity` and `BoundQuery` are now `.registry`
 
 ### Fixed
 

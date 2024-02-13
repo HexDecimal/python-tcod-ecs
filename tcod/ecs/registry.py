@@ -1,4 +1,4 @@
-"""World management tools."""
+"""Registry management tools."""
 from __future__ import annotations
 
 import warnings
@@ -151,7 +151,7 @@ class Registry:
     def global_(self) -> Entity:
         """A unique globally accessible entity.
 
-        This can be used to store globally accessible components in the world itself without any extra boilerplate.
+        This can be used to store globally accessible components in the registry itself without any extra boilerplate.
         Otherwise this entity is not special and will show up with other entities in queries, etc.
 
         This entity has a `uid` of `None` and may be accessed that way.
@@ -161,12 +161,12 @@ class Registry:
 
         Example::
 
-            >>> world[None].components[("turn", int)] = 0
-            >>> world[None].components[("turn", int)]
+            >>> registry[None].components[("turn", int)] = 0
+            >>> registry[None].components[("turn", int)]
             0
         """
         warnings.warn(
-            "The 'world.global_' attribute has been deprecated. Use 'world[None]' to access this entity.",
+            "The 'registry.global_' attribute has been deprecated. Use 'registry[None]' to access this entity.",
             FutureWarning,
             stacklevel=2,
         )
@@ -242,25 +242,25 @@ class Registry:
 
         Example::
 
-            >>> world = Registry()
-            >>> foo = world["foo"]  # Referencing a new entity returns a new empty entity
-            >>> foo is world["foo"]
+            >>> registry = Registry()
+            >>> foo = registry["foo"]  # Referencing a new entity returns a new empty entity
+            >>> foo is registry["foo"]
             True
-            >>> entity = world.new_entity()
-            >>> world[entity.uid] is entity  # Anonymous entities can be referred to by their uid
+            >>> entity = registry.new_entity()
+            >>> registry[entity.uid] is entity  # Anonymous entities can be referred to by their uid
             True
         """
         assert uid is not object, "This is reserved."
         return Entity(self, uid)
 
     def __iter__(self) -> NoReturn:
-        """Raises TypeError, :any:`World` is not iterable."""
-        msg = "'World' object is not iterable."
+        """Raises TypeError, :any:`Registry` is not iterable."""
+        msg = "'Registry' object is not iterable."
         raise TypeError(msg)
 
     @property
     def named(self) -> Mapping[object, Entity]:
-        """A view into this worlds named entities.
+        """A view into this registries named entities.
 
         .. deprecated:: 3.1
             This feature has been deprecated.
@@ -281,7 +281,7 @@ class Registry:
 
         Example::
 
-            >>> entity = world.new_entity(
+            >>> entity = registry.new_entity(
             ...     components={
             ...         ("name", str): "my name",
             ...         ("hp", int): 10,
@@ -306,9 +306,9 @@ class Registry:
         return entity
 
     @property
-    def Q(self) -> tcod.ecs.query.WorldQuery:
-        """Start a new Query for this world.
+    def Q(self) -> tcod.ecs.query.BoundQuery:
+        """Start a new Query for this registry.
 
-        Alias for ``tcod.ecs.Query(world)``.
+        Alias for ``tcod.ecs.Query(registry)``.
         """
-        return tcod.ecs.query.WorldQuery(self)
+        return tcod.ecs.query.BoundQuery(self)

@@ -40,67 +40,78 @@ _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
 
 _entity_table: WeakKeyDictionary[Registry, WeakValueDictionary[object, Entity]] = WeakKeyDictionary()
-"""A weak table of worlds and unique identifiers to entity objects.
+"""A weak table of registries and unique identifiers to entity objects.
 
 This table is used to that non-unique Entity's won't create a new object and thus will always share identities.
 
-_entity_table[world][uid] = entity
+_entity_table[registry][uid] = entity
 """
 
 
 class Entity:
-    """A unique entity in a world.
+    """A unique entity in a registry.
 
     Example::
 
         >>> import tcod.ecs
-        >>> world = tcod.ecs.World()  # Create a new world
-        >>> world.new_entity()  # Create a new entity
+        >>> registry = tcod.ecs.Registry()  # Create a new registry
+        >>> registry.new_entity()  # Create a new entity
         <Entity(uid=object at ...)>
-        >>> entity = world["entity"]  # Get an entity from a specific identifier
-        >>> other_entity = world["other"]
+        >>> entity = registry["entity"]  # Get an entity from a specific identifier
+        >>> other_entity = registry["other"]
     """  # Changes here should be reflected in conftest.py
 
-    __slots__ = ("world", "uid", "__weakref__")
+    __slots__ = ("registry", "uid", "__weakref__")
 
-    world: Final[Registry]  # type:ignore[misc]  # https://github.com/python/mypy/issues/5774
-    """The :any:`World` this entity belongs to."""
+    registry: Final[Registry]  # type:ignore[misc]  # https://github.com/python/mypy/issues/5774
+    """The :any:`Registry` this entity belongs to."""
     uid: Final[object]  # type:ignore[misc]
     """This entities unique identifier."""
 
-    def __new__(cls, world: Registry, uid: object = object) -> Entity:
-        """Return a unique entity for the given `world` and `uid`.
+    @property
+    def world(self) -> Registry:
+        """Deprecated alias for registry.
 
-        If an entity already exists with a matching `world` and `uid` then that entity is returned.
+        .. deprecated:: Unreleased
+            Use :any:`registry` instead.
+        """
+        if __debug__:
+            warnings.warn("Use '.registry' instead of '.world'", DeprecationWarning, stacklevel=2)
+        return self.registry
+
+    def __new__(cls, registry: Registry, uid: object = object) -> Entity:
+        """Return a unique entity for the given `registry` and `uid`.
+
+        If an entity already exists with a matching `registry` and `uid` then that entity is returned.
 
         The `uid` default of `object` will create an instance of :any:`object` as the `uid`.
         An entity created this way will never match or collide with an existing entity.
 
         Example::
 
-            >>> world = tcod.ecs.World()
-            >>> Entity(world, "foo")
+            >>> registry = tcod.ecs.Registry()
+            >>> Entity(registry, "foo")
             <Entity(uid='foo')>
-            >>> Entity(world, "foo") is Entity(world, "foo")
+            >>> Entity(registry, "foo") is Entity(registry, "foo")
             True
-            >>> Entity(world) is Entity(world)
+            >>> Entity(registry) is Entity(registry)
             False
         """
         if uid is object:
             uid = object()
         try:
-            table = _entity_table[world]
+            table = _entity_table[registry]
         except KeyError:
             table = WeakValueDictionary()
-            _entity_table[world] = table
+            _entity_table[registry] = table
         try:
             return table[uid]
         except KeyError:
             pass
         self = super().__new__(cls)
-        self.world = world  # type:ignore[misc]  # https://github.com/python/mypy/issues/5774
+        self.registry = registry  # type:ignore[misc]  # https://github.com/python/mypy/issues/5774
         self.uid = uid  # type:ignore[misc]
-        _entity_table[world][uid] = self
+        _entity_table[registry][uid] = self
         return self
 
     def clear(self) -> None:
@@ -125,12 +136,12 @@ class Entity:
 
             # 'child = entity.instantiate()' is equivalent to the following:
             >>> from tcod.ecs import IsA
-            >>> child = world[object()]  # New unique entity
+            >>> child = registry[object()]  # New unique entity
             >>> child.relation_tag[IsA] = entity  # Configure IsA relation
 
         Example::
 
-            >>> parent = world.new_entity()
+            >>> parent = registry.new_entity()
             >>> parent.components[str] = "baz"
             >>> child = parent.instantiate()
             >>> child.components[str]  # Inherits components from parent
@@ -166,7 +177,7 @@ class Entity:
 
         .. versionadded:: 5.0
         """
-        new_entity = self.__class__(self.world, object())
+        new_entity = self.__class__(self.registry, object())
         new_entity.relation_tag[IsA] = self
         return new_entity
 
@@ -187,9 +198,9 @@ class Entity:
             True
             >>> {str, ("name", str)}.issubset(entity.components.keys())
             True
-            >>> list(world.Q.all_of(components=[str]))  # Query components
+            >>> list(registry.Q.all_of(components=[str]))  # Query components
             [<Entity(uid='entity')>]
-            >>> list(world.Q[tcod.ecs.Entity, str, ("name", str)])  # Query zip components
+            >>> list(registry.Q[tcod.ecs.Entity, str, ("name", str)])  # Query zip components
             [(<Entity(uid='entity')>, 'foo', 'my_name')]
         """
         return EntityComponents(self, (IsA,))
@@ -207,7 +218,7 @@ class Entity:
             >>> entity.tags.add("tag") # Add tag
             >>> "tag" in entity.tags  # Check tag
             True
-            >>> list(world.Q.all_of(tags=["tag"]))  # Query tags
+            >>> list(registry.Q.all_of(tags=["tag"]))  # Query tags
             [<Entity(uid='entity')>]
             >>> entity.tags.discard("tag")
             >>> entity.tags |= {"IsPortable", "CanBurn", "OnFire"}  # Supports in-place syntax
@@ -233,13 +244,13 @@ class Entity:
             >>> entity.relation_components[("distance", int)][other_entity] = 42 # Also works for named components
             >>> other_entity in entity.relation_components[str]
             True
-            >>> list(world.Q.all_of(relations=[(str, other_entity)]))
+            >>> list(registry.Q.all_of(relations=[(str, other_entity)]))
             [<Entity(uid='entity')>]
-            >>> list(world.Q.all_of(relations=[(str, ...)]))
+            >>> list(registry.Q.all_of(relations=[(str, ...)]))
             [<Entity(uid='entity')>]
-            >>> list(world.Q.all_of(relations=[(entity, str, None)]))
+            >>> list(registry.Q.all_of(relations=[(entity, str, None)]))
             [<Entity(uid='other')>]
-            >>> list(world.Q.all_of(relations=[(..., str, None)]))
+            >>> list(registry.Q.all_of(relations=[(..., str, None)]))
             [<Entity(uid='other')>]
         """
         return EntityComponentRelations(self, (IsA,))
@@ -251,9 +262,9 @@ class Entity:
         Example::
 
             >>> entity.relation_tag["ChildOf"] = other_entity  # Assign relation
-            >>> list(world.Q.all_of(relations=[("ChildOf", other_entity)]))  # Get children of other_entity
+            >>> list(registry.Q.all_of(relations=[("ChildOf", other_entity)]))  # Get children of other_entity
             [<Entity(uid='entity')>]
-            >>> list(world.Q.all_of(relations=[(entity, "ChildOf", None)]))  # Get parents of entity
+            >>> list(registry.Q.all_of(relations=[(entity, "ChildOf", None)]))  # Get parents of entity
             [<Entity(uid='other')>]
             >>> del entity.relation_tag["ChildOf"]
         """
@@ -287,26 +298,26 @@ class Entity:
         )
         old_name = self.name
         if old_name is not None:  # Remove self from names
-            del self.world._names_by_name[old_name]
-            del self.world._names_by_entity[self]
+            del self.registry._names_by_name[old_name]
+            del self.registry._names_by_entity[self]
 
         if value is not None:  # Add self to names
-            old_entity = self.world._names_by_name.get(value)
+            old_entity = self.registry._names_by_name.get(value)
             if old_entity is not None:  # Remove entity with old name, name will be overwritten
-                del self.world._names_by_entity[old_entity]
-            self.world._names_by_name[value] = self
-            self.world._names_by_entity[self] = value
+                del self.registry._names_by_entity[old_entity]
+            self.registry._names_by_name[value] = self
+            self.registry._names_by_entity[self] = value
 
     @property
     def name(self) -> object:
         """The unique name of this entity or None.
 
-        You may assign a new name, but if an entity of the world already has that name then it will lose it.
+        You may assign a new name, but if an entity of the registry already has that name then it will lose it.
 
         .. deprecated:: 3.1
             This feature has been deprecated.
         """
-        return self.world._names_by_entity.get(self)
+        return self.registry._names_by_entity.get(self)
 
     @name.setter
     def name(self, value: object) -> None:
@@ -317,9 +328,9 @@ class Entity:
 
         Example::
 
-            >>> world.new_entity()
+            >>> registry.new_entity()
             <Entity(uid=object at ...)>
-            >>> world["foo"]
+            >>> registry["foo"]
             <Entity(uid='foo')>
         """
         uid_str = f"object at 0x{id(self.uid):X}" if self.uid.__class__ == object else repr(self.uid)
@@ -332,13 +343,13 @@ class Entity:
     def __reduce__(self) -> tuple[type[Entity], tuple[Registry, object]]:
         """Pickle this Entity.
 
-        Note that any pickled entity will include the world it belongs to and all the entities of that world.
+        Note that any pickled entity will include the registry it belongs to and all the entities of that registry.
         """
-        return self.__class__, (self.world, self.uid)
+        return self.__class__, (self.registry, self.uid)
 
     def _force_remap(self, new_uid: object) -> None:
         """Remap this Entity to a new uid, both and old and new uid's will use this entity."""
-        _entity_table[self.world][new_uid] = self
+        _entity_table[self.registry][new_uid] = self
         self.uid = new_uid  # type: ignore[misc]
 
 
@@ -350,7 +361,7 @@ def _traverse_entities(start: Entity, traverse_parents: tuple[object, ...]) -> I
     traverse_parents = traverse_parents[::-1]
     visited = {start}
     stack = [start]
-    _relation_tags_by_entity = start.world._relation_tags_by_entity
+    _relation_tags_by_entity = start.registry._relation_tags_by_entity
     while stack:
         entity = stack.pop()
         yield entity
@@ -410,7 +421,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
     def __getitem__(self, key: ComponentKey[T]) -> T:
         """Return a component belonging to this entity, or an indirect parent."""
         assert self.__assert_key(key)
-        _components_by_entity = self.entity.world._components_by_entity
+        _components_by_entity = self.entity.registry._components_by_entity
         for entity in _traverse_entities(self.entity, self.traverse):
             try:
                 return _components_by_entity[entity][key]  # type: ignore[no-any-return]
@@ -422,13 +433,13 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         """Assign a component directly to an entity."""
         assert self.__assert_key(key)
 
-        old_value = self.entity.world._components_by_entity[self.entity].get(key)
+        old_value = self.entity.registry._components_by_entity[self.entity].get(key)
 
         if old_value is None:
-            tcod.ecs.query._touch_component(self.entity.world, key)  # Component added
+            tcod.ecs.query._touch_component(self.entity.registry, key)  # Component added
 
-        self.entity.world._components_by_entity[self.entity][key] = value
-        self.entity.world._components_by_type[key][self.entity] = value
+        self.entity.registry._components_by_entity[self.entity][key] = value
+        self.entity.registry._components_by_type[key][self.entity] = value
 
         tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, value)
 
@@ -436,22 +447,22 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         """Delete a directly held component from an entity."""
         assert self.__assert_key(key)
 
-        old_value = self.entity.world._components_by_entity[self.entity].get(key)
+        old_value = self.entity.registry._components_by_entity[self.entity].get(key)
 
-        del self.entity.world._components_by_entity[self.entity][key]
-        if not self.entity.world._components_by_entity[self.entity]:
-            del self.entity.world._components_by_entity[self.entity]
+        del self.entity.registry._components_by_entity[self.entity][key]
+        if not self.entity.registry._components_by_entity[self.entity]:
+            del self.entity.registry._components_by_entity[self.entity]
 
-        del self.entity.world._components_by_type[key][self.entity]
-        if not self.entity.world._components_by_type[key]:
-            del self.entity.world._components_by_type[key]
+        del self.entity.registry._components_by_type[key][self.entity]
+        if not self.entity.registry._components_by_type[key]:
+            del self.entity.registry._components_by_type[key]
 
-        tcod.ecs.query._touch_component(self.entity.world, key)  # Component removed
+        tcod.ecs.query._touch_component(self.entity.registry, key)  # Component removed
         tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, None)
 
     def keys(self) -> Set[ComponentKey[object]]:  # type: ignore[override]
         """Return the components held by this entity, including inherited components."""
-        _components_by_entity = self.entity.world._components_by_entity
+        _components_by_entity = self.entity.registry._components_by_entity
         if not self.traverse:
             return _components_by_entity.get(self.entity, {}).keys()
         set_: set[ComponentKey[object]] = set()
@@ -461,7 +472,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
 
     def __contains__(self, key: ComponentKey[object]) -> bool:  # type: ignore[override]
         """Return True if this entity has the provided component."""
-        _components_by_entity = self.entity.world._components_by_entity
+        _components_by_entity = self.entity.registry._components_by_entity
         return any(
             key in _components_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse)
         )
@@ -553,42 +564,42 @@ class EntityTags(MutableSet[Any]):
 
     def add(self, tag: object) -> None:
         """Add a tag to the entity."""
-        if tag in self.entity.world._tags_by_entity[self.entity]:
+        if tag in self.entity.registry._tags_by_entity[self.entity]:
             return  # Already has tag
-        tcod.ecs.query._touch_tag(self.entity.world, tag)  # Tag added
+        tcod.ecs.query._touch_tag(self.entity.registry, tag)  # Tag added
 
-        self.entity.world._tags_by_entity[self.entity].add(tag)
-        self.entity.world._tags_by_key[tag].add(self.entity)
+        self.entity.registry._tags_by_entity[self.entity].add(tag)
+        self.entity.registry._tags_by_key[tag].add(self.entity)
 
     def discard(self, tag: object) -> None:
         """Discard a tag directly held by an entity."""
-        if tag not in self.entity.world._tags_by_entity[self.entity]:
+        if tag not in self.entity.registry._tags_by_entity[self.entity]:
             return  # Already doesn't have tag
-        tcod.ecs.query._touch_tag(self.entity.world, tag)  # Tag removed
+        tcod.ecs.query._touch_tag(self.entity.registry, tag)  # Tag removed
 
-        self.entity.world._tags_by_entity[self.entity].discard(tag)
-        if not self.entity.world._tags_by_entity[self.entity]:
-            del self.entity.world._tags_by_entity[self.entity]
+        self.entity.registry._tags_by_entity[self.entity].discard(tag)
+        if not self.entity.registry._tags_by_entity[self.entity]:
+            del self.entity.registry._tags_by_entity[self.entity]
 
-        self.entity.world._tags_by_key[tag].discard(self.entity)
-        if not self.entity.world._tags_by_key[tag]:
-            del self.entity.world._tags_by_key[tag]
+        self.entity.registry._tags_by_key[tag].discard(self.entity)
+        if not self.entity.registry._tags_by_key[tag]:
+            del self.entity.registry._tags_by_key[tag]
 
     def remove(self, tag: object) -> None:
         """Remove a tag directly held by an entity."""
-        tags = self.entity.world._tags_by_entity.get(self.entity)
+        tags = self.entity.registry._tags_by_entity.get(self.entity)
         if tags is None or tag not in tags:
             raise KeyError(tag)
         self.discard(tag)
 
     def __contains__(self, x: object) -> bool:
         """Return True if this entity has the given tag."""
-        _tags_by_entity = self.entity.world._tags_by_entity
+        _tags_by_entity = self.entity.registry._tags_by_entity
         return any(x in _tags_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse))
 
     def _as_set(self) -> set[object]:
         """Return all tags inherited by traversal rules into a single set with no duplicates."""
-        _tags_by_entity = self.entity.world._tags_by_entity
+        _tags_by_entity = self.entity.registry._tags_by_entity
         return set().union(
             *(_tags_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse))
         )
@@ -620,34 +631,34 @@ class EntityTags(MutableSet[Any]):
         return self
 
 
-def _relations_lookup_add(world: Registry, origin: Entity, tag: object, target: Entity) -> None:
+def _relations_lookup_add(registry: Registry, origin: Entity, tag: object, target: Entity) -> None:
     """Add a relation tag/component to the lookup table and handle side effects."""
-    world._relations_lookup[(tag, target)].add(origin)
-    world._relations_lookup[(tag, ...)].add(origin)
-    world._relations_lookup[(origin, tag, None)].add(target)
-    world._relations_lookup[(..., tag, None)].add(target)
-    tcod.ecs.query._touch_relations(world, ((tag, target), (tag, ...), (origin, tag, None), (..., tag, None)))
+    registry._relations_lookup[(tag, target)].add(origin)
+    registry._relations_lookup[(tag, ...)].add(origin)
+    registry._relations_lookup[(origin, tag, None)].add(target)
+    registry._relations_lookup[(..., tag, None)].add(target)
+    tcod.ecs.query._touch_relations(registry, ((tag, target), (tag, ...), (origin, tag, None), (..., tag, None)))
 
 
-def _relations_lookup_discard(world: Registry, origin: Entity, tag: object, target: Entity) -> None:
+def _relations_lookup_discard(registry: Registry, origin: Entity, tag: object, target: Entity) -> None:
     """Discard a relation tag/component from the lookup table and handle side effects."""
-    world._relations_lookup[(tag, target)].discard(origin)
-    if not world._relations_lookup[(tag, target)]:
-        del world._relations_lookup[(tag, target)]
+    registry._relations_lookup[(tag, target)].discard(origin)
+    if not registry._relations_lookup[(tag, target)]:
+        del registry._relations_lookup[(tag, target)]
 
-        world._relations_lookup[(..., tag, None)].discard(target)
-        if not world._relations_lookup[(..., tag, None)]:
-            del world._relations_lookup[(..., tag, None)]
+        registry._relations_lookup[(..., tag, None)].discard(target)
+        if not registry._relations_lookup[(..., tag, None)]:
+            del registry._relations_lookup[(..., tag, None)]
 
-    world._relations_lookup[(origin, tag, None)].discard(target)
-    if not world._relations_lookup[(origin, tag, None)]:
-        del world._relations_lookup[(origin, tag, None)]
+    registry._relations_lookup[(origin, tag, None)].discard(target)
+    if not registry._relations_lookup[(origin, tag, None)]:
+        del registry._relations_lookup[(origin, tag, None)]
 
-        world._relations_lookup[(tag, ...)].discard(origin)
-        if not world._relations_lookup[(tag, ...)]:
-            del world._relations_lookup[(tag, ...)]
+        registry._relations_lookup[(tag, ...)].discard(origin)
+        if not registry._relations_lookup[(tag, ...)]:
+            del registry._relations_lookup[(tag, ...)]
 
-    tcod.ecs.query._touch_relations(world, ((tag, target), (tag, ...), (origin, tag, None), (..., tag, None)))
+    tcod.ecs.query._touch_relations(registry, ((tag, target), (tag, ...), (origin, tag, None), (..., tag, None)))
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
@@ -669,29 +680,29 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
     def add(self, target: Entity) -> None:
         """Add a relation target to this tag."""
-        world = self.entity.world
-        world._relation_tags_by_entity[self.entity][self.key].add(target)
+        registry = self.entity.registry
+        registry._relation_tags_by_entity[self.entity][self.key].add(target)
 
-        _relations_lookup_add(world, self.entity, self.key, target)
+        _relations_lookup_add(registry, self.entity, self.key, target)
 
     def discard(self, target: Entity) -> None:
         """Discard a directly held relation target from this tag."""
-        world = self.entity.world
+        registry = self.entity.registry
 
-        world._relation_tags_by_entity[self.entity][self.key].discard(target)
-        if not world._relation_tags_by_entity[self.entity][self.key]:
-            del world._relation_tags_by_entity[self.entity][self.key]
-            if not world._relation_tags_by_entity[self.entity]:
-                del world._relation_tags_by_entity[self.entity]
+        registry._relation_tags_by_entity[self.entity][self.key].discard(target)
+        if not registry._relation_tags_by_entity[self.entity][self.key]:
+            del registry._relation_tags_by_entity[self.entity][self.key]
+            if not registry._relation_tags_by_entity[self.entity]:
+                del registry._relation_tags_by_entity[self.entity]
 
-        _relations_lookup_discard(world, self.entity, self.key, target)
+        _relations_lookup_discard(registry, self.entity, self.key, target)
 
     def remove(self, target: Entity) -> None:
         """Remove a directly held relation target from this tag.
 
         This will raise KeyError of only an indirect relation target exists.
         """
-        relations = self.entity.world._relation_tags_by_entity.get(self.entity)
+        relations = self.entity.registry._relation_tags_by_entity.get(self.entity)
         if relations is None:
             raise KeyError(target)
         targets = relations.get(self.key)
@@ -701,7 +712,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
     def __contains__(self, target: Entity) -> bool:  # type: ignore[override]
         """Return True if this relation contains the given value."""
-        _relation_tags_by_entity = self.entity.world._relation_tags_by_entity
+        _relation_tags_by_entity = self.entity.registry._relation_tags_by_entity
         for entity in _traverse_entities(self.entity, self.traverse):
             by_entity = _relation_tags_by_entity.get(entity)
             if by_entity is None:
@@ -712,7 +723,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
     def _as_set(self) -> set[Entity]:
         """Return the combined targets of this mapping via traversal with duplicates removed."""
-        _relation_tags_by_entity = self.entity.world._relation_tags_by_entity
+        _relation_tags_by_entity = self.entity.registry._relation_tags_by_entity
         results: set[Entity] = set()
         for entity in _traverse_entities(self.entity, self.traverse):
             by_entity = _relation_tags_by_entity.get(entity)
@@ -731,7 +742,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
     def clear(self) -> None:
         """Discard all targets for this tag relation."""
-        by_entity = self.entity.world._relation_tags_by_entity.get(self.entity)
+        by_entity = self.entity.registry._relation_tags_by_entity.get(self.entity)
         if by_entity is None:
             return
         for key in list(by_entity.get(self.key, ())):
@@ -776,7 +787,7 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
 
     def __iter__(self) -> Iterator[Any]:
         """Iterate over the unique relation tags of this entity."""
-        _relation_tags_by_entity = self.entity.world._relation_tags_by_entity
+        _relation_tags_by_entity = self.entity.registry._relation_tags_by_entity
         EMPTY_DICT: dict[object, set[Entity]] = {}
         yield from set().union(
             *(
@@ -791,7 +802,7 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
 
     def clear(self) -> None:
         """Discard all tag relations from an entity."""
-        for key in list(self.entity.world._relation_tags_by_entity.get(self.entity, ())):
+        for key in list(self.entity.registry._relation_tags_by_entity.get(self.entity, ())):
             del self[key]
 
 
@@ -818,7 +829,7 @@ class EntityRelationsExclusive(MutableMapping[object, Entity]):
         If the relation has no target then raises KeyError.
         If the relation is not exclusive then raises ValueError.
         """
-        _relation_tags_by_entity = self.entity.world._relation_tags_by_entity
+        _relation_tags_by_entity = self.entity.registry._relation_tags_by_entity
         for entity in _traverse_entities(self.entity, self.traverse):
             by_entity = _relation_tags_by_entity.get(entity)
             if by_entity is None:
@@ -877,7 +888,7 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
 
     def __getitem__(self, target: Entity) -> T:
         """Return the component related to a target entity."""
-        _relation_components_by_entity = self.entity.world._relation_components_by_entity
+        _relation_components_by_entity = self.entity.registry._relation_components_by_entity
         for entity in _traverse_entities(self.entity, self.traverse):
             by_entity = _relation_components_by_entity.get(entity)
             if by_entity is None:
@@ -892,32 +903,32 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
 
     def __setitem__(self, target: Entity, component: T) -> None:
         """Assign a component to the target entity."""
-        world = self.entity.world
+        registry = self.entity.registry
 
-        old_value = world._relation_components_by_entity[self.entity][self.key].get(target)
+        old_value = registry._relation_components_by_entity[self.entity][self.key].get(target)
         if old_value is None:  # Relation added
             tcod.ecs.query._touch_relations(
-                world, ((self.key, target), (self.key, ...), (self.entity, self.key, None), (..., self.key, None))
+                registry, ((self.key, target), (self.key, ...), (self.entity, self.key, None), (..., self.key, None))
             )
 
-        world._relation_components_by_entity[self.entity][self.key][target] = component
+        registry._relation_components_by_entity[self.entity][self.key][target] = component
 
-        _relations_lookup_add(world, self.entity, self.key, target)
+        _relations_lookup_add(registry, self.entity, self.key, target)
 
     def __delitem__(self, target: Entity) -> None:
         """Delete a component assigned to the target entity."""
-        world = self.entity.world
-        del world._relation_components_by_entity[self.entity][self.key][target]
-        if not world._relation_components_by_entity[self.entity][self.key]:
-            del world._relation_components_by_entity[self.entity][self.key]
-        if not world._relation_components_by_entity[self.entity]:
-            del world._relation_components_by_entity[self.entity]
+        registry = self.entity.registry
+        del registry._relation_components_by_entity[self.entity][self.key][target]
+        if not registry._relation_components_by_entity[self.entity][self.key]:
+            del registry._relation_components_by_entity[self.entity][self.key]
+        if not registry._relation_components_by_entity[self.entity]:
+            del registry._relation_components_by_entity[self.entity]
 
-        _relations_lookup_discard(world, self.entity, self.key, target)
+        _relations_lookup_discard(registry, self.entity, self.key, target)
 
     def keys(self) -> Set[Entity]:  # type: ignore[override]
         """Return all entities with an associated component value."""
-        _relation_components_by_entity = self.entity.world._relation_components_by_entity
+        _relation_components_by_entity = self.entity.registry._relation_components_by_entity
         result: set[Entity] = set()
         for entity in _traverse_entities(self.entity, self.traverse):
             by_entity = _relation_components_by_entity.get(entity)
@@ -990,12 +1001,12 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
 
         Does not clear relations targeting this entity.
         """
-        for component_key in list(self.entity.world._relation_components_by_entity.get(self.entity, ())):
+        for component_key in list(self.entity.registry._relation_components_by_entity.get(self.entity, ())):
             self[component_key].clear()
 
     def keys(self) -> Set[ComponentKey[object]]:  # type: ignore[override]
         """Returns the components keys this entity has relations for."""
-        _relation_components_by_entity = self.entity.world._relation_components_by_entity
+        _relation_components_by_entity = self.entity.registry._relation_components_by_entity
         return set().union(
             *(
                 _relation_components_by_entity.get(entity, ())

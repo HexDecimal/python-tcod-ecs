@@ -7,15 +7,15 @@ import tcod.ecs
 
 
 @pytest.fixture(autouse=True)
-def _add_world_entity(doctest_namespace: Dict[str, Any]) -> None:
-    """Add world and entity objects to all doctests."""
-    world = tcod.ecs.Registry()
-    entity = world["entity"]
-    other_entity = world["other"]
+def _add_registry_entity(doctest_namespace: Dict[str, Any]) -> None:
+    """Add registry and entity objects to all doctests."""
+    registry = tcod.ecs.Registry()
+    entity = registry["entity"]
+    other_entity = registry["other"]
     doctest_namespace.update(
         {
             "tcod": tcod,
-            "world": world,
+            "registry": registry,
             "entity": entity,
             "other_entity": other_entity,
         }

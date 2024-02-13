@@ -9,10 +9,10 @@ from typing_extensions import TypeAlias
 
 if TYPE_CHECKING:
     from tcod.ecs.entity import Entity
-    from tcod.ecs.query import WorldQuery
+    from tcod.ecs.query import BoundQuery
 else:
     Entity = Any
-    WorldQuery = Any
+    BoundQuery = Any
 
 if sys.version_info >= (3, 10):  # pragma: no cover
     EllipsisType: TypeAlias = types.EllipsisType
@@ -27,7 +27,7 @@ ComponentKey: TypeAlias = Union[Type[_T], Tuple[object, Type[_T]]]
 _RelationTargetLookup: TypeAlias = Union[Entity, EllipsisType]
 """Possible target for stored relations."""
 
-_RelationQueryTarget: TypeAlias = Union[_RelationTargetLookup, WorldQuery]
+_RelationQueryTarget: TypeAlias = Union[_RelationTargetLookup, BoundQuery]
 """Possible target for relation queries."""
 
 _RelationQuery: TypeAlias = Union[Tuple[object, _RelationQueryTarget], Tuple[_RelationQueryTarget, object, None]]

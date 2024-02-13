@@ -16,7 +16,7 @@ The following features are currently implemented:
 - Entities can have one instance of a type, or multiple instances of a type using a hashable tag to differentiate them.
 - Entity relationships are supported, either as many-to-many or many-to-one relationships.
 - ECS Queries can be made to fetch entities having a combination of components/tags/relations or excluding such.
-- The ECS World object can be serialized with Python's pickle module for easy storage.
+- The ECS Registry object can be serialized with Python's pickle module for easy storage.
 
 A lightweight version which implements only the entity-component framework exists called [tcod-ec](https://pypi.org/project/tcod-ec/).
 `tcod-ec` was geared towards a dynamic-typed-dict style of syntax and is missing a lot of important features such as queries and named components.
@@ -34,57 +34,59 @@ Remove or update `tcod` to fix this issue.
 
 # Examples
 
-## World
+## Registry
+
+The ECS Registry is used to create and store entities and their components.
 
 ```py
 >>> import tcod.ecs
->>> world = tcod.ecs.World()  # New empty world
+>>> registry = tcod.ecs.Registry()  # New empty registry
 
 ```
 
 ## Entity
 
-Each Entity is identified by its unique id (`uid`) which can be any hashable object combined with the `world` it belongs.
-New unique entities can be created with `World.new_entity` which uses a new `object()` as the `uid`, this guarantees uniqueness which is not always desireable.
-An entity always knows about its assigned world, which can be access with the `Entity.world` property from any Entity instance.
-Worlds only know about their entities once the entity is assigned a name, component, tag, or relation.
+Each Entity is identified by its unique id (`uid`) which can be any hashable object combined with the `registry` it belongs.
+New unique entities can be created with `Registry.new_entity` which uses a new `object()` as the `uid`, this guarantees uniqueness which is not always desireable.
+An entity always knows about its assigned registry, which can be accessed with the `Entity.registry` property from any Entity instance.
+Registries only know about their entities once the entity is assigned a name, component, tag, or relation.
 
 ```py
->>> entity = world.new_entity()  # Creates a unique entity using `object()` as the uid
+>>> entity = registry.new_entity()  # Creates a unique entity using `object()` as the uid
 >>> entity
 <Entity(uid=object at ...)>
->>> entity.world is world  # Worlds can always be accessed from their entity
+>>> entity.registry is registry  # Registry can always be accessed from their entity
 True
->>> world[entity.uid] is entity  # Entities with the same world/uid are compared using `is`
+>>> registry[entity.uid] is entity  # Entities with the same registry/uid are compared using `is`
 True
 
 # Reference an entity with the given uid, can be any hashable object:
->>> entity = world["MyEntity"]
+>>> entity = registry["MyEntity"]
 >>> entity
 <Entity(uid='MyEntity')>
->>> world["MyEntity"] is entity  # Matching entities ALWAYS share a single identity
+>>> registry["MyEntity"] is entity  # Matching entities ALWAYS share a single identity
 True
 
 ```
 
-Use `World.new_entity` to create unique entities and use `World[x]` to reference a global entity or relation with an id.
-`World[None]` is recommend for use as a global entity when you want to store components in the world itself.
+Use `Registry.new_entity` to create unique entities and use `Registry[x]` to reference a global entity or relation with an id.
+`registry[None]` is recommend for use as a global entity when you want to store components in the registry itself.
 
-Do not save the `uid`'s of entities to be used later with `World[uid]`, this process is slower than holding onto the Entity instance.
+Do not save the `uid`'s of entities to be used later with `registry[uid]`, this process is slower than holding onto the Entity instance.
 
 ## Serialization
 
-Worlds are normal Python objects and can be pickled as long as all stored components are pickleable.
+Registries are normal Python objects and can be pickled as long as all stored components are pickleable.
 
 ```py
 >>> import pickle
->>> pickled_data: bytes = pickle.dumps(world)
->>> world = pickle.loads(pickled_data)
+>>> pickled_data: bytes = pickle.dumps(registry)
+>>> registry = pickle.loads(pickled_data)
 
 ```
 
 Stability is a priority but changes may still break older saves.
-Backwards compatibility is not a priority, pickled worlds should not be unpickled with an older version of the library.
+Backwards compatibility is not a priority, pickled registries should not be unpickled with an older version of the library.
 This project follows [Semantic Versioning](https://semver.org/), major version increments will break the API, the save format or both, minor version increments may break backwards compatibility.
 Check the [changelog](https://github.com/HexDecimal/python-tcod-ecs/blob/main/CHANGELOG.md) to be aware of format changes and breaks.
 There should always be a transition period before a format break, so keeping up with the latest version is a good idea.
@@ -98,7 +100,7 @@ The types used can be custom classes or standard Python types.
 
 ```py
 >>> import attrs
->>> entity = world.new_entity()
+>>> entity = registry.new_entity()
 >>> entity.components[int] = 42
 >>> entity.components[int]
 42
@@ -124,20 +126,20 @@ Vector2(x=1, y=2)
 >>> entity.components[Vector2]
 Vector2(x=0, y=0)
 
-# Queries can be made on all entities of a world with matching components
->>> for e in world.Q.all_of(components=[Vector2]):
+# Queries can be made on all entities of a registry with matching components
+>>> for e in registry.Q.all_of(components=[Vector2]):
 ...     e.components[Vector2].x += 10
 >>> entity.components[Vector2]
 Vector2(x=10, y=0)
 
 # You can match components and iterate over them at the same time.  This can be combined with the above
->>> for pos, i in world.Q[Vector2, int]:
+>>> for pos, i in registry.Q[Vector2, int]:
 ...     print((pos, i))
 (Vector2(x=10, y=0), 11)
 
 # You can include `Entity` to iterate over entities with their components
 # This always iterates over the entity itself instead of an Entity component
->>> for e, pos, i in world.Q[tcod.ecs.Entity, Vector2, int]:
+>>> for e, pos, i in registry.Q[tcod.ecs.Entity, Vector2, int]:
 ...     print((e, pos, i))
 (<Entity...>, Vector2(x=10, y=0), 11)
 
@@ -152,7 +154,7 @@ The syntax `[type]` and `[(name, type)]` can be used interchangeably in all plac
 Queries on components access named components with the same syntax and must use names explicitly.
 
 ```py
->>> entity = world.new_entity()
+>>> entity = registry.new_entity()
 >>> entity.components[Vector2] = Vector2(0, 0)
 >>> entity.components[("velocity", Vector2)] = Vector2(1, 1)
 >>> entity.components[("velocity", Vector2)]
@@ -175,11 +177,11 @@ Vector2(x=1, y=1)
 'empty'
 
 # Queries can be made on all named components with the same syntax as normal ones
->>> for e in world.Q.all_of(components=[("hp", int), ("max_hp", int)]):
+>>> for e in registry.Q.all_of(components=[("hp", int), ("max_hp", int)]):
 ...     e.components[("hp", int)] = e.components[("max_hp", int)]
 >>> entity.components[("hp", int)]
 12
->>> for e, pos, delta in world.Q[tcod.ecs.Entity, Vector2, ("velocity", Vector2)]:
+>>> for e, pos, delta in registry.Q[tcod.ecs.Entity, Vector2, ("velocity", Vector2)]:
 ...     e.components[Vector2] = Vector2(pos.x + delta.x, pos.y + delta.y)
 >>> entity.components[Vector2]
 Vector2(x=1, y=1)
@@ -192,13 +194,13 @@ Tags are hashable objects stored in the set-like `Entity.tags`.
 These are useful as flags or to group entities together.
 
 ```py
->>> entity = world.new_entity()
+>>> entity = registry.new_entity()
 >>> entity.tags.add("player")  # Works well for groups
 >>> "player" in entity.tags
 True
 >>> entity.tags.add(("eats", "fruit"))
 >>> entity.tags.add(("eats", "meat"))
->>> set(world.Q.all_of(tags=["player"])) == {entity}
+>>> set(registry.Q.all_of(tags=["player"])) == {entity}
 True
 
 ```
@@ -218,26 +220,26 @@ Relations are unidirectional, but you can query either end of a relation.
 ... class OrbitOf:  # OrbitOf component
 ...     dist: int
 >>> LandedOn = "LandedOn"  # LandedOn tag
->>> star = world.new_entity()
->>> planet = world.new_entity()
->>> moon = world.new_entity()
->>> ship = world.new_entity()
->>> player = world.new_entity()
->>> moon_rock = world.new_entity()
+>>> star = registry.new_entity()
+>>> planet = registry.new_entity()
+>>> moon = registry.new_entity()
+>>> ship = registry.new_entity()
+>>> player = registry.new_entity()
+>>> moon_rock = registry.new_entity()
 >>> planet.relation_components[OrbitOf][star] = OrbitOf(dist=1000)
 >>> moon.relation_components[OrbitOf][planet] = OrbitOf(dist=10)
 >>> ship.relation_tag[LandedOn] = moon
 >>> moon_rock.relation_tag[LandedOn] = moon
 >>> player.relation_tag[LandedOn] = moon_rock
->>> set(world.Q.all_of(relations=[(OrbitOf, planet)])) == {moon}
+>>> set(registry.Q.all_of(relations=[(OrbitOf, planet)])) == {moon}
 True
->>> set(world.Q.all_of(relations=[(OrbitOf, ...)])) == {planet, moon}  # Get objects in an orbit
+>>> set(registry.Q.all_of(relations=[(OrbitOf, ...)])) == {planet, moon}  # Get objects in an orbit
 True
->>> set(world.Q.all_of(relations=[(..., OrbitOf, None)])) == {star, planet}  # Get objects being orbited
+>>> set(registry.Q.all_of(relations=[(..., OrbitOf, None)])) == {star, planet}  # Get objects being orbited
 True
->>> set(world.Q.all_of(relations=[(LandedOn, ...)])) == {ship, moon_rock, player}
+>>> set(registry.Q.all_of(relations=[(LandedOn, ...)])) == {ship, moon_rock, player}
 True
->>> set(world.Q.all_of(relations=[(LandedOn, ...)]).none_of(relations=[(LandedOn, moon)])) == {player}
+>>> set(registry.Q.all_of(relations=[(LandedOn, ...)]).none_of(relations=[(LandedOn, moon)])) == {player}
 True
 
 ```
@@ -251,7 +253,7 @@ You can use the following table to help with constructing relation queries.
 | ------------------------------------------------------------------- | :--------------------------------------: |
 | Entities with a relation tag to the given target                    |          `(tag, target_entity)`          |
 | Entities with a relation tag to any target                          |    `(tag, ...)` (Literal dot-dot-dot)    |
-| Entities with a relation tag to the targets in the given query      |       `(tag, world.Q.all_of(...))`       |
+| Entities with a relation tag to the targets in the given query      |     `(tag, registry.Q.all_of(...))`      |
 | The target entities of a relation of a given entity                 |       `(origin_entity, tag, None)`       |
 | The target entities of any entity with the given relation tag       | `(..., tag, None)` (Literal dot-dot-dot) |
-| The target entities of the queried entities with the given relation |       `(tag, world.Q.all_of(...))`       |
+| The target entities of the queried entities with the given relation |     `(tag, registry.Q.all_of(...))`      |

@@ -184,9 +184,9 @@ def test_unpickle(sample_version: str, ecs_version: str) -> None:
 
 def test_global() -> None:
     world = tcod.ecs.Registry()
-    with pytest.warns(match=r"world\[None\]"):
+    with pytest.warns(match=r"registry\[None\]"):
         world.global_.components[int] = 1
-    with pytest.warns(match=r"world\[None\]"):
+    with pytest.warns(match=r"registry\[None\]"):
         assert set(world.Q[tcod.ecs.Entity, int]) == {(world.global_, 1)}
 
 
