@@ -1,12 +1,4 @@
 {
-    "python.linting.enabled": true,
-    "python.linting.pylintEnabled": false,
-    "python.linting.flake8Enabled": false,
-    "python.linting.mypyEnabled": true,
-    "python.linting.mypyArgs": [
-        "--follow-imports=silent",
-        "--show-column-numbers"
-    ],
     "editor.formatOnSave": true,
     "files.trimFinalNewlines": true,
     "files.insertFinalNewline": true,
@@ -65,4 +57,5 @@
     "[python]": {
         "editor.defaultFormatter": "charliermarsh.ruff"
     },
+    "mypy-type-checker.importStrategy": "fromEnvironment"
 }
