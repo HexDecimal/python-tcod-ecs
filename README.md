@@ -24,6 +24,7 @@ A lightweight version which implements only the entity-component framework exist
 # Installation
 
 Use pip to install this library:
+
 ```
 pip install tcod-ecs
 ```
@@ -246,11 +247,11 @@ True
 You can use the following table to help with constructing relation queries.
 `tag` is a component key if you are querying for a component relation.
 
-| Includes                                                              | Syntax |
-| --------------------------------------------------------------------- | :----: |
-| Entities with a relation tag to the given target                      | `(tag, target_entity)` |
-| Entities with a relation tag to any target                            | `(tag, ...)` (Literal dot-dot-dot) |
-| Entities with a relation tag to the targets in the given query        | `(tag, world.Q.all_of(...))` |
-| The target entities of a relation of a given entity                   | `(origin_entity, tag, None)` |
-| The target entities of any entity with the given relation tag         | `(..., tag, None)` (Literal dot-dot-dot) |
-| The target entities of the queried entities with the given relation   | `(tag, world.Q.all_of(...))` |
+| Includes                                                            |                  Syntax                  |
+| ------------------------------------------------------------------- | :--------------------------------------: |
+| Entities with a relation tag to the given target                    |          `(tag, target_entity)`          |
+| Entities with a relation tag to any target                          |    `(tag, ...)` (Literal dot-dot-dot)    |
+| Entities with a relation tag to the targets in the given query      |       `(tag, world.Q.all_of(...))`       |
+| The target entities of a relation of a given entity                 |       `(origin_entity, tag, None)`       |
+| The target entities of any entity with the given relation tag       | `(..., tag, None)` (Literal dot-dot-dot) |
+| The target entities of the queried entities with the given relation |       `(tag, world.Q.all_of(...))`       |
