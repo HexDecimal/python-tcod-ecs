@@ -17,6 +17,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    overload,
 )
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
@@ -498,6 +499,14 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
             key_name, key_component = key
             if key_component is component_type and isinstance(key_name, name_type):
                 yield key_name, key_component
+
+    @overload
+    def __ior__(self, value: SupportsKeysAndGetItem[ComponentKey[Any], Any]) -> Self:
+        ...
+
+    @overload
+    def __ior__(self, value: Iterable[tuple[ComponentKey[Any], Any]]) -> Self:
+        ...
 
     def __ior__(
         self, value: SupportsKeysAndGetItem[ComponentKey[Any], Any] | Iterable[tuple[ComponentKey[Any], Any]]
