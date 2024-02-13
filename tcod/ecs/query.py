@@ -17,7 +17,7 @@ from tcod.ecs.typing import ComponentKey, _RelationQuery
 
 if TYPE_CHECKING:
     from tcod.ecs.entity import Entity
-    from tcod.ecs.world import World
+    from tcod.ecs.registry import Registry
 
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
@@ -26,7 +26,7 @@ _T4 = TypeVar("_T4")
 _T5 = TypeVar("_T5")
 
 
-_query_caches: WeakKeyDictionary[World, _QueryCache] = WeakKeyDictionary()
+_query_caches: WeakKeyDictionary[Registry, _QueryCache] = WeakKeyDictionary()
 """The master table of cached queries."""
 
 
@@ -45,7 +45,7 @@ class _QueryCache:
     by_relations: defaultdict[_RelationQuery, WeakSet[_Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
     """Which queries depend on which relations."""
 
-    dependencies: dict[_Query, set[tuple[World, _Query]]] = attrs.field(factory=lambda: defaultdict(set))
+    dependencies: dict[_Query, set[tuple[Registry, _Query]]] = attrs.field(factory=lambda: defaultdict(set))
     """Tracks which queries depend on the queries of the current world.
 
     `dependencies[dependency] = {dependant}`
@@ -59,7 +59,7 @@ def _drop_cached_query(cache: _QueryCache, query: _Query) -> None:
         _drop_cached_query(_query_caches[sub_world], sub_query)
 
 
-def _touch_component(world: World, component: ComponentKey[object]) -> None:
+def _touch_component(world: Registry, component: ComponentKey[object]) -> None:
     """Drop cached queries if a component change has invalidated them."""
     cache = _get_query_cache(world)
     if component not in cache.by_components:
@@ -68,7 +68,7 @@ def _touch_component(world: World, component: ComponentKey[object]) -> None:
         _drop_cached_query(cache, touched_query)
 
 
-def _touch_tag(world: World, tag: object) -> None:
+def _touch_tag(world: Registry, tag: object) -> None:
     """Drop cached queries if a tag change has invalidated them."""
     cache = _get_query_cache(world)
     if tag not in cache.by_tags:
@@ -77,7 +77,7 @@ def _touch_tag(world: World, tag: object) -> None:
         _drop_cached_query(cache, touched_query)
 
 
-def _touch_relations(world: World, relations: Iterable[_RelationQuery]) -> None:
+def _touch_relations(world: Registry, relations: Iterable[_RelationQuery]) -> None:
     """Drop cached queries if a relation change has invalidated them."""
     cache = _get_query_cache(world)
     for relation in relations:
@@ -100,7 +100,7 @@ def _check_suspicious_tags(tags: Iterable[object], stacklevel: int = 2) -> None:
         )
 
 
-def _fetch_relation_table(world: World, relation: _RelationQuery) -> Set[Entity]:
+def _fetch_relation_table(world: Registry, relation: _RelationQuery) -> Set[Entity]:
     """Get the entity table for this relation.
 
     For simple cases where target/origin is `Entity | ...` this returns the set directly from the lookup table.
@@ -122,7 +122,7 @@ def _fetch_relation_table(world: World, relation: _RelationQuery) -> Set[Entity]
     return set().union(*(world._relations_lookup.get((entity, tag, None), ()) for entity in origin))
 
 
-def _get_query_cache(world: World) -> _QueryCache:
+def _get_query_cache(world: Registry) -> _QueryCache:
     """Return the global cache for the given world, creating it if it does not exist."""
     cache = _query_caches.get(world)
     if cache is None:
@@ -130,7 +130,7 @@ def _get_query_cache(world: World) -> _QueryCache:
     return cache
 
 
-def _get_query(world: World, query: _Query) -> Set[Entity]:
+def _get_query(world: Registry, query: _Query) -> Set[Entity]:
     """Return the entities for the given query and world."""
     cache = _get_query_cache(world)
     if cache is not None:
@@ -163,11 +163,11 @@ def _normalize_query_relation(relation: _RelationQuery) -> _RelationQuery:
 class _Query(Protocol):
     """Abstract query class."""
 
-    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+    def _add_to_cache(self, world: Registry, cache: _QueryCache) -> None:
         """Add this query to the local cache."""
         ...
 
-    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, world: Registry, cache: _QueryCache) -> Set[Entity]:
         """Compile the entities of this query, returning a set which must not be modified."""
         ...
 
@@ -178,10 +178,10 @@ class _QueryComponent:
 
     _component: ComponentKey[object]
 
-    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+    def _add_to_cache(self, world: Registry, cache: _QueryCache) -> None:
         cache.by_components[self._component].add(self)
 
-    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, world: Registry, cache: _QueryCache) -> Set[Entity]:
         return world._components_by_type.get(self._component, {}).keys()
 
 
@@ -191,10 +191,10 @@ class _QueryTag:
 
     _tag: object
 
-    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+    def _add_to_cache(self, world: Registry, cache: _QueryCache) -> None:
         cache.by_tags[self._tag].add(self)
 
-    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, world: Registry, cache: _QueryCache) -> Set[Entity]:
         return world._tags_by_key.get(self._tag, set())
 
 
@@ -204,7 +204,7 @@ class _QueryRelation:
 
     _relation: _RelationQuery = attrs.field(converter=_normalize_query_relation)
 
-    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+    def _add_to_cache(self, world: Registry, cache: _QueryCache) -> None:
         """Add this query to the cache and mark it dependant on a world query if the relation uses one."""
 
         def _get_world_query() -> WorldQuery | None:
@@ -220,7 +220,7 @@ class _QueryRelation:
         if w_query is not None:
             _get_query_cache(w_query.world).dependencies[w_query._query].add((world, self))
 
-    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, world: Registry, cache: _QueryCache) -> Set[Entity]:
         return _fetch_relation_table(world, self._relation)
 
 
@@ -238,11 +238,11 @@ class _QueryLogicalAnd:
         """Verify the current state."""
         assert self._all_of.isdisjoint(self._none_of)
 
-    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+    def _add_to_cache(self, world: Registry, cache: _QueryCache) -> None:
         for dependency in itertools.chain(self._all_of, self._none_of):
             cache.dependencies[dependency].add((world, self))
 
-    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, world: Registry, cache: _QueryCache) -> Set[Entity]:
         if len(self._all_of) == 1 and not self._none_of:  # Only one sub-query, simply return the results of it
             return _get_query(world, next(iter(self._all_of)))  # Avoids an extra copy of a set
         requires = sorted(  # Place the smallest sets first to speed up intersections
@@ -267,11 +267,11 @@ class _QueryLogicalOr:
 
     _any_of: frozenset[_Query] = frozenset()
 
-    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+    def _add_to_cache(self, world: Registry, cache: _QueryCache) -> None:
         for dependency in self._any_of:
             cache.dependencies[dependency].add((world, self))
 
-    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, world: Registry, cache: _QueryCache) -> Set[Entity]:
         if len(self._any_of) == 1:  # If there is only one sub-query then simply return the results of it
             return _get_query(world, next(iter(self._any_of)))  # Avoids an extra copy of a set
         entities: set[Entity] = set()
@@ -296,11 +296,11 @@ class _QueryTraversalPropagation:
             any_of=frozenset(_QueryRelation((..., traverse_key, None)) for traverse_key in self._traverse_keys)
         )
 
-    def _add_to_cache(self, world: World, cache: _QueryCache) -> None:
+    def _add_to_cache(self, world: Registry, cache: _QueryCache) -> None:
         cache.dependencies[self._sub_query].add((world, self))
         cache.dependencies[self._get_traverse_query()].add((world, self))
 
-    def _compile(self, world: World, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, world: Registry, cache: _QueryCache) -> Set[Entity]:
         cumulative_set = set(_get_query(world, self._sub_query))  # All entities touched by this traversal
         relations_set = _get_query(world, self._get_traverse_query())  # The subset of entities which can propagate from
         unchecked_set = cumulative_set & relations_set  # Most recently touched entities which can propagate farther
@@ -322,7 +322,7 @@ class _QueryTraversalPropagation:
 class WorldQuery:
     """Collect a set of entities with the provided conditions."""
 
-    world: World
+    world: Registry
     _query: _Query = attrs.field(factory=_QueryLogicalAnd)
 
     def get_entities(self) -> Set[Entity]:

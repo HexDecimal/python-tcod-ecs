@@ -3,13 +3,13 @@ from typing import Final
 
 import pytest
 
-from tcod.ecs import IsA, World
+from tcod.ecs import IsA, Registry
 
 # ruff: noqa: D103
 
 
 def test_component_traversal() -> None:
-    world = World()
+    world = Registry()
     assert not world.Q.all_of(components=[str]).get_entities()
     world["derived"].relation_tag[IsA] = world["base"]
     world["instance"].relation_tag[IsA] = world["derived"]
@@ -54,7 +54,7 @@ def test_component_traversal() -> None:
 
 
 def test_component_traversal_alternate() -> None:
-    world = World()
+    world = Registry()
     world["base"].components[str] = "base"
     world["alt"].components[str] = "alt"
     world["derived"].relation_tag[IsA] = world["base"]
@@ -81,7 +81,7 @@ def test_component_traversal_alternate() -> None:
 
 
 def test_multiple_inheritance() -> None:
-    world = World()
+    world = Registry()
     ViaA: Final = object()
     ViaC: Final = object()
     world["A"].components[str] = "A"
@@ -110,7 +110,7 @@ def test_multiple_inheritance() -> None:
 
 
 def test_cyclic_inheritance() -> None:
-    world = World()
+    world = Registry()
     world["A"].relation_tag[IsA] = world["D"]
     world["B"].relation_tag[IsA] = world["A"]
     world["C"].relation_tag[IsA] = world["B"]
@@ -127,7 +127,7 @@ def test_cyclic_inheritance() -> None:
 
 
 def test_tag_traversal() -> None:
-    world = World()
+    world = Registry()
     world["B"].relation_tag[IsA] = world["A"]
     world["C"].relation_tag[IsA] = world["B"]
 
@@ -165,7 +165,7 @@ def test_tag_traversal() -> None:
 
 
 def test_relation_traversal() -> None:
-    world = World()
+    world = Registry()
     world["B"].relation_tag[IsA] = world["A"]
     world["C"].relation_tag[IsA] = world["B"]
     assert set(world["C"].relation_tags_many[IsA]) == {world["A"], world["B"]}

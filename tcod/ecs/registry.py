@@ -74,7 +74,7 @@ def _relations_lookup_from(
 
 
 @attrs.define(eq=False)
-class World:
+class Registry:
     """A container for entities and components."""
 
     _components_by_entity: defaultdict[Entity, dict[ComponentKey[object], Any]] = attrs.field(
@@ -242,7 +242,7 @@ class World:
 
         Example::
 
-            >>> world = World()
+            >>> world = Registry()
             >>> foo = world["foo"]  # Referencing a new entity returns a new empty entity
             >>> foo is world["foo"]
             True

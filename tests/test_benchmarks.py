@@ -9,12 +9,12 @@ import tcod.ecs
 
 
 def test_component_missing(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
+    entity = tcod.ecs.Registry().new_entity()
     benchmark(lambda: entity.components.get(str))
 
 
 def test_component_assign(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
+    entity = tcod.ecs.Registry().new_entity()
 
     @benchmark  # type: ignore[misc]
     def _() -> None:
@@ -22,21 +22,21 @@ def test_component_assign(benchmark: Any) -> None:
 
 
 def test_component_found(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
+    entity = tcod.ecs.Registry().new_entity()
     entity.components[str] = "value"
     benchmark(lambda: entity.components[str])
 
 
 def test_tag_missing(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
+    entity = tcod.ecs.Registry().new_entity()
     benchmark(lambda: "value" in entity.tags)
 
 
 def test_tag_assign(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
+    entity = tcod.ecs.Registry().new_entity()
     benchmark(lambda: entity.tags.add("value"))
 
 
 def test_tag_found(benchmark: Any) -> None:
-    entity = tcod.ecs.World().new_entity()
+    entity = tcod.ecs.Registry().new_entity()
     benchmark(lambda: "value" in entity.tags)

@@ -32,14 +32,14 @@ from tcod.ecs.typing import ComponentKey
 if TYPE_CHECKING:
     from _typeshed import SupportsKeysAndGetItem
 
-    from tcod.ecs.world import World
+    from tcod.ecs.registry import Registry
 
 
 T = TypeVar("T")
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
 
-_entity_table: WeakKeyDictionary[World, WeakValueDictionary[object, Entity]] = WeakKeyDictionary()
+_entity_table: WeakKeyDictionary[Registry, WeakValueDictionary[object, Entity]] = WeakKeyDictionary()
 """A weak table of worlds and unique identifiers to entity objects.
 
 This table is used to that non-unique Entity's won't create a new object and thus will always share identities.
@@ -63,12 +63,12 @@ class Entity:
 
     __slots__ = ("world", "uid", "__weakref__")
 
-    world: Final[World]  # type:ignore[misc]  # https://github.com/python/mypy/issues/5774
+    world: Final[Registry]  # type:ignore[misc]  # https://github.com/python/mypy/issues/5774
     """The :any:`World` this entity belongs to."""
     uid: Final[object]  # type:ignore[misc]
     """This entities unique identifier."""
 
-    def __new__(cls, world: World, uid: object = object) -> Entity:
+    def __new__(cls, world: Registry, uid: object = object) -> Entity:
         """Return a unique entity for the given `world` and `uid`.
 
         If an entity already exists with a matching `world` and `uid` then that entity is returned.
@@ -329,7 +329,7 @@ class Entity:
             items = [self.__class__.__name__, f"name={name!r}"]
         return f"<{' '.join(items)}>"
 
-    def __reduce__(self) -> tuple[type[Entity], tuple[World, object]]:
+    def __reduce__(self) -> tuple[type[Entity], tuple[Registry, object]]:
         """Pickle this Entity.
 
         Note that any pickled entity will include the world it belongs to and all the entities of that world.
@@ -620,7 +620,7 @@ class EntityTags(MutableSet[Any]):
         return self
 
 
-def _relations_lookup_add(world: World, origin: Entity, tag: object, target: Entity) -> None:
+def _relations_lookup_add(world: Registry, origin: Entity, tag: object, target: Entity) -> None:
     """Add a relation tag/component to the lookup table and handle side effects."""
     world._relations_lookup[(tag, target)].add(origin)
     world._relations_lookup[(tag, ...)].add(origin)
@@ -629,7 +629,7 @@ def _relations_lookup_add(world: World, origin: Entity, tag: object, target: Ent
     tcod.ecs.query._touch_relations(world, ((tag, target), (tag, ...), (origin, tag, None), (..., tag, None)))
 
 
-def _relations_lookup_discard(world: World, origin: Entity, tag: object, target: Entity) -> None:
+def _relations_lookup_discard(world: Registry, origin: Entity, tag: object, target: Entity) -> None:
     """Discard a relation tag/component from the lookup table and handle side effects."""
     world._relations_lookup[(tag, target)].discard(origin)
     if not world._relations_lookup[(tag, target)]:

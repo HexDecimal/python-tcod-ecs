@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Renamed `World` to the more standard name `Registry`.
+
+### Deprecated
+
+- `World` is deprecated and has been renamed to `Registry`.
+
 ### Fixed
 
 - Updated `EntityComponents.__ior__` type hints which were causing false positives.

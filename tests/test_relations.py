@@ -13,7 +13,7 @@ ChildOf: Final = "ChildOf"
 
 
 def test_relations() -> None:
-    world = tcod.ecs.World()
+    world = tcod.ecs.Registry()
     entity_a = world["A"]
     entity_b = world["B"]
     entity_b.relation_tag[ChildOf] = entity_a
@@ -37,13 +37,13 @@ def test_relations() -> None:
 
 
 def test_relations_old() -> None:
-    world = tcod.ecs.World()
+    world = tcod.ecs.Registry()
     with pytest.warns(FutureWarning):
         world[None].relation_tags["Foo"] = world[None]
 
 
 def test_relations_many() -> None:
-    world = tcod.ecs.World()
+    world = tcod.ecs.Registry()
     entity_a = world["A"]
     entity_b = world["B"]
     entity_c = world["C"]
@@ -60,7 +60,7 @@ def test_relations_many() -> None:
 
 
 def test_relation_components() -> None:
-    world = tcod.ecs.World()
+    world = tcod.ecs.Registry()
     entity_a = world["A"]
     entity_b = world["B"]
 
@@ -91,7 +91,7 @@ def test_relation_components() -> None:
 
 
 def test_conditional_relations() -> None:
-    world = tcod.ecs.World()
+    world = tcod.ecs.Registry()
     world["A"].relation_tag[ChildOf] = world["B"]
     world["C"].components[int] = 42
     has_int_query = world.Q.all_of(components=[int])
@@ -106,7 +106,7 @@ def test_conditional_relations() -> None:
 
 
 def test_relation_component_tables() -> None:
-    w = tcod.ecs.World()
+    w = tcod.ecs.Registry()
     e1 = w["e1"]
     e2 = w["e2"]
     e3 = w["e3"]
@@ -138,7 +138,7 @@ def test_relation_component_tables() -> None:
 
 
 def test_relation_tag_tables() -> None:
-    w = tcod.ecs.World()
+    w = tcod.ecs.Registry()
     e1 = w["e1"]
     e2 = w["e2"]
     e3 = w["e3"]
