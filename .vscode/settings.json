@@ -55,7 +55,7 @@
         "WINDOWLEAVE"
     ],
     "editor.codeActionsOnSave": {
-        "source.fixAll": true,
+        "source.fixAll": "always"
     },
     "editor.rulers": [
         120
