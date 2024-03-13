@@ -1,4 +1,5 @@
 """Tests for tcod-ecs."""
+
 from __future__ import annotations
 
 import io

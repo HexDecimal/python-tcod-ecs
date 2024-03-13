@@ -1,4 +1,5 @@
 """Special constants and sentinel values."""
+
 from typing import Final
 
 from sentinel_value import sentinel

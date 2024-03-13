@@ -1,4 +1,5 @@
 """Tools for querying Registry objects."""
+
 from __future__ import annotations
 
 import itertools
@@ -403,35 +404,29 @@ class BoundQuery:
         return iter(self.get_entities())
 
     @overload
-    def __getitem__(self, key: tuple[ComponentKey[_T1]]) -> Iterable[tuple[_T1]]:
-        ...
+    def __getitem__(self, key: tuple[ComponentKey[_T1]]) -> Iterable[tuple[_T1]]: ...
 
     @overload
-    def __getitem__(self, key: tuple[ComponentKey[_T1], ComponentKey[_T2]]) -> Iterable[tuple[_T1, _T2]]:
-        ...
+    def __getitem__(self, key: tuple[ComponentKey[_T1], ComponentKey[_T2]]) -> Iterable[tuple[_T1, _T2]]: ...
 
     @overload
     def __getitem__(
         self, key: tuple[ComponentKey[_T1], ComponentKey[_T2], ComponentKey[_T3]]
-    ) -> Iterable[tuple[_T1, _T2, _T3]]:
-        ...
+    ) -> Iterable[tuple[_T1, _T2, _T3]]: ...
 
     @overload
     def __getitem__(
         self, key: tuple[ComponentKey[_T1], ComponentKey[_T2], ComponentKey[_T3], ComponentKey[_T4]]
-    ) -> Iterable[tuple[_T1, _T2, _T3, _T4]]:
-        ...
+    ) -> Iterable[tuple[_T1, _T2, _T3, _T4]]: ...
 
     @overload
     def __getitem__(
         self,
         key: tuple[ComponentKey[_T1], ComponentKey[_T2], ComponentKey[_T3], ComponentKey[_T4], ComponentKey[_T5]],
-    ) -> Iterable[tuple[_T1, _T2, _T3, _T4, _T5]]:
-        ...
+    ) -> Iterable[tuple[_T1, _T2, _T3, _T4, _T5]]: ...
 
     @overload
-    def __getitem__(self, key: tuple[ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]:
-        ...
+    def __getitem__(self, key: tuple[ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]: ...
 
     def __getitem__(self, key: tuple[ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]:
         """Collect components from a query."""

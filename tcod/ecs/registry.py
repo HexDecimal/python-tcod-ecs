@@ -1,4 +1,5 @@
 """Registry management tools."""
+
 from __future__ import annotations
 
 import warnings
@@ -110,9 +111,9 @@ class Registry:
 
     dict[entity][tag] = {target_entities}
     """
-    _relation_components_by_entity: defaultdict[
-        Entity, defaultdict[ComponentKey[object], dict[Entity, Any]]
-    ] = attrs.field(init=False, factory=lambda: defaultdict(_defaultdict_of_dict))
+    _relation_components_by_entity: defaultdict[Entity, defaultdict[ComponentKey[object], dict[Entity, Any]]] = (
+        attrs.field(init=False, factory=lambda: defaultdict(_defaultdict_of_dict))
+    )
     """Random access relations owning components.
 
     dict[entity][ComponentKey][target_entity] = component

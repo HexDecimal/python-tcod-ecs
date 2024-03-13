@@ -1,4 +1,5 @@
 """Entity management and interface tools."""
+
 from __future__ import annotations
 
 import warnings
@@ -512,12 +513,10 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
                 yield key_name, key_component
 
     @overload
-    def __ior__(self, value: SupportsKeysAndGetItem[ComponentKey[Any], Any]) -> Self:
-        ...
+    def __ior__(self, value: SupportsKeysAndGetItem[ComponentKey[Any], Any]) -> Self: ...
 
     @overload
-    def __ior__(self, value: Iterable[tuple[ComponentKey[Any], Any]]) -> Self:
-        ...
+    def __ior__(self, value: Iterable[tuple[ComponentKey[Any], Any]]) -> Self: ...
 
     def __ior__(
         self, value: SupportsKeysAndGetItem[ComponentKey[Any], Any] | Iterable[tuple[ComponentKey[Any], Any]]
