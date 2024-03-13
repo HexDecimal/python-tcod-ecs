@@ -1,4 +1,5 @@
 """A type-hinted Entity Component System based on Python dictionaries and sets."""
+
 from __future__ import annotations
 
 import importlib.metadata

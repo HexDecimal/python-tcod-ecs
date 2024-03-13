@@ -1,4 +1,5 @@
 """Inheritance tests."""
+
 from typing import Final
 
 import pytest
