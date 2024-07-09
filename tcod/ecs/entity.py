@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Set
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -31,6 +30,8 @@ from tcod.ecs.constants import IsA
 from tcod.ecs.typing import ComponentKey
 
 if TYPE_CHECKING:
+    from collections.abc import Set as AbstractSet
+
     from _typeshed import SupportsKeysAndGetItem
 
     from tcod.ecs.registry import Registry
@@ -80,7 +81,7 @@ class Entity:
             warnings.warn("Use '.registry' instead of '.world'", DeprecationWarning, stacklevel=2)
         return self.registry
 
-    def __new__(cls, registry: Registry, uid: object = object) -> Entity:
+    def __new__(cls, registry: Registry, uid: object = object) -> Entity:  # noqa: PYI034
         """Return a unique entity for the given `registry` and `uid`.
 
         If an entity already exists with a matching `registry` and `uid` then that entity is returned.
@@ -334,7 +335,7 @@ class Entity:
             >>> registry["foo"]
             <Entity(uid='foo')>
         """
-        uid_str = f"object at 0x{id(self.uid):X}" if self.uid.__class__ == object else repr(self.uid)
+        uid_str = f"object at 0x{id(self.uid):X}" if self.uid.__class__ is object else repr(self.uid)
         items = [f"{self.__class__.__name__}(uid={uid_str})"]
         name = self.name
         if name is not None:  # Switch to older style
@@ -426,7 +427,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         for entity in _traverse_entities(self.entity, self.traverse):
             try:
                 return _components_by_entity[entity][key]  # type: ignore[no-any-return]
-            except KeyError:
+            except KeyError:  # noqa: PERF203
                 pass
         raise KeyError(key)
 
@@ -461,7 +462,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         tcod.ecs.query._touch_component(self.entity.registry, key)  # Component removed
         tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, None)
 
-    def keys(self) -> Set[ComponentKey[object]]:  # type: ignore[override]
+    def keys(self) -> AbstractSet[ComponentKey[object]]:  # type: ignore[override]
         """Return the components held by this entity, including inherited components."""
         _components_by_entity = self.entity.registry._components_by_entity
         if not self.traverse:
@@ -611,7 +612,7 @@ class EntityTags(MutableSet[Any]):
         """Return the number of tags this entity has."""
         return len(self._as_set())
 
-    def __ior__(self, other: Set[object]) -> Self:
+    def __ior__(self, other: AbstractSet[object]) -> Self:
         """Add tags in-place.
 
         .. versionadded:: 3.3
@@ -620,7 +621,7 @@ class EntityTags(MutableSet[Any]):
             self.add(to_add)
         return self
 
-    def __isub__(self, other: Set[Any]) -> Self:
+    def __isub__(self, other: AbstractSet[Any]) -> Self:
         """Remove tags in-place.
 
         .. versionadded:: 3.3
@@ -787,10 +788,10 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
     def __iter__(self) -> Iterator[Any]:
         """Iterate over the unique relation tags of this entity."""
         _relation_tags_by_entity = self.entity.registry._relation_tags_by_entity
-        EMPTY_DICT: dict[object, set[Entity]] = {}
+        empty_dict: dict[object, set[Entity]] = {}
         yield from set().union(
             *(
-                _relation_tags_by_entity.get(entity, EMPTY_DICT).keys()
+                _relation_tags_by_entity.get(entity, empty_dict).keys()
                 for entity in _traverse_entities(self.entity, self.traverse)
             )
         )
@@ -925,7 +926,7 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
 
         _relations_lookup_discard(registry, self.entity, self.key, target)
 
-    def keys(self) -> Set[Entity]:  # type: ignore[override]
+    def keys(self) -> AbstractSet[Entity]:  # type: ignore[override]
         """Return all entities with an associated component value."""
         _relation_components_by_entity = self.entity.registry._relation_components_by_entity
         result: set[Entity] = set()
@@ -1003,7 +1004,7 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
         for component_key in list(self.entity.registry._relation_components_by_entity.get(self.entity, ())):
             self[component_key].clear()
 
-    def keys(self) -> Set[ComponentKey[object]]:  # type: ignore[override]
+    def keys(self) -> AbstractSet[ComponentKey[object]]:  # type: ignore[override]
         """Returns the components keys this entity has relations for."""
         _relation_components_by_entity = self.entity.registry._relation_components_by_entity
         return set().union(

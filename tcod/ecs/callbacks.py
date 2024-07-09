@@ -6,10 +6,9 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
 
 from typing_extensions import TypeAlias
 
-from tcod.ecs.typing import ComponentKey
-
 if TYPE_CHECKING:
     from tcod.ecs.entity import Entity
+    from tcod.ecs.typing import ComponentKey
 
 _T = TypeVar("_T")
 

@@ -1,5 +1,7 @@
 """Inheritance tests."""
 
+from __future__ import annotations
+
 from typing import Final
 
 import pytest
@@ -83,8 +85,8 @@ def test_component_traversal_alternate() -> None:
 
 def test_multiple_inheritance() -> None:
     world = Registry()
-    ViaA: Final = object()
-    ViaC: Final = object()
+    ViaA: Final = object()  # noqa: N806
+    ViaC: Final = object()  # noqa: N806
     world["A"].components[str] = "A"
     world["B"].components[str] = "B"
     world["B"].components[int] = 0

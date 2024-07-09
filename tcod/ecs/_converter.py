@@ -12,7 +12,7 @@ def _is_defaultdict_type(type_hint: object) -> bool:
     return get_origin(type_hint) is defaultdict
 
 
-def _setup_defaultdict_factory(type_hint: type[defaultdict[Any, Any]] | type[object]) -> Callable[[], Any]:
+def _setup_defaultdict_factory(type_hint: type[defaultdict[Any, Any] | object]) -> Callable[[], Any]:
     """Return the factory value for a defaultdict given its value type-hint."""
     assert type_hint is not Any
     if get_origin(type_hint) is not defaultdict:

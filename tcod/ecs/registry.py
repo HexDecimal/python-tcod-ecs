@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import warnings
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, Iterable, Mapping, NoReturn, Set, TypeVar
+from typing import TYPE_CHECKING, Any, DefaultDict, Dict, Final, Iterable, Mapping, NoReturn, Set, TypeVar
 
 import attrs
 
 import tcod.ecs._converter
 import tcod.ecs.query
 from tcod.ecs.entity import Entity
-from tcod.ecs.typing import ComponentKey, _RelationTargetLookup
+
+if TYPE_CHECKING:
+    from tcod.ecs.typing import ComponentKey, _RelationTargetLookup
 
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
@@ -178,7 +180,7 @@ class Registry:
         global_: Entity | None = state.pop("global_", None)  # Migrate from version <=1.2.0
 
         # These attributes contain redundant data and will be removed
-        REDUNDANT_ATTRIBUTES = frozenset(
+        redundant_attributes: Final = frozenset(
             {
                 "_components_by_entity",  # <=3.4.0
                 "_tags_by_key",  # <=3.4.0
@@ -186,7 +188,7 @@ class Registry:
                 "_names_by_entity",  # <=3.4.0
             }
         )
-        for ignored in REDUNDANT_ATTRIBUTES:
+        for ignored in redundant_attributes:
             state.pop(ignored, None)
 
         converter = tcod.ecs._converter._get_converter()
@@ -307,7 +309,7 @@ class Registry:
         return entity
 
     @property
-    def Q(self) -> tcod.ecs.query.BoundQuery:
+    def Q(self) -> tcod.ecs.query.BoundQuery:  # noqa: N802
         """Start a new Query for this registry.
 
         Alias for ``tcod.ecs.Query(registry)``.

@@ -31,7 +31,7 @@ _RelationTargetLookup: TypeAlias = Union[Entity, EllipsisType]
 _RelationQueryTarget: TypeAlias = Union[_RelationTargetLookup, BoundQuery]
 """Possible target for relation queries."""
 
-_RelationQuery: TypeAlias = Union[Tuple[object, _RelationQueryTarget], Tuple[_RelationQueryTarget, object, None]]
+_RelationQuery: TypeAlias = Union[Tuple[object, _RelationQueryTarget], Tuple[_RelationQueryTarget, object, None]]  # noqa: PYI047
 """Query format for relations.
 
 One of 4 formats:

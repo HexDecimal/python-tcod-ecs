@@ -46,16 +46,6 @@ Changelog = "https://github.com/HexDecimal/python-tcod-ecs/blob/main/CHANGELOG.m
 Documentation = "https://python-tcod-ecs.readthedocs.io"
 Source = "https://github.com/HexDecimal/python-tcod-ecs"
 
-[tool.black] # https://black.readthedocs.io/en/stable/usage_and_configuration/the_basics.html#configuration-via-a-file
-target-version = ["py38"]
-line-length = 120
-
-[tool.isort] # https://pycqa.github.io/isort/docs/configuration/options.html
-py_version = "38"
-line_length = 120
-profile = "black"
-skip_gitignore = true
-
 [tool.mypy] # https://mypy.readthedocs.io/en/stable/config_file.html
 files = "."
 exclude = ['^build/', '^\.']
@@ -86,44 +76,23 @@ testpaths = ["."]
 exclude_lines = ['^\s*\.\.\.', "if TYPE_CHECKING:", "# pragma: no cover"]
 
 [tool.ruff]
-# https://beta.ruff.rs/docs/rules/
-select = [
-    "C90", # mccabe
-    "E",   # pycodestyle
-    "W",   # pycodestyle
-    "F",   # Pyflakes
-    "I",   # isort
-    "UP",  # pyupgrade
-    "YTT", # flake8-2020
-    "ANN", # flake8-annotations
-    "S",   # flake8-bandit
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "DTZ", # flake8-datetimez
-    "EM",  # flake8-errmsg
-    "EXE", # flake8-executable
-    "RET", # flake8-return
-    "ICN", # flake8-import-conventions
-    "PIE", # flake8-pie
-    "PT",  # flake8-pytest-style
-    "SIM", # flake8-simplify
-    "PTH", # flake8-use-pathlib
-    "PL",  # Pylint
-    "TRY", # tryceratops
-    "RUF", # NumPy-specific rules
-    "G",   # flake8-logging-format
-    "D",   # pydocstyle
-]
-ignore = [
-    "E501",   # line-too-long
-    "S101",   # assert
-    "ANN101", # missing-type-self
-    "ANN102", # missing-type-cls
-    "D206",   # indent-with-spaces
-    "W191",   # tab-indentation
-]
 line-length = 120
 
-[tool.ruff.pydocstyle]
-# Use Google-style docstrings.
-convention = "google"
+[tool.ruff.lint] # https://docs.astral.sh/ruff/rules/
+select = ["ALL"]
+ignore = [
+    "ANN101", # missing-type-self
+    "ANN102", # missing-type-cls
+    "COM",    # flake8-commas, handled by formatter
+    "E501",   # line-too-long
+    "S101",   # assert
+    "SLF001", # private-member-access
+    "T10",    # flake8-debugger
+    "T20",    # flake8-print
+]
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google" # Use Google-style docstrings.

@@ -5,7 +5,6 @@ from __future__ import annotations
 import itertools
 import warnings
 from collections import defaultdict
-from collections.abc import Set
 from typing import TYPE_CHECKING, Any, Iterable, Iterator, Protocol, TypeVar, overload
 from weakref import WeakKeyDictionary, WeakSet
 
@@ -14,11 +13,13 @@ from typing_extensions import Self
 
 import tcod.ecs.entity
 from tcod.ecs.constants import IsA
-from tcod.ecs.typing import ComponentKey, _RelationQuery
 
 if TYPE_CHECKING:
+    from collections.abc import Set as AbstractSet
+
     from tcod.ecs.entity import Entity
     from tcod.ecs.registry import Registry
+    from tcod.ecs.typing import ComponentKey, _RelationQuery
 
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
@@ -35,7 +36,7 @@ _query_caches: WeakKeyDictionary[Registry, _QueryCache] = WeakKeyDictionary()
 class _QueryCache:
     """Main data structure for the query cache."""
 
-    queries: dict[_Query, Set[Entity]] = attrs.field(factory=dict)
+    queries: dict[_Query, AbstractSet[Entity]] = attrs.field(factory=dict)
     """Table of cached queries."""
     by_components: defaultdict[ComponentKey[object], WeakSet[_Query]] = attrs.field(
         factory=lambda: defaultdict(WeakSet)
@@ -101,7 +102,7 @@ def _check_suspicious_tags(tags: Iterable[object], stacklevel: int = 2) -> None:
         )
 
 
-def _fetch_relation_table(registry: Registry, relation: _RelationQuery) -> Set[Entity]:
+def _fetch_relation_table(registry: Registry, relation: _RelationQuery) -> AbstractSet[Entity]:
     """Get the entity table for this relation.
 
     For simple cases where target/origin is `Entity | ...` this returns the set directly from the lookup table.
@@ -131,7 +132,7 @@ def _get_query_cache(registry: Registry) -> _QueryCache:
     return cache
 
 
-def _get_query(registry: Registry, query: _Query) -> Set[Entity]:
+def _get_query(registry: Registry, query: _Query) -> AbstractSet[Entity]:
     """Return the entities for the given query and registry."""
     cache = _get_query_cache(registry)
     if cache is not None:
@@ -168,7 +169,7 @@ class _Query(Protocol):
         """Add this query to the local cache."""
         ...
 
-    def _compile(self, registry: Registry, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:
         """Compile the entities of this query, returning a set which must not be modified."""
         ...
 
@@ -179,10 +180,10 @@ class _QueryComponent:
 
     _component: ComponentKey[object]
 
-    def _add_to_cache(self, registry: Registry, cache: _QueryCache) -> None:
+    def _add_to_cache(self, registry: Registry, cache: _QueryCache) -> None:  # noqa: ARG002
         cache.by_components[self._component].add(self)
 
-    def _compile(self, registry: Registry, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:  # noqa: ARG002
         return registry._components_by_type.get(self._component, {}).keys()
 
 
@@ -192,10 +193,10 @@ class _QueryTag:
 
     _tag: object
 
-    def _add_to_cache(self, registry: Registry, cache: _QueryCache) -> None:
+    def _add_to_cache(self, registry: Registry, cache: _QueryCache) -> None:  # noqa: ARG002
         cache.by_tags[self._tag].add(self)
 
-    def _compile(self, registry: Registry, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:  # noqa: ARG002
         return registry._tags_by_key.get(self._tag, set())
 
 
@@ -221,7 +222,7 @@ class _QueryRelation:
         if w_query is not None:
             _get_query_cache(w_query.registry).dependencies[w_query._query].add((registry, self))
 
-    def _compile(self, registry: Registry, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:  # noqa: ARG002
         return _fetch_relation_table(registry, self._relation)
 
 
@@ -243,7 +244,7 @@ class _QueryLogicalAnd:
         for dependency in itertools.chain(self._all_of, self._none_of):
             cache.dependencies[dependency].add((registry, self))
 
-    def _compile(self, registry: Registry, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:  # noqa: ARG002
         if len(self._all_of) == 1 and not self._none_of:  # Only one sub-query, simply return the results of it
             return _get_query(registry, next(iter(self._all_of)))  # Avoids an extra copy of a set
         requires = sorted(  # Place the smallest sets first to speed up intersections
@@ -272,7 +273,7 @@ class _QueryLogicalOr:
         for dependency in self._any_of:
             cache.dependencies[dependency].add((registry, self))
 
-    def _compile(self, registry: Registry, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:  # noqa: ARG002
         if len(self._any_of) == 1:  # If there is only one sub-query then simply return the results of it
             return _get_query(registry, next(iter(self._any_of)))  # Avoids an extra copy of a set
         entities: set[Entity] = set()
@@ -301,7 +302,7 @@ class _QueryTraversalPropagation:
         cache.dependencies[self._sub_query].add((registry, self))
         cache.dependencies[self._get_traverse_query()].add((registry, self))
 
-    def _compile(self, registry: Registry, cache: _QueryCache) -> Set[Entity]:
+    def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:  # noqa: ARG002
         cumulative_set = set(_get_query(registry, self._sub_query))  # All entities touched by this traversal
         relations_set = _get_query(
             registry, self._get_traverse_query()
@@ -342,7 +343,7 @@ class BoundQuery:
             warnings.warn("Use '.registry' instead of '.world'", DeprecationWarning, stacklevel=2)
         return self.registry
 
-    def get_entities(self) -> Set[Entity]:
+    def get_entities(self) -> AbstractSet[Entity]:
         """Return entities matching the current query as a read-only set.
 
         This is useful for post-processing the results of a query using set operations.
@@ -433,7 +434,7 @@ class BoundQuery:
         assert key is not None
         assert isinstance(key, tuple)
 
-        Entity = tcod.ecs.entity.Entity
+        Entity = tcod.ecs.entity.Entity  # noqa: N806
 
         entities = list(self.all_of(components=set(key) - {Entity}).get_entities())
         entity_components = []

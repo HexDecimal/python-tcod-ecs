@@ -6,10 +6,12 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+from __future__ import annotations
+
 import importlib.metadata
 
 project = "tcod-ecs"
-copyright = "2023-2024, Kyle Benesch"
+copyright = "2023-2024, Kyle Benesch"  # noqa: A001
 author = "Kyle Benesch"
 release = importlib.metadata.version(project)
 version = ".".join(release.split(".")[:2])
@@ -32,7 +34,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "furo"
-# html_static_path = ["_static"]
+# html_static_path = ["_static"]  # noqa: ERA001
 
 
 intersphinx_mapping = {
