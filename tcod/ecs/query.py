@@ -366,7 +366,7 @@ class BoundQuery:
         yield from (_QueryTraversalPropagation(_QueryTag(tag), traverse, depth) for tag in tags)
         yield from (_QueryTraversalPropagation(_QueryRelation(relations), traverse, depth) for relations in relations)
 
-    def all_of(  # noqa: PLR0913
+    def all_of(
         self,
         components: Iterable[ComponentKey[object]] = (),
         *,
@@ -383,7 +383,7 @@ class BoundQuery:
             & self._query,
         )
 
-    def none_of(  # noqa: PLR0913
+    def none_of(
         self,
         components: Iterable[ComponentKey[object]] = (),
         *,
