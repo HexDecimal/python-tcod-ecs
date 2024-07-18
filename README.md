@@ -207,13 +207,45 @@ True
 
 ## Relations
 
-Use `Entity.relation_components[component_key][target] = component` to associate a target entity with a component.
-Use `Entity.relation_tag[tag] = target` to associate a tag exclusively with a target entity.
-Use `Entity.relation_tags_many[tag].add(target)` to associate a tag with multiple targets.
+Entity relations are unidirectional from an origin entity to possibly multiple target entities.
 
-Relation queries are a little more complex than other queries.
-Relation tags and relation components share the same space then queried, so 'normal' tags should not be in the format of a component key.
-Relations are unidirectional, but you can query either end of a relation.
+- Use `origin.relation_tag[tag] = target` to associate an origins tag exclusively with the target entity.
+  This uses standard assignment and is useful for tags which would not make sense with multiple targets.
+  Reading `origin.relation_tag[tag]` returns a single target while enforcing the invariant of only having one target.
+- Use `origin.relation_tags_many[tag].add(target)` to associate a tag with multiple targets.
+  This supports `set`-like syntax such as adding or removing multiple targets at once.
+  This allows for many-to-many relations.
+- Use `origin.relation_components[component_key][target] = component` to associate a target entity with a component.
+  This allows storing data along with a relation.
+  This supports `dict`-like syntax.
+  The `component_key` can be queried like a normal tag.
+
+### Relation queries
+
+Relations are queried with `registry.Q.all_of(relations=[...])`.
+This expects 2-item or 3-item tuples following these rules:
+
+- Use `(tag, target)` to match the origin entities with the relation `tag` to `target`.
+- If `tag` is a component key then component relations are also matched.
+  This means you should be careful with tags which look like component keys.
+- `target` can be a specific entity. This means only entities relating to that specific entity will be matched.
+- `target` can be query itself. This means only entities relating to a match from the sub-query are matched.
+- `target` can be `...` which means an entity with a relation to any entity is matched.
+- To reverse the direction use a 3-item tuple `(origin, tag, None)`. `origin` can be anything a `target` could be.
+
+Relations using sub-queries may be chained together.
+See [Sander Mertens - Why it is time to start thinking of games as databases](https://ajmmertens.medium.com/why-it-is-time-to-start-thinking-of-games-as-databases-e7971da33ac3) to understand the repercussion of this.
+
+You can use the following table to help with constructing relation queries:
+
+| Matches                                                             |                  Syntax                  |
+| ------------------------------------------------------------------- | :--------------------------------------: |
+| Origins with a relation `tag` to `target_entity`                    |          `(tag, target_entity)`          |
+| Origins with a relation `tag` to any target entity                  |    `(tag, ...)` (Literal dot-dot-dot)    |
+| Origins with a relation `tag` to any targets matching a sub-query   |     `(tag, registry.Q.all_of(...))`      |
+| Targets of the relation `tag` from `origin_entity`                  |       `(origin_entity, tag, None)`       |
+| Targets of the relation `tag` from any origin entity                | `(..., tag, None)` (Literal dot-dot-dot) |
+| Targets of the relation `tag` from any origins matching a sub-query |  `(registry.Q.all_of(...), tag, None)`   |
 
 ```py
 >>> @attrs.define
@@ -243,17 +275,3 @@ True
 True
 
 ```
-
-### Relation queries
-
-You can use the following table to help with constructing relation queries.
-`tag` is a component key if you are querying for a component relation.
-
-| Includes                                                            |                  Syntax                  |
-| ------------------------------------------------------------------- | :--------------------------------------: |
-| Entities with a relation tag to the given target                    |          `(tag, target_entity)`          |
-| Entities with a relation tag to any target                          |    `(tag, ...)` (Literal dot-dot-dot)    |
-| Entities with a relation tag to the targets in the given query      |     `(tag, registry.Q.all_of(...))`      |
-| The target entities of a relation of a given entity                 |       `(origin_entity, tag, None)`       |
-| The target entities of any entity with the given relation tag       | `(..., tag, None)` (Literal dot-dot-dot) |
-| The target entities of the queried entities with the given relation |     `(tag, registry.Q.all_of(...))`      |
