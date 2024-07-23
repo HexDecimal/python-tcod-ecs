@@ -352,6 +352,10 @@ class BoundQuery:
         """
         return _get_query(self.registry, self._query)
 
+    def __bool__(self) -> bool:
+        """Return True if any entity matches this query."""
+        return bool(self.get_entities())
+
     @staticmethod
     def __as_queries(
         components: Iterable[ComponentKey[object]] = (),
