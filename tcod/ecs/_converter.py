@@ -14,7 +14,7 @@ def _is_defaultdict_type(type_hint: object) -> bool:
 
 def _setup_defaultdict_factory(type_hint: type[defaultdict[Any, Any] | object]) -> Callable[[], Any]:
     """Return the factory value for a defaultdict given its value type-hint."""
-    assert type_hint is not Any
+    assert type_hint is not Any  # type: ignore[comparison-overlap]
     if get_origin(type_hint) is not defaultdict:
         return get_origin(type_hint) or type_hint
     return functools.partial(defaultdict, _setup_defaultdict_factory(get_args(type_hint)[1]))
