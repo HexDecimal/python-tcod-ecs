@@ -5,6 +5,7 @@
     "files.trimTrailingWhitespace": true,
     "cSpell.words": [
         "automodule",
+        "autoupdate",
         "autouse",
         "Benesch",
         "cattrs",
