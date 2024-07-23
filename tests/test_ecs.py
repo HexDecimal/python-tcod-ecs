@@ -275,3 +275,10 @@ def test_entity_clear() -> None:
 def test_world_iter() -> None:
     with pytest.raises(TypeError, match=r"is not iterable"):
         iter(tcod.ecs.Registry())  # Not iterable for now, maybe later
+
+
+def test_world_query_bool() -> None:
+    world = tcod.ecs.Registry()
+    assert not world.Q.all_of(tags=["Foo"])
+    world[None].tags.add("Foo")
+    assert world.Q.all_of(tags=["Foo"])
