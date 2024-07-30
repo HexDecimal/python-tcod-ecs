@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.2.1] - 2024-07-30
+
 ### Fixed
 
 - Fixed type of default parameter for `EntityComponents.get`.

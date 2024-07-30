@@ -12,7 +12,6 @@ from tcod.ecs.registry import Registry
 from tcod.ecs.registry import Registry as World
 
 __all__ = (
-    "__version__",
     "Entity",
     "IsA",
     "Registry",
