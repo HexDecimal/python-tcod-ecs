@@ -22,6 +22,7 @@ from typing import (
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 import attrs
+from sentinel_value import sentinel
 from typing_extensions import Self
 
 import tcod.ecs.callbacks
@@ -40,6 +41,8 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
+
+_raise: Final = sentinel("_raise")
 
 _entity_table: WeakKeyDictionary[Registry, WeakValueDictionary[object, Entity]] = WeakKeyDictionary()
 """A weak table of registries and unique identifiers to entity objects.
@@ -134,6 +137,10 @@ class Entity:
         This creates a new unique entity and assigns an :any:`IsA` relationship with `self` to the new entity.
         The :any:`IsA` relation is the only data this new entity directly holds.
 
+        Immutable components inherited from the parent are always copy-on-write for its child instances.
+
+        Keep in mind that components/tags/relations inherited from the parent are not removable from the child instance.
+
         Example::
 
             # 'child = entity.instantiate()' is equivalent to the following:
@@ -149,14 +156,18 @@ class Entity:
             >>> child.components[str]  # Inherits components from parent
             'baz'
             >>> parent.components[str] = "foo"
-            >>> child.components[str]  # Changes in parent and reflected in children
+            >>> child.components[str]  # Changes in parent are reflected in children
             'foo'
             >>> child.components[str] += "bar"  # In-place assignment operators will copy-on-write immutable objects
             >>> child.components[str]
             'foobar'
             >>> parent.components[str]
             'foo'
-            >>> del child.components[str]
+            >>> child.components.pop(str, None)  # Revert the component to the inherited value
+            'foobar'
+            >>> child.components[str]
+            'foo'
+            >>> child.components.pop(str, None)  # Safe to call .pop with default when the value isn't set on the child
             >>> child.components[str]
             'foo'
 
@@ -530,16 +541,16 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         return self
 
     @overload
-    def get(self, __key: ComponentKey[T]) -> T | None: ...
+    def get(self, __key: ComponentKey[T], /) -> T | None: ...
     @overload
-    def get(self, __key: ComponentKey[T], __default: _T1) -> T | _T1: ...
+    def get(self, __key: ComponentKey[T], /, default: _T1) -> T | _T1: ...
 
-    def get(self, __key: ComponentKey[T], __default: _T1 | None = None) -> T | _T1:
+    def get(self, __key: ComponentKey[T], /, default: _T1 | None = None) -> T | _T1:
         """Return a component, returns None or a default value when the component is missing."""
         try:
             return self[__key]
         except KeyError:
-            return __default  # type: ignore[return-value] # https://github.com/python/mypy/issues/3737
+            return default  # type: ignore[return-value] # https://github.com/python/mypy/issues/3737
 
     def setdefault(self, __key: ComponentKey[T], __default: T) -> T:  # type: ignore[override]
         """Assign a default value if a component is missing, then returns the current value."""
@@ -548,6 +559,48 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         except KeyError:
             self[__key] = __default
             return __default
+
+    @overload
+    def pop(self, __key: ComponentKey[T], /) -> T | None: ...
+    @overload
+    def pop(self, __key: ComponentKey[T], /, default: _T1) -> T | _T1: ...
+
+    def pop(
+        self,
+        __key: ComponentKey[T],
+        /,
+        default: _T1 = _raise,  # type: ignore[assignment] # https://github.com/python/mypy/issues/3737
+    ) -> T | _T1:
+        """Remove a component directly from this entity.
+
+        Returns the removed value.
+        If the value is missing returns `default`.
+        If `default` is unset then raises :any:`KeyError` instead.
+
+        Operates directly on the entity without traversal.
+
+        >>> parent = registry[object()]
+        >>> parent.components[str] = "foo"
+        >>> child = parent.instantiate()
+        >>> child.components[str] = "bar"
+        >>> child.components.pop(str, None)
+        'bar'
+        >>> child.components.pop(str, None)
+        >>> child.components[str]
+        'foo'
+        >>> child.components.pop(str)
+        Traceback (most recent call last):
+            ...
+        KeyError: <class 'str'>
+        """
+        _components = self.entity.registry._components_by_entity.get(self.entity, {})
+        if __key not in _components:
+            if default is _raise:
+                raise KeyError(__key)
+            return default
+        value: T | _T1 = _components[__key]
+        del self[__key]
+        return value
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)

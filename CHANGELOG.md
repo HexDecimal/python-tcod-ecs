@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `EntityComponents.pop` now correctly returns defaults when the components are inherited instead of local.
+
 ## [5.2.1] - 2024-07-30
 
 ### Fixed
