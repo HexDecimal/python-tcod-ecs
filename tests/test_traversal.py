@@ -205,3 +205,13 @@ def test_relation_traversal() -> None:
     assert len(world["C"].relation_components[str]) == 2  # noqa: PLR2004
     world["C"].relation_components[int][world["foo"]] = 0
     assert set(world["C"].relation_components) == {str, int}
+
+
+def test_inherited_clear() -> None:
+    world = Registry()
+    world["A"].components[int] = 1
+    world["A"].tags.add("foo")
+    world["A"].relation_components[str][world["B"]] = "bar"
+    world["A"].relation_tags["baz"] = world["B"]
+    child = world["A"].instantiate()
+    child.clear()  # Could hang if broken

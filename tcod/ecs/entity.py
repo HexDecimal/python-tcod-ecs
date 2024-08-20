@@ -650,6 +650,12 @@ class EntityTags(MutableSet[Any]):
             raise KeyError(tag)
         self.discard(tag)
 
+    def clear(self) -> None:
+        """Remove all tags directly in this entity."""
+        _tags_by_entity = self.entity.registry._tags_by_entity
+        while _tags_by_entity[self.entity]:
+            self.discard(next(iter(_tags_by_entity[self.entity])))
+
     def __contains__(self, x: object) -> bool:
         """Return True if this entity has the given tag."""
         _tags_by_entity = self.entity.registry._tags_by_entity
