@@ -66,7 +66,7 @@ class Entity:
         >>> other_entity = registry["other"]
     """  # Changes here should be reflected in conftest.py
 
-    __slots__ = ("registry", "uid", "__weakref__")
+    __slots__ = ("__weakref__", "registry", "uid")
 
     registry: Final[Registry]  # type:ignore[misc]  # https://github.com/python/mypy/issues/5774
     """The :any:`Registry` this entity belongs to."""
