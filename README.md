@@ -47,7 +47,7 @@ The ECS Registry is used to create and store entities and their components.
 ## Entity
 
 Each Entity is identified by its unique id (`uid`) which can be any hashable object combined with the `registry` it belongs.
-New unique entities can be created with `Registry.new_entity` which uses a new `object()` as the `uid`, this guarantees uniqueness which is not always desireable.
+New unique entities can be created with `Registry.new_entity` which uses a new `object()` as the `uid`, this guarantees uniqueness which is not always desirable.
 An entity always knows about its assigned registry, which can be accessed with the `Entity.registry` property from any Entity instance.
 Registries only know about their entities once the entity is assigned a name, component, tag, or relation.
 
