@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Clearing an entity with inherited components no longer leaves the entity with missed components.
+
 ## [5.2.3] - 2024-08-20
 
 ### Fixed

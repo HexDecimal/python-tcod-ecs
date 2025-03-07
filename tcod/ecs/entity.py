@@ -126,10 +126,10 @@ class Entity:
 
         .. versionadded:: 4.2.0
         """
-        self.components.clear()
-        self.tags.clear()
-        self.relation_tags_many.clear()
-        self.relation_components.clear()
+        self.components(traverse=()).clear()
+        self.tags(traverse=()).clear()
+        self.relation_tags_many(traverse=()).clear()
+        self.relation_components(traverse=()).clear()
 
     def instantiate(self) -> Self:
         """Return a new entity which inherits the components, tags, and relations of this entity.
