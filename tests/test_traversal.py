@@ -215,3 +215,5 @@ def test_inherited_clear() -> None:
     world["A"].relation_tags["baz"] = world["B"]
     child = world["A"].instantiate()
     child.clear()  # Could hang if broken
+    x = child.components
+    x[int] = "asd"

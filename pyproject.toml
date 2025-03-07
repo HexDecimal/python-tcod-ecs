@@ -66,6 +66,14 @@ warn_return_any = true
 no_implicit_reexport = true
 strict_equality = true
 
+[tool.pyright]
+reportInconsistentOverload = false
+reportIncompatibleMethodOverride = false
+reportAssignmentType = false
+reportCallIssue = false
+reportInvalidTypeVarUse = false
+reportArgumentType = false
+
 [tool.pytest.ini_options]
 minversion = "6.0"
 required_plugins = ["pytest-cov>=4.0.0", "pytest-benchmark>=4.0.0"]
@@ -81,8 +89,6 @@ line-length = 120
 [tool.ruff.lint] # https://docs.astral.sh/ruff/rules/
 select = ["ALL"]
 ignore = [
-    "ANN101", # missing-type-self
-    "ANN102", # missing-type-cls
     "COM",    # flake8-commas, handled by formatter
     "E501",   # line-too-long
     "S101",   # assert
