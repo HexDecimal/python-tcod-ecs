@@ -336,7 +336,7 @@ class BoundQuery:
     def world(self) -> Registry:
         """Deprecated alias for registry.
 
-        .. deprecated:: Unreleased
+        .. deprecated:: 5.1
             Use :any:`registry` instead.
         """
         if __debug__:
@@ -415,7 +415,7 @@ class BoundQuery:
     ) -> Self:
         """Filter entities based on having at least one of the provided elements.
 
-        .. versionadded:: Unreleased
+        .. versionadded:: 5.3
         """
         _check_suspicious_tags(tags, stacklevel=2)
         return self.__class__(

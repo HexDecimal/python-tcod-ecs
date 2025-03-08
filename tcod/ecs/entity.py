@@ -77,7 +77,7 @@ class Entity:
     def world(self) -> Registry:
         """Deprecated alias for registry.
 
-        .. deprecated:: Unreleased
+        .. deprecated:: 5.1
             Use :any:`registry` instead.
         """
         if __debug__:
