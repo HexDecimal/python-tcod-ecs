@@ -282,3 +282,11 @@ def test_world_query_bool() -> None:
     assert not world.Q.all_of(tags=["Foo"])
     world[None].tags.add("Foo")
     assert world.Q.all_of(tags=["Foo"])
+
+
+def test_any_of() -> None:
+    world = tcod.ecs.Registry()
+    world[None].tags.add("foo")
+    assert world.Q.any_of(tags=["foo"])
+    assert world.Q.any_of(tags=["foo", "bar"])
+    assert not world.Q.any_of(tags=["bar"])

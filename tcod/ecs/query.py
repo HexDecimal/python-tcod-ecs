@@ -404,6 +404,30 @@ class BoundQuery:
             & self._query,
         )
 
+    def any_of(
+        self,
+        components: Iterable[ComponentKey[object]] = (),
+        *,
+        tags: Iterable[object] = (),
+        relations: Iterable[_RelationQuery] = (),
+        traverse: Iterable[object] = (IsA,),
+        depth: int | None = None,
+    ) -> Self:
+        """Filter entities based on having at least one of the provided elements.
+
+        .. versionadded:: Unreleased
+        """
+        _check_suspicious_tags(tags, stacklevel=2)
+        return self.__class__(
+            self.registry,
+            _QueryLogicalAnd(
+                all_of=frozenset(
+                    [_QueryLogicalOr(any_of=frozenset(self.__as_queries(components, tags, relations, traverse, depth)))]
+                )
+            )
+            & self._query,
+        )
+
     def __iter__(self) -> Iterator[Entity]:
         """Iterate over the matching entities."""
         return iter(self.get_entities())

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New query `.any_of` method. This was possible before but it is easier with this method.
+
 ## [5.2.4] - 2025-03-07
 
 ### Fixed
