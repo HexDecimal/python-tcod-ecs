@@ -7,6 +7,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any, DefaultDict, Dict, Final, Iterable, Mapping, NoReturn, Set, TypeVar
 
 import attrs
+from typing_extensions import deprecated
 
 import tcod.ecs._converter
 import tcod.ecs.query
@@ -151,6 +152,10 @@ class Registry:
     """
 
     @property
+    @deprecated(
+        "The 'registry.global_' attribute has been deprecated. Use 'registry[None]' to access this entity.",
+        category=FutureWarning,
+    )
     def global_(self) -> Entity:
         """A unique globally accessible entity.
 
@@ -168,11 +173,6 @@ class Registry:
             >>> registry[None].components[("turn", int)]
             0
         """
-        warnings.warn(
-            "The 'registry.global_' attribute has been deprecated. Use 'registry[None]' to access this entity.",
-            FutureWarning,
-            stacklevel=2,
-        )
         return Entity(self, None)
 
     def __setstate__(self, state: dict[str, Any]) -> None:
@@ -300,12 +300,12 @@ class Registry:
         if isinstance(components, Mapping):
             entity.components.update(components)
         elif components:
-            entity.components.update_values(components, _stacklevel=2)
+            entity.components.update_values(components)
         entity_tags = entity.tags
         for tag in tags:
             entity_tags.add(tag)
         if name is not None:
-            entity._set_name(name, stacklevel=2)
+            entity._set_name(name)
         return entity
 
     @property

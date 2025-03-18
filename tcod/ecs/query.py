@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Iterator, Protocol, TypeVar, ov
 from weakref import WeakKeyDictionary, WeakSet
 
 import attrs
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 import tcod.ecs.entity
 from tcod.ecs.constants import IsA
@@ -333,14 +333,13 @@ class BoundQuery:
     _query: _Query = attrs.field(factory=_QueryLogicalAnd)
 
     @property
+    @deprecated("Use '.registry' instead of '.world'")
     def world(self) -> Registry:
         """Deprecated alias for registry.
 
         .. deprecated:: 5.1
             Use :any:`registry` instead.
         """
-        if __debug__:
-            warnings.warn("Use '.registry' instead of '.world'", DeprecationWarning, stacklevel=2)
         return self.registry
 
     def get_entities(self) -> AbstractSet[Entity]:

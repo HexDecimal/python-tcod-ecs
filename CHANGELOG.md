@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated deprecations to use [PEP 702](https://peps.python.org/pep-0702/).
+
 ## [5.3.0] - 2025-03-08
 
 ### Added

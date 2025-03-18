@@ -212,7 +212,8 @@ def test_inherited_clear() -> None:
     world["A"].components[int] = 1
     world["A"].tags.add("foo")
     world["A"].relation_components[str][world["B"]] = "bar"
-    world["A"].relation_tags["baz"] = world["B"]
+    with pytest.warns():
+        world["A"].relation_tags["baz"] = world["B"]
     child = world["A"].instantiate()
     child.clear()  # Could hang if broken
     x = child.components

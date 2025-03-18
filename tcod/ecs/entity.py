@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -23,7 +22,7 @@ from weakref import WeakKeyDictionary, WeakValueDictionary
 
 import attrs
 from sentinel_value import sentinel
-from typing_extensions import Self
+from typing_extensions import Self, deprecated
 
 import tcod.ecs.callbacks
 import tcod.ecs.query
@@ -74,14 +73,13 @@ class Entity:
     """This entities unique identifier."""
 
     @property
+    @deprecated("Use '.registry' instead of '.world'")
     def world(self) -> Registry:
         """Deprecated alias for registry.
 
         .. deprecated:: 5.1
             Use :any:`registry` instead.
         """
-        if __debug__:
-            warnings.warn("Use '.registry' instead of '.world'", DeprecationWarning, stacklevel=2)
         return self.registry
 
     def __new__(cls, registry: Registry, uid: object = object) -> Entity:  # noqa: PYI034
@@ -284,13 +282,13 @@ class Entity:
         return EntityRelationsExclusive(self, (IsA,))
 
     @property
+    @deprecated("The '.relation_tags' attribute has been renamed to '.relation_tag'", category=FutureWarning)
     def relation_tags(self) -> EntityRelationsExclusive:
         """Access an entities exclusive relations.
 
         .. deprecated:: 3.2
             This attribute was renamed to :any:`relation_tag`.
         """
-        warnings.warn("The '.relation_tags' attribute has been renamed to '.relation_tag'", FutureWarning, stacklevel=2)
         return EntityRelationsExclusive(self, (IsA,))
 
     @property
@@ -303,12 +301,8 @@ class Entity:
         """
         return EntityRelations(self, (IsA,))
 
-    def _set_name(self, value: object, stacklevel: int = 1) -> None:
-        warnings.warn(
-            "The name feature has been deprecated and will be removed.",
-            FutureWarning,
-            stacklevel=stacklevel + 1,
-        )
+    @deprecated("The name feature has been deprecated and will be removed.", category=FutureWarning)
+    def _set_name(self, value: object) -> None:
         old_name = self.name
         if old_name is not None:  # Remove self from names
             del self.registry._names_by_name[old_name]
@@ -333,8 +327,9 @@ class Entity:
         return self.registry._names_by_entity.get(self)
 
     @name.setter
+    @deprecated("The name feature has been deprecated and will be removed.", category=FutureWarning)
     def name(self, value: object) -> None:
-        self._set_name(value, stacklevel=2)
+        self._set_name(value)
 
     def __repr__(self) -> str:
         """Return a representation of this entity.
@@ -410,17 +405,13 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         """
         return self.__class__(self.entity, tuple(traverse))
 
-    def set(self, value: object, *, _stacklevel: int = 1) -> None:
+    @deprecated("Setting values without an explicit key has been deprecated.", category=FutureWarning)
+    def set(self, value: object) -> None:
         """Assign or overwrite a component, automatically deriving the key.
 
         .. deprecated:: 3.1
             Setting values without an explicit key has been deprecated.
         """
-        warnings.warn(
-            "Setting values without an explicit key has been deprecated.",
-            FutureWarning,
-            stacklevel=_stacklevel + 1,
-        )
         key = value.__class__
         self[key] = value
 
@@ -498,15 +489,17 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         """Return the number of components belonging to this entity."""
         return len(self.keys())
 
-    def update_values(self, values: Iterable[object], *, _stacklevel: int = 1) -> None:
+    @deprecated("Setting values without an explicit key has been deprecated.", category=FutureWarning)
+    def update_values(self, values: Iterable[object]) -> None:
         """Add or overwrite multiple components inplace, deriving the keys from the values.
 
         .. deprecated:: 3.1
             Setting values without an explicit key has been deprecated.
         """
         for value in values:
-            self.set(value, _stacklevel=_stacklevel + 1)
+            self.set(value)
 
+    @deprecated("This method has been deprecated. Iterate over items instead.", category=FutureWarning)
     def by_name_type(self, name_type: type[_T1], component_type: type[_T2]) -> Iterator[tuple[_T1, type[_T2]]]:
         """Iterate over all of an entities component keys with a specific (name_type, component_type) combination.
 
@@ -515,7 +508,6 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         .. deprecated:: 3.1
             This method has been deprecated. Iterate over items instead.
         """
-        warnings.warn("This method has been deprecated. Iterate over items instead.", FutureWarning, stacklevel=2)
         # Naive implementation until I feel like optimizing it
         for key in self:
             if not isinstance(key, tuple):
