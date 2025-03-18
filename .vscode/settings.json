@@ -45,6 +45,7 @@
         "scancode",
         "setdefault",
         "setuptools",
+        "stdlib",
         "subclassing",
         "tcod",
         "testpaths",

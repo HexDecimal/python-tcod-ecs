@@ -17,16 +17,11 @@ defaults:
     shell: bash
 
 jobs:
-  ruff:
+  pre-commit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Ruff
-        run: pip install ruff
-      - name: Ruff Check
-        run: ruff check . --output-format=github
-      - name: Ruff Format
-        run: ruff format . --check
+      - uses: pre-commit/action@v3.0.1
 
   mypy:
     runs-on: ubuntu-latest

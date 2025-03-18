@@ -1,4 +1,4 @@
-"""Common type-hints for tcod.ecs."""  # noqa: A005
+"""Common type-hints for tcod.ecs."""
 
 from __future__ import annotations
 

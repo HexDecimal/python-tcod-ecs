@@ -89,6 +89,7 @@ line-length = 120
 [tool.ruff.lint] # https://docs.astral.sh/ruff/rules/
 select = ["ALL"]
 ignore = [
+    "A005",   # stdlib-module-shadowing, workaround VSCode treating all modules as local
     "COM",    # flake8-commas, handled by formatter
     "E501",   # line-too-long
     "S101",   # assert
