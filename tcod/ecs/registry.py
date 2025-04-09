@@ -33,10 +33,10 @@ def _defaultdict_of_dict() -> defaultdict[_T1, dict[_T2, _T3]]:
 
 
 def _components_by_entity_from(
-    by_type: defaultdict[ComponentKey[object], dict[Entity, Any]],
-) -> defaultdict[Entity, dict[ComponentKey[object], Any]]:
+    by_type: defaultdict[ComponentKey[_T1], dict[Entity, _T1]],
+) -> defaultdict[Entity, dict[ComponentKey[_T1], _T1]]:
     """Return the component lookup table from the components sparse-set."""
-    by_entity: defaultdict[Entity, dict[ComponentKey[object], Any]] = defaultdict(dict)
+    by_entity: defaultdict[Entity, dict[ComponentKey[_T1], _T1]] = defaultdict(dict)
     for component_key, components in by_type.items():
         for entity, component in components.items():
             by_entity[entity][component_key] = component

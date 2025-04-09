@@ -7,6 +7,7 @@ import pickle
 import pickletools
 import sys
 from collections.abc import Callable, Iterator  # noqa: TC003
+from typing import Final
 
 import pytest
 
@@ -290,3 +291,13 @@ def test_any_of() -> None:
     assert world.Q.any_of(tags=["foo"])
     assert world.Q.any_of(tags=["foo", "bar"])
     assert not world.Q.any_of(tags=["bar"])
+
+
+def test_type_form() -> None:
+    world = tcod.ecs.Registry()
+    TupleKey: Final = ("TupleKey", tuple[int, int])  # noqa: N806
+
+    # tuple layout is forgotten when TypeForm support is missing
+    world[None].components[TupleKey] = (1, 2)
+    x, y = world[None].components[TupleKey]
+    assert (x, y) == (1, 2)

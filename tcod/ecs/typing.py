@@ -5,6 +5,8 @@ from __future__ import annotations
 from types import EllipsisType
 from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar
 
+from typing_extensions import TypeForm
+
 if TYPE_CHECKING:
     from tcod.ecs.entity import Entity
     from tcod.ecs.query import BoundQuery
@@ -15,7 +17,7 @@ else:
 
 _T = TypeVar("_T")
 
-ComponentKey: TypeAlias = type[_T] | tuple[object, type[_T]]
+ComponentKey: TypeAlias = TypeForm[_T] | tuple[object, TypeForm[_T]]
 """ComponentKey is plain `type` or tuple `(tag, type)`."""
 
 _RelationTargetLookup: TypeAlias = Entity | EllipsisType

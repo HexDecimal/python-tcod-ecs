@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dropped support for Python 3.8 & 3.9.
 
+### Fixed
+
+- Component key type-hints now use `TypeForm`.
+  Complex component types which already worked at runtime are now recognized by type linters.
+
 ## [5.4.1] - 2025-07-20
 
 Maintenance release

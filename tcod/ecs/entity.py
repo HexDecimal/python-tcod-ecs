@@ -15,7 +15,7 @@ from weakref import WeakKeyDictionary, WeakValueDictionary
 
 import attrs
 from sentinel_value import sentinel
-from typing_extensions import Self, deprecated
+from typing_extensions import Self, TypeForm, deprecated
 
 import tcod.ecs.callbacks
 import tcod.ecs.query
@@ -382,7 +382,7 @@ def _traverse_entities(start: Entity, traverse_parents: tuple[object, ...]) -> I
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
-class EntityComponents(MutableMapping[type[Any] | tuple[object, type[Any]], object]):
+class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any]], object]):
     """A proxy attribute to access an entities components like a dictionary.
 
     See :any:`Entity.components`.
@@ -440,7 +440,7 @@ class EntityComponents(MutableMapping[type[Any] | tuple[object, type[Any]], obje
 
         tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, value)
 
-    def __delitem__(self, key: type[object] | tuple[object, type[object]]) -> None:
+    def __delitem__(self, key: TypeForm[object] | tuple[object, TypeForm[object]]) -> None:
         """Delete a directly held component from an entity."""
         assert self.__assert_key(key)
 
@@ -467,8 +467,8 @@ class EntityComponents(MutableMapping[type[Any] | tuple[object, type[Any]], obje
             *(_components_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse))
         )
 
-    def __contains__(self, key: ComponentKey[object]) -> bool:  # type: ignore[override]
-        """Return True if this entity has the provided component."""
+    def __contains__(self, key: object) -> bool:
+        """Return True if this entity has the provided component key."""
         _components_by_entity = self.entity.registry._components_by_entity
         return any(
             key in _components_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse)
@@ -493,7 +493,7 @@ class EntityComponents(MutableMapping[type[Any] | tuple[object, type[Any]], obje
             self.set(value)
 
     @deprecated("This method has been deprecated. Iterate over items instead.", category=FutureWarning)
-    def by_name_type(self, name_type: type[_T1], component_type: type[_T2]) -> Iterator[tuple[_T1, type[_T2]]]:
+    def by_name_type(self, name_type: type[_T1], component_type: TypeForm[_T2]) -> Iterator[tuple[_T1, TypeForm[_T2]]]:
         """Iterate over all of an entities component keys with a specific (name_type, component_type) combination.
 
         .. versionadded:: 3.0
@@ -501,13 +501,12 @@ class EntityComponents(MutableMapping[type[Any] | tuple[object, type[Any]], obje
         .. deprecated:: 3.1
             This method has been deprecated. Iterate over items instead.
         """
-        # Naive implementation until I feel like optimizing it
         for key in self:
             if not isinstance(key, tuple):
                 continue
             key_name, key_component = key
             if key_component is component_type and isinstance(key_name, name_type):
-                yield key_name, key_component
+                yield key_name, key_component  # type: ignore[unused-ignore]  # Too complex for PyLance, deprecated anyways
 
     @overload
     def __ior__(self, value: SupportsKeysAndGetItem[ComponentKey[Any], Any]) -> Self: ...
@@ -1044,14 +1043,14 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
         """Access relations for this component key as a `{target: component}` dict-like object."""
         return EntityComponentRelationMapping(self.entity, key, self.traverse)
 
-    def __setitem__(self, __key: ComponentKey[T], __values: Mapping[Entity, object], /) -> None:
+    def __setitem__(self, __key: ComponentKey[T], __values: Mapping[Entity, T], /) -> None:
         """Redefine the component relations for this entity.
 
         ..versionadded:: 4.2.0
         """
         if isinstance(__values, EntityComponentRelationMapping) and __values.entity is self.entity:
             return
-        mapping: EntityComponentRelationMapping[object] = self[__key]
+        mapping: EntityComponentRelationMapping[T] = self[__key]
         mapping.clear()
         for target, component in __values.items():
             mapping[target] = component
