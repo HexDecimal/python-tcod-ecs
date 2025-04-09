@@ -82,7 +82,7 @@ class Entity:
         """
         return self.registry
 
-    def __new__(cls, registry: Registry, uid: object = object) -> Entity:  # noqa: PYI034
+    def __new__(cls, registry: Registry, uid: object = object) -> Self | Entity:
         """Return a unique entity for the given `registry` and `uid`.
 
         If an entity already exists with a matching `registry` and `uid` then that entity is returned.
