@@ -951,7 +951,7 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
     def __call__(self, *, traverse: Iterable[object]) -> Self:
         """Update this view with alternative parameters, such as a specific traversal relation.
 
-        .. versionadded:: Unreleased
+        .. versionadded:: 5.4
         """
         return self.__class__(self.entity, self.key, tuple(traverse))
 
