@@ -168,3 +168,46 @@ def test_relation_tag_tables() -> None:
     assert set(w.Q.all_of(relations=[(..., "tag", None)])) == {e2}
     assert set(w.Q.all_of(relations=[(e1, "tag", None)])) == {e2}
     assert not set(w.Q.all_of(relations=[(e3, "tag", None)]))
+
+
+def test_clear_with_relation() -> None:
+    world = tcod.ecs.Registry()
+    parent = world["parent"]
+    child = parent.instantiate()
+    entity_other = world[object()]
+    for i in range(5):
+        parent.components[(i, int)] = i
+        parent.tags.add(i)
+        parent.relation_components[(i, int)][entity_other] = i
+        parent.relation_tag[i] = entity_other
+
+    for i in range(10):
+        child.components[(i, int)] = i
+        child.tags.add(i)
+        child.relation_components[(i, int)][entity_other] = i
+        child.relation_tag[i] = entity_other
+
+    components_all = {(i, int) for i in range(10)}
+    components_after = {(i, int) for i in range(5)}
+    tags_all = set(range(10))
+    tags_after = set(range(5))
+
+    assert child.components.keys() == components_all
+    assert child.relation_components.keys() == components_all
+    assert set(child.tags) == tags_all
+    assert set(child.relation_tag.keys()) == tags_all | {tcod.ecs.IsA}
+
+    # Clear direct values, keeping values from parent as long as the IsA relation exists
+    child.components.clear()
+    assert child.components.keys() == components_after
+    child.relation_components.clear()
+    assert child.relation_components.keys() == components_after
+    child.tags.clear()
+    assert set(child.tags) == tags_after
+
+    # Clearing relation_tags means breaking the IsA link to the parent
+    child.relation_tag.clear()
+    assert not child.relation_tag.keys()
+    assert not child.components.keys()
+    assert not child.tags
+    assert not child.relation_components.keys()

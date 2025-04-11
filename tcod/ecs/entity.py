@@ -124,10 +124,10 @@ class Entity:
 
         .. versionadded:: 4.2.0
         """
-        self.components(traverse=()).clear()
-        self.tags(traverse=()).clear()
-        self.relation_tags_many(traverse=()).clear()
-        self.relation_components(traverse=()).clear()
+        self.components.clear()
+        self.tags.clear()
+        self.relation_tags_many.clear()
+        self.relation_components.clear()
 
     def instantiate(self) -> Self:
         """Return a new entity which inherits the components, tags, and relations of this entity.
@@ -594,6 +594,12 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         del self[__key]
         return value
 
+    def clear(self) -> None:
+        """Remove any components stored directly in this entity."""
+        if self.traverse:
+            return self(traverse=()).clear()
+        return super().clear()
+
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
 class EntityTags(MutableSet[Any]):
@@ -942,6 +948,13 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
             """Validate attributes."""
             assert isinstance(self.entity, Entity), self.entity
 
+    def __call__(self, *, traverse: Iterable[object]) -> Self:
+        """Update this view with alternative parameters, such as a specific traversal relation.
+
+        .. versionadded:: Unreleased
+        """
+        return self.__class__(self.entity, self.key, tuple(traverse))
+
     def __getitem__(self, target: Entity) -> T:
         """Return the component related to a target entity."""
         _relation_components_by_entity = self.entity.registry._relation_components_by_entity
@@ -1000,6 +1013,12 @@ class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
     def __len__(self) -> int:
         """Return the count of targets for this component relation."""
         return len(self.keys())
+
+    def clear(self) -> None:
+        """Remove any components stored directly in this entity relation."""
+        if self.traverse:
+            return self(traverse=()).clear()
+        return super().clear()
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
