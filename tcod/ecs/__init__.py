@@ -4,12 +4,21 @@ from __future__ import annotations
 
 import importlib.metadata
 from collections import defaultdict
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from tcod.ecs.constants import IsA
 from tcod.ecs.entity import Entity
 from tcod.ecs.registry import Registry
-from tcod.ecs.registry import Registry as World
+
+if TYPE_CHECKING:
+    from typing_extensions import deprecated
+
+    @deprecated("Renamed to Registry.")
+    class World(Registry):  # noqa: D101
+        pass
+
+else:
+    from tcod.ecs.registry import Registry as World
 
 __all__ = (
     "Entity",
