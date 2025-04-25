@@ -13,7 +13,6 @@ from typing import (
     MutableMapping,
     MutableSet,
     Tuple,
-    Type,
     TypeVar,
     Union,
     overload,
@@ -22,7 +21,7 @@ from weakref import WeakKeyDictionary, WeakValueDictionary
 
 import attrs
 from sentinel_value import sentinel
-from typing_extensions import Self, deprecated
+from typing_extensions import Self, TypeForm, deprecated
 
 import tcod.ecs.callbacks
 import tcod.ecs.query
@@ -389,7 +388,7 @@ def _traverse_entities(start: Entity, traverse_parents: tuple[object, ...]) -> I
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
-class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]], object]):
+class EntityComponents(MutableMapping[Union[TypeForm[Any], Tuple[object, TypeForm[Any]]], Any]):
     """A proxy attribute to access an entities components like a dictionary.
 
     See :any:`Entity.components`.
@@ -474,7 +473,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
             *(_components_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse))
         )
 
-    def __contains__(self, key: ComponentKey[object]) -> bool:  # type: ignore[override]
+    def __contains__(self, key: ComponentKey[object]) -> bool:
         """Return True if this entity has the provided component."""
         _components_by_entity = self.entity.registry._components_by_entity
         return any(
@@ -500,7 +499,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
             self.set(value)
 
     @deprecated("This method has been deprecated. Iterate over items instead.", category=FutureWarning)
-    def by_name_type(self, name_type: type[_T1], component_type: type[_T2]) -> Iterator[tuple[_T1, type[_T2]]]:
+    def by_name_type(self, name_type: TypeForm[_T1], component_type: TypeForm[_T2]) -> Iterator[tuple[_T1, type[_T2]]]:
         """Iterate over all of an entities component keys with a specific (name_type, component_type) combination.
 
         .. versionadded:: 3.0
@@ -508,13 +507,12 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         .. deprecated:: 3.1
             This method has been deprecated. Iterate over items instead.
         """
-        # Naive implementation until I feel like optimizing it
         for key in self:
             if not isinstance(key, tuple):
                 continue
             key_name, key_component = key
             if key_component is component_type and isinstance(key_name, name_type):
-                yield key_name, key_component
+                yield key_name, key_component  # type: ignore[unused-ignore]  # Too complex for PyLance, deprecated anyways
 
     @overload
     def __ior__(self, value: SupportsKeysAndGetItem[ComponentKey[Any], Any]) -> Self: ...
@@ -544,7 +542,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         except KeyError:
             return default  # type: ignore[return-value] # https://github.com/python/mypy/issues/3737
 
-    def setdefault(self, __key: ComponentKey[T], __default: T, /) -> T:
+    def setdefault(self, __key: ComponentKey[T], __default: T, /) -> T:  # type: ignore[override]  # Does not allow None
         """Assign a default value if a component is missing, then returns the current value."""
         try:
             return self[__key]
@@ -1051,14 +1049,14 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
         """Access relations for this component key as a `{target: component}` dict-like object."""
         return EntityComponentRelationMapping(self.entity, key, self.traverse)
 
-    def __setitem__(self, __key: ComponentKey[T], __values: Mapping[Entity, object], /) -> None:
+    def __setitem__(self, __key: ComponentKey[T], __values: Mapping[Entity, T], /) -> None:
         """Redefine the component relations for this entity.
 
         ..versionadded:: 4.2.0
         """
         if isinstance(__values, EntityComponentRelationMapping) and __values.entity is self.entity:
             return
-        mapping: EntityComponentRelationMapping[object] = self[__key]
+        mapping: EntityComponentRelationMapping[T] = self[__key]
         mapping.clear()
         for target, component in __values.items():
             mapping[target] = component

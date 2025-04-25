@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Tuple, TypeVar, Union
 
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, TypeForm
 
 if TYPE_CHECKING:
     from tcod.ecs.entity import Entity
@@ -22,7 +22,7 @@ else:  # pragma: no cover
 
 _T = TypeVar("_T")
 
-ComponentKey: TypeAlias = Union[Type[_T], Tuple[object, Type[_T]]]
+ComponentKey: TypeAlias = Union[TypeForm[_T], Tuple[object, TypeForm[_T]]]
 """ComponentKey is plain `type` or tuple `(tag, type)`."""
 
 _RelationTargetLookup: TypeAlias = Union[Entity, EllipsisType]
