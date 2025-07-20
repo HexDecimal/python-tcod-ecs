@@ -544,7 +544,7 @@ class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]]
         except KeyError:
             return default  # type: ignore[return-value] # https://github.com/python/mypy/issues/3737
 
-    def setdefault(self, __key: ComponentKey[T], __default: T, /) -> T:
+    def setdefault(self, __key: ComponentKey[T], __default: T, /) -> T:  # type: ignore[override] # Disallows default None
         """Assign a default value if a component is missing, then returns the current value."""
         try:
             return self[__key]
