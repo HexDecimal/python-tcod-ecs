@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 import warnings
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, Protocol, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, overload
 from weakref import WeakKeyDictionary, WeakSet
 
 import attrs
@@ -15,6 +15,7 @@ import tcod.ecs.entity
 from tcod.ecs.constants import IsA
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator
     from collections.abc import Set as AbstractSet
 
     from tcod.ecs.entity import Entity
@@ -471,7 +472,7 @@ class BoundQuery:
                 continue
             registry_components = self.registry._components_by_type[component_key]
             entity_components.append([registry_components[entity] for entity in entities])
-        return zip(*entity_components)
+        return zip(*entity_components, strict=True)
 
 
 WorldQuery = BoundQuery

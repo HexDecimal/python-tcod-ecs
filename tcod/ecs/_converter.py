@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import functools
 from collections import defaultdict
-from typing import Any, Callable, get_args, get_origin
+from typing import TYPE_CHECKING, Any, get_args, get_origin
 
 import cattrs
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def _is_defaultdict_type(type_hint: object) -> bool:

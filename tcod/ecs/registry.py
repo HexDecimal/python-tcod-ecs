@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import warnings
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, DefaultDict, Dict, Final, Iterable, Mapping, NoReturn, Set, TypeVar
+from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING, Any, Final, NoReturn, TypeVar
 
 import attrs
 from typing_extensions import deprecated
@@ -195,23 +196,23 @@ class Registry:
         # Apply defaultdict types to unpickled dictionaries
         self._components_by_type = converter.structure(
             state.pop("_components_by_type"),
-            DefaultDict[Any, Dict[Any, Any]],
+            defaultdict[Any, dict[Any, Any]],
         )
         self._components_by_entity = _components_by_entity_from(self._components_by_type)
 
         self._tags_by_entity = converter.structure(
             state.pop("_tags_by_entity"),
-            DefaultDict[Any, Set[Any]],
+            defaultdict[Any, set[Any]],
         )
         self._tags_by_key = _tags_by_key_from_tags_by_entity(self._tags_by_entity)
 
         self._relation_tags_by_entity = converter.structure(
             state.pop("_relation_tags_by_entity"),
-            DefaultDict[Any, DefaultDict[Any, Set[Any]]],
+            defaultdict[Any, defaultdict[Any, set[Any]]],
         )
         self._relation_components_by_entity = converter.structure(
             state.pop("_relation_components_by_entity"),
-            DefaultDict[Any, DefaultDict[Any, Dict[Any, Any]]],
+            defaultdict[Any, defaultdict[Any, dict[Any, Any]]],
         )
         self._relations_lookup = _relations_lookup_from(
             self._relation_tags_by_entity, self._relation_components_by_entity
@@ -231,11 +232,11 @@ class Registry:
         converter = tcod.ecs._converter._get_converter()
         # Replace defaultdict types with plain dict when saving
         return {
-            "_components_by_type": converter.structure(self._components_by_type, Dict[Any, Dict[Any, Any]]),
-            "_tags_by_entity": converter.structure(self._tags_by_entity, Dict[Any, Any]),
-            "_relation_tags_by_entity": converter.structure(self._relation_tags_by_entity, Dict[Any, Dict[Any, Any]]),
+            "_components_by_type": converter.structure(self._components_by_type, dict[Any, dict[Any, Any]]),
+            "_tags_by_entity": converter.structure(self._tags_by_entity, dict[Any, Any]),
+            "_relation_tags_by_entity": converter.structure(self._relation_tags_by_entity, dict[Any, dict[Any, Any]]),
             "_relation_components_by_entity": converter.structure(
-                self._relation_components_by_entity, Dict[Any, Dict[Any, Any]]
+                self._relation_components_by_entity, dict[Any, dict[Any, Any]]
             ),
             "_names_by_name": self._names_by_name,
         }

@@ -2,20 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator, Mapping, MutableMapping, MutableSet
 from typing import (
     TYPE_CHECKING,
     Any,
     Final,
     Generic,
-    Iterable,
-    Iterator,
-    Mapping,
-    MutableMapping,
-    MutableSet,
-    Tuple,
-    Type,
     TypeVar,
-    Union,
     overload,
 )
 from weakref import WeakKeyDictionary, WeakValueDictionary
@@ -389,7 +382,7 @@ def _traverse_entities(start: Entity, traverse_parents: tuple[object, ...]) -> I
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
-class EntityComponents(MutableMapping[Union[Type[Any], Tuple[object, Type[Any]]], object]):
+class EntityComponents(MutableMapping[type[Any] | tuple[object, type[Any]], object]):
     """A proxy attribute to access an entities components like a dictionary.
 
     See :any:`Entity.components`.

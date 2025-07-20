@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
-
-from typing_extensions import TypeAlias
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar
 
 if TYPE_CHECKING:
     from tcod.ecs.entity import Entity
@@ -12,7 +11,7 @@ if TYPE_CHECKING:
 
 _T = TypeVar("_T")
 
-_OnComponentChangedFunc: TypeAlias = Callable[["Entity", Union[_T, None], Union[_T, None]], None]
+_OnComponentChangedFunc: TypeAlias = Callable[["Entity", _T | None, _T | None], None]
 _OnComponentChangedFuncT = TypeVar("_OnComponentChangedFuncT", bound=_OnComponentChangedFunc[Any])
 
 _on_component_changed_callbacks: dict[ComponentKey[Any], list[_OnComponentChangedFunc[Any]]] = {}

@@ -6,7 +6,7 @@ import io
 import pickle
 import pickletools
 import sys
-from typing import Callable, Iterator
+from collections.abc import Callable, Iterator  # noqa: TC003
 
 import pytest
 
