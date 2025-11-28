@@ -925,7 +925,7 @@ class EntityRelationsExclusive(MutableMapping[object, Entity]):
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
-class EntityComponentRelationMapping(Generic[T], MutableMapping[Entity, T]):
+class EntityComponentRelationMapping(MutableMapping[Entity, T], Generic[T]):
     """An entity-component mapping to access the relation target component objects.
 
     See :any:`Entity.relation_components`.

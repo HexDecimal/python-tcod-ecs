@@ -65,6 +65,8 @@ warn_unused_ignores = true
 warn_return_any = true
 no_implicit_reexport = true
 strict_equality = true
+strict_bytes = true
+extra_checks = true
 
 [tool.pyright]
 reportInconsistentOverload = false

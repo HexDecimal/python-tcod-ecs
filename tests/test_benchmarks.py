@@ -17,7 +17,7 @@ def test_component_missing(benchmark: Any) -> None:
 def test_component_assign(benchmark: Any) -> None:
     entity = tcod.ecs.Registry().new_entity()
 
-    @benchmark  # type: ignore[misc]
+    @benchmark  # type: ignore[untyped-decorator]
     def _() -> None:
         entity.components[str] = "value"
 
