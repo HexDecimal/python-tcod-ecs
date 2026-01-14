@@ -5,7 +5,7 @@ API reference
    :members:
    :undoc-members:
    :show-inheritance:
-   :exclude-members: Registry, World, Entity
+   :exclude-members: Registry, World, Entity, IsA
 
 .. automodule:: tcod.ecs.registry
    :members:
