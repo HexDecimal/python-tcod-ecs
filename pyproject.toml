@@ -21,8 +21,7 @@ requires-python = ">=3.10"
 dependencies = [
     "attrs >=23.1.0",
     "cattrs >=23.1.2",
-    "sentinel-value >=1.0.0",
-    "typing-extensions >=4.13.1",
+    "typing-extensions >=4.14.0",
 ]
 
 [tool.setuptools_scm]

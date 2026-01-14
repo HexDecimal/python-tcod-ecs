@@ -14,8 +14,7 @@ from typing import (
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 import attrs
-from sentinel_value import sentinel
-from typing_extensions import Self, TypeForm, deprecated
+from typing_extensions import Self, Sentinel, TypeForm, deprecated
 
 import tcod.ecs.callbacks
 import tcod.ecs.query
@@ -34,7 +33,7 @@ T = TypeVar("T")
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
 
-_raise: Final = sentinel("_raise")
+_raise: Final = Sentinel("_raise")
 
 _entity_table: WeakKeyDictionary[Registry, WeakValueDictionary[object, Entity]] = WeakKeyDictionary()
 """A weak table of registries and unique identifiers to entity objects.

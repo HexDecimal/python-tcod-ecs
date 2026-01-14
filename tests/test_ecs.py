@@ -301,3 +301,10 @@ def test_type_form() -> None:
     world[None].components[TupleKey] = (1, 2)
     x, y = world[None].components[TupleKey]
     assert (x, y) == (1, 2)
+
+
+PICKLED_ISA = b"\x80\x03ctcod.ecs.constants\n_sentinel_IsA\nq\x00X\x12\x00\x00\x00tcod.ecs.constantsq\x01X\x03\x00\x00\x00IsAq\x02\x86q\x03\x81q\x04}q\x05(X\r\x00\x00\x00instance_nameq\x06h\x02X\x0b\x00\x00\x00module_nameq\x07h\x01X\x0e\x00\x00\x00qualified_nameq\x08X\x16\x00\x00\x00tcod.ecs.constants.IsAq\tub."  # cspell: disable-line
+
+
+def test_unpickle_is_a() -> None:
+    assert pickle.loads(PICKLED_ISA) is tcod.ecs.IsA  # noqa: S301
