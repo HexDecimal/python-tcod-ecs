@@ -12,6 +12,7 @@
         "buildapi",
         "cattrs",
         "codecov",
+        "cooldown",
         "docstrings",
         "doctest",
         "doctests",
@@ -60,7 +61,8 @@
         "unstructure",
         "WASD",
         "WAXD",
-        "WINDOWLEAVE"
+        "WINDOWLEAVE",
+        "zizmor"
     ],
     "editor.codeActionsOnSave": {
         "source.fixAll": "always"
