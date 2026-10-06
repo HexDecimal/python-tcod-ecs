@@ -92,6 +92,7 @@ line-length = 120
 select = ["ALL"]
 ignore = [
     "A005",   # stdlib-module-shadowing, workaround VSCode treating all modules as local
+    "CPY001", # missing-copyright-notice
     "COM",    # flake8-commas, handled by formatter
     "E501",   # line-too-long
     "S101",   # assert
