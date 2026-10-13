@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.5.1] - 2026-10-13
+
+Special thanks to Anton Soloviev for critical bugfixes.
+
 ### Fixed
 
 - Relation components were incorrectly loaded from pickled data as pointing in the wrong direction.
+  https://github.com/HexDecimal/python-tcod-ecs/pull/57
 - Set manipulations for `Entity.tags` and `Entity.relation_tags_many` are now more reliable and will no longer drop data.
   https://github.com/HexDecimal/python-tcod-ecs/pull/58
 
