@@ -1058,7 +1058,11 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
 
         ..versionadded:: 4.2.0
         """
-        if isinstance(__values, EntityComponentRelationMapping) and __values.entity is self.entity:
+        if (
+            isinstance(__values, EntityComponentRelationMapping)
+            and __values.entity is self.entity
+            and __values.key == __key
+        ):
             return
         mapping: EntityComponentRelationMapping[T] = self[__key]
         mapping.clear()

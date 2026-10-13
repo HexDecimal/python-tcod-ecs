@@ -177,6 +177,35 @@ def test_relation_components() -> None:
     assert not set(world.Q.all_of(relations=[(int, world[1])]))
 
 
+@pytest.mark.parametrize("source_key", [int, ("fire", int)])
+def test_component_relation_copy_between_keys(source_key: type[int] | tuple[str, type[int]]) -> None:
+    world = tcod.ecs.Registry()
+    mage, target, old_target = world["mage"], world["target"], world["old_target"]
+    destination_key = ("poison", int)
+    source_value = 5
+    mage.relation_components[source_key][target] = source_value
+    mage.relation_components[destination_key][old_target] = 9
+
+    mage.relation_components[destination_key] = mage.relation_components[source_key]
+
+    assert dict(mage.relation_components[destination_key]) == {target: source_value}
+    assert dict(mage.relation_components[source_key]) == {target: source_value}
+    assert set(world.Q.all_of(relations=[(destination_key, target)])) == {mage}
+    assert set(world.Q.all_of(relations=[(destination_key, old_target)])) == set()
+
+
+def test_component_relation_copy_from_another_entity() -> None:
+    world = tcod.ecs.Registry()
+    first, second, target = world["first"], world["second"], world["target"]
+    value = 5
+    first.relation_components[int][target] = value
+
+    second.relation_components[int] = first.relation_components[int]
+
+    assert dict(second.relation_components[int]) == {target: value}
+    assert dict(first.relation_components[int]) == {target: value}
+
+
 def test_conditional_relations() -> None:
     world = tcod.ecs.Registry()
     world["A"].relation_tag[ChildOf] = world["B"]
