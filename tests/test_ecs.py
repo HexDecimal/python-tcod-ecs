@@ -16,6 +16,28 @@ import tcod.ecs
 # ruff: noqa: D103
 
 
+@pytest.mark.parametrize("component_key", [int, ("distance", int)])
+@pytest.mark.parametrize("protocol", [2, 4, 5])
+def test_pickle_component_relation_targets(component_key: type[int] | tuple[str, type[int]], protocol: int) -> None:
+    world = tcod.ecs.Registry()
+    moon, planet = world["moon"], world["planet"]
+    distance = 10
+    moon.relation_components[component_key][planet] = distance
+    moon.relation_tag["LandedOn"] = planet
+    assert set(world.Q.all_of(relations=[(component_key, planet)])) == {moon}
+
+    restored: tcod.ecs.Registry = pickle.loads(pickle.dumps(world, protocol=protocol))  # noqa: S301
+    moon, planet = restored["moon"], restored["planet"]
+
+    assert moon.relation_components[component_key][planet] == distance
+    assert set(restored.Q.all_of(relations=[(component_key, planet)])) == {moon}
+    assert set(restored.Q.all_of(relations=[(component_key, moon)])) == set()
+    assert set(restored.Q.all_of(relations=[(component_key, ...)])) == {moon}
+    assert set(restored.Q.all_of(relations=[(moon, component_key, None)])) == {planet}
+    assert set(restored.Q.all_of(relations=[(..., component_key, None)])) == {planet}
+    assert set(restored.Q.all_of(relations=[("LandedOn", planet)])) == {moon}
+
+
 def test_world() -> None:
     world = tcod.ecs.Registry()
     with pytest.warns():

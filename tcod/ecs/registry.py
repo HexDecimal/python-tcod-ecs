@@ -71,7 +71,7 @@ def _relations_lookup_from(
         for component_key, target_components in components.items():
             for target in target_components:
                 relations_lookup[(component_key, ...)].add(origin)
-                relations_lookup[(component_key, origin)].add(origin)
+                relations_lookup[(component_key, target)].add(origin)
                 relations_lookup[(origin, component_key, None)].add(target)
                 relations_lookup[(..., component_key, None)].add(target)
 
