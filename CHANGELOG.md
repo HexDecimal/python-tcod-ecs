@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Relation components were incorrectly loaded from pickled data as pointing in the wrong direction.
+
 ## [5.5.0] - 2026-01-14
 
 ### Changed
