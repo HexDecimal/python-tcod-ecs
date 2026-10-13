@@ -602,6 +602,11 @@ class EntityTags(MutableSet[Any]):
     entity: Entity
     traverse: tuple[object, ...]
 
+    @classmethod
+    def _from_iterable(cls, it: Iterable[_T1]) -> set[_T1]:
+        """Return an independent set for the inherited set operations."""
+        return set(it)
+
     def __call__(self, *, traverse: Iterable[object]) -> Self:
         """Update this view with alternative parameters, such as a specific traversal relation.
 
@@ -725,6 +730,11 @@ class EntityRelationsMapping(MutableSet[Entity]):
     key: object
     traverse: tuple[object, ...]
 
+    @classmethod
+    def _from_iterable(cls, it: Iterable[_T1]) -> set[_T1]:
+        """Return an independent set for the inherited set operations."""
+        return set(it)
+
     if __debug__:
 
         def __attrs_post_init__(self) -> None:
@@ -826,6 +836,7 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
     def __setitem__(self, key: object, values: Iterable[Entity]) -> None:
         """Overwrite the targets of a relation tag with the new values."""
         assert not isinstance(values, Entity), "Did you mean `entity.relations[key] = (target,)`?"
+        values = tuple(values)  # Values may be a live view of the mapping being replaced.
         mapping = EntityRelationsMapping(self.entity, key, self.traverse)
         mapping.clear()
         for v in values:

@@ -13,6 +13,92 @@ import tcod.ecs
 ChildOf: Final = "ChildOf"
 
 
+@pytest.mark.parametrize("operation", ["union", "intersection", "difference", "symmetric_difference"])
+def test_inplace_relation_updates(operation: str) -> None:
+    world = tcod.ecs.Registry()
+    player = world["player"]
+    first, second, third = world["first"], world["second"], world["third"]
+    expected = {first, second}
+    other = {second, third}
+    player.relation_tags_many["allies"] = expected
+    query = world.Q.all_of(relations=[("allies", second)])
+    assert set(query) == {player}
+
+    if operation == "union":
+        expected |= other
+        player.relation_tags_many["allies"] |= other
+    elif operation == "intersection":
+        expected &= other
+        player.relation_tags_many["allies"] &= other
+    elif operation == "difference":
+        expected -= other
+        player.relation_tags_many["allies"] -= other
+    else:
+        expected ^= other
+        player.relation_tags_many["allies"] ^= other
+
+    assert set(player.relation_tags_many["allies"]) == expected
+    assert set(query) == ({player} if second in expected else set())
+    assert set(world.Q.all_of(relations=[(player, "allies", None)])) == expected
+
+
+def test_relation_assignment_from_lazy_self_view() -> None:
+    world = tcod.ecs.Registry()
+    player = world["player"]
+    first, second = world["first"], world["second"]
+    player.relation_tags_many["allies"] = (first, second)
+
+    player.relation_tags_many["allies"] = (target for target in player.relation_tags_many["allies"] if target is first)
+
+    assert set(player.relation_tags_many["allies"]) == {first}
+
+
+def test_relation_assignment_from_another_key() -> None:
+    world = tcod.ecs.Registry()
+    player = world["player"]
+    first, second = world["first"], world["second"]
+    player.relation_tags_many["allies"] = (first,)
+    player.relation_tags_many["rivals"] = (second,)
+
+    player.relation_tags_many["allies"] = player.relation_tags_many["rivals"]
+
+    assert set(player.relation_tags_many["allies"]) == {second}
+    assert set(player.relation_tags_many["rivals"]) == {second}
+
+
+def test_relation_set_operations() -> None:
+    world = tcod.ecs.Registry()
+    player = world["player"]
+    first, second, third = world["first"], world["second"], world["third"]
+    player.relation_tags_many["allies"] = (first, second)
+    allies = player.relation_tags_many["allies"]
+    other = {second, third}
+
+    assert allies | other == {first, second, third}
+    assert allies & other == {second}
+    assert allies - other == {first}
+    assert allies ^ other == {first, third}
+    assert set(allies) == {first, second}
+
+
+def test_tag_set_operations() -> None:
+    world = tcod.ecs.Registry()
+    player = world["player"]
+    player.tags |= {"visible", "alive"}
+    other = {"alive", "friendly"}
+    query = world.Q.all_of(tags=["visible"])
+    assert set(query) == {player}
+
+    assert player.tags | other == {"visible", "alive", "friendly"}
+    assert player.tags & other == {"alive"}
+    assert player.tags - other == {"visible"}
+    assert player.tags ^ other == {"visible", "friendly"}
+    assert set(player.tags) == {"visible", "alive"}
+    player.tags &= other
+    assert set(player.tags) == {"alive"}
+    assert set(query) == set()
+
+
 def test_relations() -> None:
     world = tcod.ecs.Registry()
     entity_a = world["A"]
