@@ -2,13 +2,45 @@
 
 from __future__ import annotations
 
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import pytest
 
-from tcod.ecs import IsA, Registry
+from tcod.ecs import Entity, IsA, Registry
+
+if TYPE_CHECKING:
+    from tcod.ecs.typing import ComponentKey
 
 # ruff: noqa: D103
+
+
+@pytest.mark.parametrize("key", [int, ("hp", int)])
+def test_query_component_traversal(key: ComponentKey[int]) -> None:
+    registry = Registry()
+    base = registry["base"]
+    base.components[key] = 2
+    child = base.instantiate()
+    grandchild = child.instantiate()
+    query = registry.Q.all_of(components=[key])
+    assert dict(query[Entity, key]) == {base: 2, child: 2, grandchild: 2}
+    assert list(registry.Q.all_of(components=[key], depth=0)[key,]) == [(2,)]
+
+    base.components[key] = 3
+    child.components[key] = 0
+    assert dict(query[Entity, key]) == {base: 3, child: 0, grandchild: 0}
+    assert set(query[key, key]) == {(3, 3), (0, 0)}
+    del child.components[key]
+    assert dict(query[Entity, key]) == {base: 3, child: 3, grandchild: 3}
+    del base.components[key]
+    assert list(query[key,]) == []
+
+
+def test_query_inherited_none() -> None:
+    registry = Registry()
+    base = registry["base"]
+    base.components[object] = None
+    child = base.instantiate()
+    assert dict(registry.Q[Entity, object]) == {base: None, child: None}
 
 
 def test_component_traversal() -> None:
