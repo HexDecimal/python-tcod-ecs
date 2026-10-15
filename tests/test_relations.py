@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import pytest
 
 import tcod.ecs
+
+if TYPE_CHECKING:
+    from tcod.ecs.typing import ComponentKey
 
 # ruff: noqa: D103
 
@@ -326,3 +329,33 @@ def test_clear_with_relation() -> None:
     assert not child.components.keys()
     assert not child.tags
     assert not child.relation_components.keys()
+
+
+@pytest.mark.parametrize("key", [int, ("faction", int)])
+@pytest.mark.parametrize("remove_first", ["tag", "component"])
+def test_overlapping_relation_queries(key: ComponentKey[int], remove_first: str) -> None:
+    component_value = 0
+    world = tcod.ecs.Registry()
+    actor, faction = world["actor"], world["faction"]
+    actor.relation_tags_many[key].add(faction)
+    actor.relation_components[key][faction] = component_value
+    queries = [
+        world.Q.all_of(relations=[(key, faction)]),
+        world.Q.all_of(relations=[(key, ...)]),
+        world.Q.all_of(relations=[(actor, key, None)]),
+        world.Q.all_of(relations=[(..., key, None)]),
+    ]
+    expected = [{actor}, {actor}, {faction}, {faction}]
+    assert [set(q) for q in queries] == expected
+    if remove_first == "tag":
+        actor.relation_tags_many[key].remove(faction)
+        assert actor.relation_components[key][faction] == component_value
+    else:
+        del actor.relation_components[key][faction]
+        assert faction in actor.relation_tags_many[key]
+    assert [set(q) for q in queries] == expected
+    if remove_first == "tag":
+        del actor.relation_components[key][faction]
+    else:
+        actor.relation_tags_many[key].remove(faction)
+    assert not any(queries)
