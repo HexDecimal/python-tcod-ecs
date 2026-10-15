@@ -9,6 +9,7 @@ from typing import (
     Final,
     Generic,
     TypeVar,
+    cast,
     overload,
 )
 from weakref import WeakKeyDictionary, WeakValueDictionary
@@ -700,6 +701,12 @@ def _relations_lookup_add(registry: Registry, origin: Entity, tag: object, targe
 
 def _relations_lookup_discard(registry: Registry, origin: Entity, tag: object, target: Entity) -> None:
     """Discard a relation tag/component from the lookup table and handle side effects."""
+    tags = registry._relation_tags_by_entity.get(origin)
+    if tags is not None and target in tags.get(tag, ()):
+        return  # A tag relation still owns this index entry.
+    components = registry._relation_components_by_entity.get(origin)
+    if components is not None and target in components.get(cast("ComponentKey[object]", tag), ()):
+        return  # A component relation still owns this index entry.
     registry._relations_lookup[(tag, target)].discard(origin)
     if not registry._relations_lookup[(tag, target)]:
         del registry._relations_lookup[(tag, target)]
