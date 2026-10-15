@@ -1071,9 +1071,10 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
             and __values.key == __key
         ):
             return
+        items = tuple(__values.items())  # The input may inherit values from the mapping being replaced.
         mapping: EntityComponentRelationMapping[T] = self[__key]
         mapping.clear()
-        for target, component in __values.items():
+        for target, component in items:
             mapping[target] = component
 
     def __delitem__(self, key: ComponentKey[object]) -> None:

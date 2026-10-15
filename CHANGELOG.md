@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Replacing component relations from an inherited view now preserves values which depend on the destination.
 - Removing a relation tag or component now preserves query membership when the other relation still exists.
 - Queries collecting component rows now resolve inherited components instead of raising `KeyError` for prefab instances.
 - Relation components can now be copied between distinct keys in the same entity, instead of the assignment being silently ignored.
