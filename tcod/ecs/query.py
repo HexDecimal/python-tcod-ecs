@@ -465,13 +465,16 @@ class BoundQuery:
         Entity = tcod.ecs.entity.Entity  # noqa: N806
 
         entities = list(self.all_of(components=set(key) - {Entity}).get_entities())
-        entity_components = []
+        entity_components: list[list[Any]] = []
         for component_key in key:
             if component_key is Entity:
                 entity_components.append(entities)
                 continue
             registry_components = self.registry._components_by_type[component_key]
-            entity_components.append([registry_components[entity] for entity in entities])
+            try:
+                entity_components.append([registry_components[entity] for entity in entities])
+            except KeyError:  # Some matching entities inherit this component.
+                entity_components.append([entity.components[component_key] for entity in entities])
         return zip(*entity_components, strict=True)
 
 
