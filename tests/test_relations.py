@@ -359,3 +359,30 @@ def test_overlapping_relation_queries(key: ComponentKey[int], remove_first: str)
     else:
         actor.relation_tags_many[key].remove(faction)
     assert not any(queries)
+
+
+@pytest.mark.parametrize("key", [int, ("affinity", int)])
+@pytest.mark.parametrize("depth", [1, 3])
+@pytest.mark.parametrize("override", [False, True])
+def test_component_relation_assignment_from_inherited_view(
+    key: ComponentKey[int], depth: int, *, override: bool
+) -> None:
+    world = tcod.ecs.Registry()
+    prefab = world["prefab"]
+    first, second = world["first"], world["second"]
+    prefab.relation_components[key] = {first: 10, second: 20}
+    instance = prefab
+    for _ in range(depth):
+        instance = instance.instantiate()
+    if override:
+        instance.relation_components[key][first] = 30
+    expected = {first: 30 if override else 10, second: 20}
+    query = world.Q.all_of(relations=[(key, second)])
+    assert prefab in query
+
+    prefab.relation_components[key] = instance.relation_components[key]
+
+    assert dict(prefab.relation_components[key]) == expected
+    assert dict(instance.relation_components[key]) == expected
+    assert prefab in query
+    assert instance in query
