@@ -420,9 +420,12 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
         assert self.__assert_key(key)
         _components_by_entity = self.entity.registry._components_by_entity
         for entity in _traverse_entities(self.entity, self.traverse):
+            components = _components_by_entity.get(entity)
+            if components is None:
+                continue
             try:
-                return _components_by_entity[entity][key]  # type: ignore[no-any-return]
-            except KeyError:  # noqa: PERF203
+                return components[key]  # type: ignore[no-any-return]
+            except KeyError:
                 pass
         raise KeyError(key)
 
@@ -444,10 +447,13 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
         """Delete a directly held component from an entity."""
         assert self.__assert_key(key)
 
-        old_value = self.entity.registry._components_by_entity[self.entity].get(key)
+        components = self.entity.registry._components_by_entity.get(self.entity)
+        if components is None:
+            raise KeyError(key)
+        old_value = components.get(key)
 
-        del self.entity.registry._components_by_entity[self.entity][key]
-        if not self.entity.registry._components_by_entity[self.entity]:
+        del components[key]
+        if not components:
             del self.entity.registry._components_by_entity[self.entity]
 
         del self.entity.registry._components_by_type[key][self.entity]
@@ -589,8 +595,10 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
     def clear(self) -> None:
         """Remove any components stored directly in this entity."""
         if self.traverse:
-            return self(traverse=()).clear()
-        return super().clear()
+            self(traverse=()).clear()
+            return
+        super().clear()
+        self.entity.registry._components_by_entity.pop(self.entity, None)
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
@@ -626,7 +634,7 @@ class EntityTags(MutableSet[Any]):
 
     def discard(self, tag: object) -> None:
         """Discard a tag directly held by an entity."""
-        if tag not in self.entity.registry._tags_by_entity[self.entity]:
+        if tag not in self.entity.registry._tags_by_entity.get(self.entity, ()):
             return  # Already doesn't have tag
         tcod.ecs.query._touch_tag(self.entity.registry, tag)  # Tag removed
 
@@ -648,8 +656,9 @@ class EntityTags(MutableSet[Any]):
     def clear(self) -> None:
         """Remove all tags directly in this entity."""
         _tags_by_entity = self.entity.registry._tags_by_entity
-        while _tags_by_entity[self.entity]:
-            self.discard(next(iter(_tags_by_entity[self.entity])))
+        while tags := _tags_by_entity.get(self.entity):
+            self.discard(next(iter(tags)))
+        _tags_by_entity.pop(self.entity, None)
 
     def __contains__(self, x: object) -> bool:
         """Return True if this entity has the given tag."""
@@ -996,10 +1005,16 @@ class EntityComponentRelationMapping(MutableMapping[Entity, T], Generic[T]):
     def __delitem__(self, target: Entity) -> None:
         """Delete a component assigned to the target entity."""
         registry = self.entity.registry
-        del registry._relation_components_by_entity[self.entity][self.key][target]
-        if not registry._relation_components_by_entity[self.entity][self.key]:
-            del registry._relation_components_by_entity[self.entity][self.key]
-        if not registry._relation_components_by_entity[self.entity]:
+        by_entity = registry._relation_components_by_entity.get(self.entity)
+        if by_entity is None:
+            raise KeyError(target)
+        by_key = by_entity.get(self.key)
+        if by_key is None:
+            raise KeyError(target)
+        del by_key[target]
+        if not by_key:
+            del by_entity[self.key]
+        if not by_entity:
             del registry._relation_components_by_entity[self.entity]
 
         _relations_lookup_discard(registry, self.entity, self.key, target)
