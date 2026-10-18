@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Component reads and tag cleanup no longer retain unused entities through empty registry rows.
 - Failed component removals no longer create empty rows, and clearing removes existing empty rows.
-
 - Replacing component relations from an inherited view now preserves values which depend on the destination.
 - Removing a relation tag or component now preserves query membership when the other relation still exists.
 - Queries collecting component rows now resolve inherited components instead of raising `KeyError` for prefab instances.

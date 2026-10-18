@@ -598,6 +598,8 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
             self(traverse=()).clear()
             return
         super().clear()
+        # MutableMapping.clear() only calls __delitem__ for existing components,
+        # so it leaves an already empty registry row behind.
         self.entity.registry._components_by_entity.pop(self.entity, None)
 
 
