@@ -21,6 +21,7 @@ from tcod.ecs import Registry
         "read_inherited_component",
         "delete_missing_component",
         "delete_missing_relation_component",
+        "delete_missing_relation_component_type",
     ],
 )
 def test_unused_entity_is_released(operation: str) -> None:
@@ -49,10 +50,16 @@ def test_unused_entity_is_released(operation: str) -> None:
     elif operation == "delete_missing_component":
         with pytest.raises(KeyError, match="str"):
             del entity.components[str]
-    else:
-        assert operation == "delete_missing_relation_component"
+    elif operation == "delete_missing_relation_component":
         with pytest.raises(KeyError, match="target"):
             del entity.relation_components[str][registry["target"]]
+    else:
+        assert operation == "delete_missing_relation_component_type"
+        entity.relation_components[int][prefab] = 3
+        with pytest.raises(KeyError, match="target"):
+            del entity.relation_components[str][registry["target"]]
+        assert entity.relation_components[int] == {prefab: 3}
+        del entity.relation_components[int][prefab]
     reference = weakref.ref(entity)
     del entity
     gc.collect()
