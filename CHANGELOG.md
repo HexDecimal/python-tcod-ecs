@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cached queries no longer prevent discarded registries and their entities from being garbage-collected.
 - Queries requiring and excluding the same condition now return no matches instead of raising `AssertionError`.
 - Component reads and tag cleanup no longer retain unused entities through empty registry rows.
 - Failed component removals no longer create empty rows, and clearing removes existing empty rows.

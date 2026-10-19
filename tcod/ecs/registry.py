@@ -13,6 +13,7 @@ from typing_extensions import deprecated
 import tcod.ecs._converter
 import tcod.ecs.query
 from tcod.ecs.entity import Entity
+from tcod.ecs.query import _QueryCache
 
 if TYPE_CHECKING:
     from tcod.ecs.typing import ComponentKey, _RelationTargetLookup
@@ -152,6 +153,9 @@ class Registry:
     dict[Entity] = entities_name
     """
 
+    _query_cache: _QueryCache = attrs.field(init=False, factory=_QueryCache, repr=False)
+    """Transient query cache, owned here so cached entities do not keep registries alive globally."""
+
     @property
     @deprecated(
         "The 'registry.global_' attribute has been deprecated. Use 'registry[None]' to access this entity.",
@@ -178,6 +182,7 @@ class Registry:
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         """Unpickle this object and handle state migration."""
+        self._query_cache = _QueryCache()
         global_: Entity | None = state.pop("global_", None)  # Migrate from version <=1.2.0
 
         # These attributes contain redundant data and will be removed
