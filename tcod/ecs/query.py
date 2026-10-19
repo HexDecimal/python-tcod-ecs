@@ -237,10 +237,6 @@ class _QueryLogicalAnd:
     _all_of: frozenset[_Query] = frozenset()
     _none_of: frozenset[_Query] = frozenset()
 
-    def __attrs_post_init__(self) -> None:
-        """Verify the current state."""
-        assert self._all_of.isdisjoint(self._none_of)
-
     def _add_to_cache(self, registry: Registry, cache: _QueryCache) -> None:
         for dependency in itertools.chain(self._all_of, self._none_of):
             cache.dependencies[dependency].add((registry, self))
