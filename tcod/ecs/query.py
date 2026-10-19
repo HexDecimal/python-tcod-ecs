@@ -6,7 +6,7 @@ import itertools
 import warnings
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar, overload
-from weakref import WeakKeyDictionary, WeakSet
+from weakref import WeakSet
 
 import attrs
 from typing_extensions import Self, deprecated
@@ -27,10 +27,6 @@ _T2 = TypeVar("_T2")
 _T3 = TypeVar("_T3")
 _T4 = TypeVar("_T4")
 _T5 = TypeVar("_T5")
-
-
-_query_caches: WeakKeyDictionary[Registry, _QueryCache] = WeakKeyDictionary()
-"""The master table of cached queries."""
 
 
 @attrs.define
@@ -59,7 +55,7 @@ def _drop_cached_query(cache: _QueryCache, query: _Query) -> None:
     """Drop a cached query and all of its dependant queries."""
     cache.queries.pop(query, None)
     for sub_registry, sub_query in cache.dependencies.pop(query, ()):
-        _drop_cached_query(_query_caches[sub_registry], sub_query)
+        _drop_cached_query(_get_query_cache(sub_registry), sub_query)
 
 
 def _touch_component(registry: Registry, component: ComponentKey[object]) -> None:
@@ -126,11 +122,8 @@ def _fetch_relation_table(registry: Registry, relation: _RelationQuery) -> Abstr
 
 
 def _get_query_cache(registry: Registry) -> _QueryCache:
-    """Return the global cache for the given registry, creating it if it does not exist."""
-    cache = _query_caches.get(registry)
-    if cache is None:
-        cache = _query_caches[registry] = _QueryCache()
-    return cache
+    """Return the cache owned by the given registry."""
+    return registry._query_cache
 
 
 def _get_query(registry: Registry, query: _Query) -> AbstractSet[Entity]:

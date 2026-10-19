@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gc
+import pickle
 import weakref
 
 import pytest
@@ -79,5 +80,52 @@ def test_incoming_relation_retains_cleared_entity() -> None:
     gc.collect()
     assert reference() is not None
     del owner.relation_tag["target"]
+    gc.collect()
+    assert reference() is None
+
+
+@pytest.mark.parametrize("query_kind", ["component", "tag", "relation", "compound", "subquery"])
+@pytest.mark.parametrize("restored", [False, True])
+def test_queried_registry_is_released(query_kind: str, *, restored: bool) -> None:
+    """Query caches must not keep a discarded registry and its entities alive."""
+    registry = Registry()
+    registry["player"].components[int] = 3
+    registry["player"].tags.add("actor")
+    registry["player"].relation_tag["room"] = registry["room"]
+    registry["room"].tags.add("active")
+    if restored:
+        registry = pickle.loads(pickle.dumps(registry))  # noqa: S301
+    if query_kind == "component":
+        query = registry.Q.all_of(components=[int])
+    elif query_kind == "tag":
+        query = registry.Q.all_of(tags=["actor"])
+    elif query_kind == "relation":
+        query = registry.Q.all_of(relations=[("room", registry["room"])])
+    elif query_kind == "compound":
+        query = registry.Q.all_of(components=[int], tags=["actor"])
+    else:
+        query = registry.Q.all_of(relations=[("room", registry.Q.all_of(tags=["active"]))])
+    assert set(query) == {registry["player"]}
+    registry_ref = weakref.ref(registry)
+    entity_ref = weakref.ref(registry["player"])
+    del query, registry
+    gc.collect()
+    assert registry_ref() is None
+    assert entity_ref() is None
+
+
+def test_retained_query_keeps_registry_alive() -> None:
+    """An application-held query continues to own its registry."""
+    registry = Registry()
+    registry["player"].tags.add("actor")
+    query = registry.Q.all_of(tags=["actor"])
+    assert set(query) == {registry["player"]}
+    reference = weakref.ref(registry)
+    del registry
+    gc.collect()
+    assert reference() is query.registry
+    query.registry["player"].tags.clear()
+    assert not query
+    del query
     gc.collect()
     assert reference() is None
