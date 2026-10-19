@@ -7,7 +7,7 @@ import pickle
 import pickletools
 import sys
 from collections.abc import Callable, Iterator  # noqa: TC003
-from typing import Final
+from typing import Any, Final
 
 import pytest
 
@@ -330,3 +330,29 @@ PICKLED_ISA = b"\x80\x03ctcod.ecs.constants\n_sentinel_IsA\nq\x00X\x12\x00\x00\x
 
 def test_unpickle_is_a() -> None:
     assert pickle.loads(PICKLED_ISA) is tcod.ecs.IsA  # noqa: S301
+
+
+@pytest.mark.parametrize("kind", ["component", "tag", "relation"])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_query_contradictory_filters(kind: str, *, reverse: bool) -> None:
+    """A conjunction excluding its own required condition has no matches."""
+    world = tcod.ecs.Registry()
+    actor = world["actor"]
+    conditions: dict[str, Any]
+    if kind == "component":
+        actor.components[int] = 3
+        conditions = {"components": [int]}
+    elif kind == "tag":
+        actor.tags.add("actor")
+        conditions = {"tags": ["actor"]}
+    else:
+        actor.relation_tag["room"] = world["room"]
+        conditions = {"relations": [("room", world["room"])]}
+    included = world.Q.all_of(**conditions)
+    excluded = world.Q.none_of(**conditions)
+    query = excluded.all_of(**conditions) if reverse else included.none_of(**conditions)
+    assert not query
+    assert not query.get_entities()
+    actor.clear()
+    assert not query
+    assert not included
