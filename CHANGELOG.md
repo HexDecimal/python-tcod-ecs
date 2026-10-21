@@ -7,17 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.5.2] - 2026-10-21
+
+More bugfixes thanks to Anton Soloviev.
+
 ### Fixed
 
-- Cached queries no longer prevent discarded registries and their entities from being garbage-collected.
-- Queries requiring and excluding the same condition now return no matches instead of raising `AssertionError`.
-- Component reads and tag cleanup no longer retain unused entities through empty registry rows.
-- Failed component removals no longer create empty rows, and clearing removes existing empty rows.
-- Replacing component relations from an inherited view now preserves values which depend on the destination.
-- Removing a relation tag or component now preserves query membership when the other relation still exists.
-- Queries collecting component rows now resolve inherited components instead of raising `KeyError` for prefab instances.
-- Relation components can now be copied between distinct keys in the same entity, instead of the assignment being silently ignored.
-  https://github.com/HexDecimal/python-tcod-ecs/pull/59
+- Touching cached queries no longer prevents garbage-collection of entire registries. https://github.com/HexDecimal/python-tcod-ecs/pull/65
+- Queries requiring and excluding the same condition now return no matches instead of raising `AssertionError`. https://github.com/HexDecimal/python-tcod-ecs/pull/66
+- Component reads, failed component removals, clearing, and tag cleanup no longer retain empty entities. https://github.com/HexDecimal/python-tcod-ecs/pull/63
+- Replacing child component relations with an inherited parent view no longer drops items in the process. https://github.com/HexDecimal/python-tcod-ecs/pull/62
+- Removing a relation component/tag now preserves query membership while a similar relation component/tag remains. https://github.com/HexDecimal/python-tcod-ecs/pull/61
+- Queries collecting components for iteration now resolve inherited components instead of raising `KeyError`. https://github.com/HexDecimal/python-tcod-ecs/pull/60
+- Relation components can now be copied between distinct keys in the same entity, instead of the assignment being silently ignored. https://github.com/HexDecimal/python-tcod-ecs/pull/59
 
 ## [5.5.1] - 2026-10-13
 
