@@ -20,7 +20,7 @@ from typing_extensions import Self, Sentinel, TypeForm, deprecated
 import tcod.ecs.callbacks
 import tcod.ecs.query
 from tcod.ecs.constants import IsA
-from tcod.ecs.traits import Component, Relation, Tag
+from tcod.ecs.traits import Component, Tag
 from tcod.ecs.typing import ComponentKey
 
 if TYPE_CHECKING:
@@ -774,9 +774,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
         registry._relation_tags_by_entity[self.entity][self.key].add(target)
 
         _relations_lookup_add(registry, self.entity, self.key, target)
-        self.entity.registry._set_relation_data(
-            self.entity, Relation(Tag(self.key)), "RelationTag", self.key, target, value=True
-        )
+        self.entity.registry._set_relation_data(self.entity, Tag(self.key), "RelationTag", self.key, target, value=True)
 
     def discard(self, target: Entity) -> None:
         """Discard a directly held relation target from this tag."""
@@ -789,9 +787,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
                 del registry._relation_tags_by_entity[self.entity]
 
         _relations_lookup_discard(registry, self.entity, self.key, target)
-        self.entity.registry._discard_relation_data(
-            self.entity, Relation(Tag(self.key)), "RelationTag", self.key, target
-        )
+        self.entity.registry._discard_relation_data(self.entity, Tag(self.key), "RelationTag", self.key, target)
 
     def remove(self, target: Entity) -> None:
         """Remove a directly held relation target from this tag.
@@ -1019,7 +1015,7 @@ class EntityComponentRelationMapping(MutableMapping[Entity, T], Generic[T]):
 
         _relations_lookup_add(registry, self.entity, self.key, target)
         self.entity.registry._set_relation_data(
-            self.entity, Relation(Component.from_key(self.key)), "RelationComponent", self.key, target, component
+            self.entity, Component.from_key(self.key), "RelationComponent", self.key, target, component
         )
 
     def __delitem__(self, target: Entity) -> None:
@@ -1039,7 +1035,7 @@ class EntityComponentRelationMapping(MutableMapping[Entity, T], Generic[T]):
 
         _relations_lookup_discard(registry, self.entity, self.key, target)
         self.entity.registry._discard_relation_data(
-            self.entity, Relation(Component.from_key(self.key)), "RelationComponent", self.key, target
+            self.entity, Component.from_key(self.key), "RelationComponent", self.key, target
         )
 
     def keys(self) -> AbstractSet[Entity]:  # type: ignore[override]
