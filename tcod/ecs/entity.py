@@ -20,6 +20,7 @@ from typing_extensions import Self, Sentinel, TypeForm, deprecated
 import tcod.ecs.callbacks
 import tcod.ecs.query
 from tcod.ecs.constants import IsA
+from tcod.ecs.traits import Component, Relation, Tag
 from tcod.ecs.typing import ComponentKey
 
 if TYPE_CHECKING:
@@ -418,7 +419,7 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
     def __getitem__(self, key: ComponentKey[T]) -> T:
         """Return a component belonging to this entity, or an indirect parent."""
         assert self.__assert_key(key)
-        _components_by_entity = self.entity.registry._components_by_entity
+        _components_by_entity = self.entity.registry._category_entity_key_data["Component"]
         for entity in _traverse_entities(self.entity, self.traverse):
             components = _components_by_entity.get(entity)
             if components is None:
@@ -441,6 +442,8 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
         self.entity.registry._components_by_entity[self.entity][key] = value
         self.entity.registry._components_by_type[key][self.entity] = value
 
+        self.entity.registry._set_data(self.entity, Component.from_key(key), "Component", key, value)
+
         tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, value)
 
     def __delitem__(self, key: TypeForm[object] | tuple[object, TypeForm[object]]) -> None:
@@ -460,12 +463,14 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
         if not self.entity.registry._components_by_type[key]:
             del self.entity.registry._components_by_type[key]
 
+        self.entity.registry._discard_data(self.entity, Component.from_key(key), "Component", key)
+
         tcod.ecs.query._touch_component(self.entity.registry, key)  # Component removed
         tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, None)
 
     def keys(self) -> AbstractSet[ComponentKey[object]]:  # type: ignore[override]
         """Return the components held by this entity, including inherited components."""
-        _components_by_entity = self.entity.registry._components_by_entity
+        _components_by_entity = self.entity.registry._category_entity_key_data["Component"]
         if not self.traverse:
             return _components_by_entity.get(self.entity, {}).keys()
         set_: set[ComponentKey[object]] = set()
@@ -475,7 +480,7 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
 
     def __contains__(self, key: object) -> bool:
         """Return True if this entity has the provided component key."""
-        _components_by_entity = self.entity.registry._components_by_entity
+        _components_by_entity = self.entity.registry._category_entity_key_data["Component"]
         return any(
             key in _components_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse)
         )
@@ -634,11 +639,15 @@ class EntityTags(MutableSet[Any]):
         self.entity.registry._tags_by_entity[self.entity].add(tag)
         self.entity.registry._tags_by_key[tag].add(self.entity)
 
+        self.entity.registry._set_data(self.entity, Tag(tag), "Tag", tag, True)  # noqa: FBT003
+
     def discard(self, tag: object) -> None:
         """Discard a tag directly held by an entity."""
         if tag not in self.entity.registry._tags_by_entity.get(self.entity, ()):
             return  # Already doesn't have tag
         tcod.ecs.query._touch_tag(self.entity.registry, tag)  # Tag removed
+
+        self.entity.registry._discard_data(self.entity, Tag(tag), "Tag", tag)
 
         self.entity.registry._tags_by_entity[self.entity].discard(tag)
         if not self.entity.registry._tags_by_entity[self.entity]:
@@ -664,12 +673,12 @@ class EntityTags(MutableSet[Any]):
 
     def __contains__(self, x: object) -> bool:
         """Return True if this entity has the given tag."""
-        _tags_by_entity = self.entity.registry._tags_by_entity
+        _tags_by_entity = self.entity.registry._category_entity_key_data["Tag"]
         return any(x in _tags_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse))
 
     def _as_set(self) -> set[object]:
         """Return all tags inherited by traversal rules into a single set with no duplicates."""
-        _tags_by_entity = self.entity.registry._tags_by_entity
+        _tags_by_entity = self.entity.registry._category_entity_key_data["Tag"]
         return set().union(
             *(_tags_by_entity.get(entity, ()) for entity in _traverse_entities(self.entity, self.traverse))
         )
@@ -765,6 +774,9 @@ class EntityRelationsMapping(MutableSet[Entity]):
         registry._relation_tags_by_entity[self.entity][self.key].add(target)
 
         _relations_lookup_add(registry, self.entity, self.key, target)
+        self.entity.registry._set_relation_data(
+            self.entity, Relation(Tag(self.key)), "RelationTag", self.key, target, value=True
+        )
 
     def discard(self, target: Entity) -> None:
         """Discard a directly held relation target from this tag."""
@@ -777,6 +789,9 @@ class EntityRelationsMapping(MutableSet[Entity]):
                 del registry._relation_tags_by_entity[self.entity]
 
         _relations_lookup_discard(registry, self.entity, self.key, target)
+        self.entity.registry._discard_relation_data(
+            self.entity, Relation(Tag(self.key)), "RelationTag", self.key, target
+        )
 
     def remove(self, target: Entity) -> None:
         """Remove a directly held relation target from this tag.
@@ -793,7 +808,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
     def __contains__(self, target: Entity) -> bool:  # type: ignore[override]
         """Return True if this relation contains the given value."""
-        _relation_tags_by_entity = self.entity.registry._relation_tags_by_entity
+        _relation_tags_by_entity = self.entity.registry._category_entity_key_data["RelationTag"]
         for entity in _traverse_entities(self.entity, self.traverse):
             by_entity = _relation_tags_by_entity.get(entity)
             if by_entity is None:
@@ -804,7 +819,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
     def _as_set(self) -> set[Entity]:
         """Return the combined targets of this mapping via traversal with duplicates removed."""
-        _relation_tags_by_entity = self.entity.registry._relation_tags_by_entity
+        _relation_tags_by_entity = self.entity.registry._category_entity_key_data["RelationTag"]
         results: set[Entity] = set()
         for entity in _traverse_entities(self.entity, self.traverse):
             by_entity = _relation_tags_by_entity.get(entity)
@@ -977,7 +992,7 @@ class EntityComponentRelationMapping(MutableMapping[Entity, T], Generic[T]):
 
     def __getitem__(self, target: Entity) -> T:
         """Return the component related to a target entity."""
-        _relation_components_by_entity = self.entity.registry._relation_components_by_entity
+        _relation_components_by_entity = self.entity.registry._category_entity_key_data["RelationComponent"]
         for entity in _traverse_entities(self.entity, self.traverse):
             by_entity = _relation_components_by_entity.get(entity)
             if by_entity is None:
@@ -1003,6 +1018,9 @@ class EntityComponentRelationMapping(MutableMapping[Entity, T], Generic[T]):
         registry._relation_components_by_entity[self.entity][self.key][target] = component
 
         _relations_lookup_add(registry, self.entity, self.key, target)
+        self.entity.registry._set_relation_data(
+            self.entity, Relation(Component.from_key(self.key)), "RelationComponent", self.key, target, component
+        )
 
     def __delitem__(self, target: Entity) -> None:
         """Delete a component assigned to the target entity."""
@@ -1020,10 +1038,13 @@ class EntityComponentRelationMapping(MutableMapping[Entity, T], Generic[T]):
             del registry._relation_components_by_entity[self.entity]
 
         _relations_lookup_discard(registry, self.entity, self.key, target)
+        self.entity.registry._discard_relation_data(
+            self.entity, Relation(Component.from_key(self.key)), "RelationComponent", self.key, target
+        )
 
     def keys(self) -> AbstractSet[Entity]:  # type: ignore[override]
         """Return all entities with an associated component value."""
-        _relation_components_by_entity = self.entity.registry._relation_components_by_entity
+        _relation_components_by_entity = self.entity.registry._category_entity_key_data["RelationComponent"]
         result: set[Entity] = set()
         for entity in _traverse_entities(self.entity, self.traverse):
             by_entity = _relation_components_by_entity.get(entity)
@@ -1112,7 +1133,7 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
 
     def keys(self) -> AbstractSet[ComponentKey[object]]:  # type: ignore[override]
         """Returns the components keys this entity has relations for."""
-        _relation_components_by_entity = self.entity.registry._relation_components_by_entity
+        _relation_components_by_entity = self.entity.registry._category_entity_key_data["RelationComponent"]
         return set().union(
             *(
                 _relation_components_by_entity.get(entity, ())
