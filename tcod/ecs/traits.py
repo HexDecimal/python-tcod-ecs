@@ -5,13 +5,18 @@ Mostly private at the moment.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import attrs
 from typing_extensions import Self, TypeForm, sentinel
 
 if TYPE_CHECKING:
-    from tcod.ecs.typing import ComponentKey
+    from collections.abc import Iterator
+    from types import EllipsisType
+
+    from tcod.ecs.entity import Entity
+    from tcod.ecs.query import BoundQuery
+    from tcod.ecs.typing import ComponentKey, _RelationQuery
 
 T = TypeVar("T")
 
@@ -52,10 +57,30 @@ class Relation(Generic[T]):
     """A relation trait for the sub-trait itself rather than any specific target."""
 
     trait: T
+    target: Entity | EllipsisType | BoundQuery
+    inverse: bool = False
+
+    @classmethod
+    def _from_query(cls, query: _RelationQuery, /) -> Self:
+        trait: Any
+        if len(query) == 2:  # noqa: PLR2004
+            trait, target = query
+            return cls(trait, target)
+        target, trait, _ = query
+        return cls(trait, target, inverse=True)
+
+    def _expand_lookup(self: Relation[T]) -> Iterator[Relation[T]]:
+        """Iterate over the variants of a common `Relation(trait, target)` trait."""
+        assert self.target is not ...
+        assert self.inverse is False
+        yield self
+        yield self.__class__(self.trait, ...)
+        yield self.__class__(self.trait, self.target, inverse=True)
+        yield self.__class__(self.trait, ..., inverse=True)
 
     def _get_alt(self: Relation[Component[object] | Tag]) -> Relation[Component[object] | Tag]:
         """Return a relation with the sub-trait swapped between Tag and Component traits."""
         if isinstance(self.trait, Tag):
-            return Relation(Component(type=self.trait.tag))  # type: ignore[arg-type]
+            return Relation(Component(type=self.trait.tag), self.target, self.inverse)  # type: ignore[arg-type]
         assert isinstance(self.trait, Component)
-        return Relation(Tag(self.trait._as_key()))
+        return Relation(Tag(self.trait._as_key()), self.target, self.inverse)

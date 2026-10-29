@@ -312,7 +312,7 @@ class Registry:
             for entity, key_target_data in categorized[relation_category].items():
                 for key, target_data in key_target_data.items():
                     for target, value in target_data.items():
-                        self._set_relation_data(entity, Relation(trait_cls(key)), relation_category, key, target, value)
+                        self._set_relation_data(entity, trait_cls(key), relation_category, key, target, value)
 
     def _migrate_from_old_structures(  # noqa: C901
         self,
@@ -331,17 +331,12 @@ class Registry:
         for entity, tag_relations in relation_tags_by_entity.items():
             for tag, targets in tag_relations.items():
                 for target in targets:
-                    self._set_relation_data(entity, Relation(Tag(tag)), "RelationTag", tag, target, True)  # noqa: FBT003
+                    self._set_relation_data(entity, Tag(tag), "RelationTag", tag, target, True)  # noqa: FBT003
         for entity, component_relations in relation_components_by_entity.items():
             for component_key, target_data in component_relations.items():
                 for target, data in target_data.items():
                     self._set_relation_data(
-                        entity,
-                        Relation(Component.from_key(component_key)),
-                        "RelationComponent",
-                        component_key,
-                        target,
-                        data,
+                        entity, Component.from_key(component_key), "RelationComponent", component_key, target, data
                     )
 
     def _get_tags_by_entity(self) -> dict[Entity, set[object]]:
@@ -507,7 +502,7 @@ class Registry:
     def _set_relation_data(  # noqa: PLR0913, PLR0917
         self,
         origin: Entity,
-        trait: Relation[Component[Any] | Tag],
+        sub_trait: Component[Any] | Tag,
         category: Literal["RelationComponent", "RelationTag"],
         key: Any,  # noqa: ANN401
         target: Entity,
@@ -517,17 +512,19 @@ class Registry:
         target_data = key_target_data.get(key)
         if target_data is None:
             target_data = key_target_data[key] = {}
-            self._set_lookup(origin, (trait, target), value=True)
-            self._set_lookup(origin, (trait, ...), value=True)
-            self._set_lookup(target, (origin, trait, None), value=True)
-            self._set_lookup(target, (..., trait, None), value=True)
+            for trait in Relation(sub_trait, target)._expand_lookup():
+                self._set_lookup(origin, (trait), value=True)
+
+            # Include legacy relation lookups which treat tags and components as equivalent
+            for trait in Relation(key, target)._expand_lookup():
+                self._set_lookup(origin, (trait), value=True)
 
         target_data[target] = value
 
     def _discard_relation_data(
         self,
         origin: Entity,
-        trait: Relation[Component[Any] | Tag],
+        sub_trait: Component[Any] | Tag,
         category: Literal["RelationComponent", "RelationTag"],
         key: Any,  # noqa: ANN401
         target: Entity,
@@ -544,7 +541,10 @@ class Registry:
             if not key_target_data:
                 del self._category_entity_key_data[category][origin]
 
-        self._discard_lookup(origin, (trait, target))
-        self._discard_lookup(origin, (trait, ...))
-        self._discard_lookup(target, (origin, trait, None))
-        self._discard_lookup(target, (..., trait, None))
+        for trait in Relation(sub_trait, target)._expand_lookup():
+            self._discard_lookup(origin, trait)
+
+        # Remove legacy relation lookups if neither tag/component traits exist
+        if (Relation(sub_trait, target)._get_alt(), target) not in self._trait_entity_data:
+            for trait in Relation(key, target)._expand_lookup():
+                self._discard_lookup(origin, trait)
