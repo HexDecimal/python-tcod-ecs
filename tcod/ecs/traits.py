@@ -11,12 +11,12 @@ import attrs
 from typing_extensions import Self, TypeForm, sentinel
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterable, Iterator
     from types import EllipsisType
 
     from tcod.ecs.entity import Entity
     from tcod.ecs.query import BoundQuery
-    from tcod.ecs.typing import ComponentKey, _RelationQuery
+    from tcod.ecs.typing import ComponentKey, _RelationQuery, _Trait
 
 T = TypeVar("T")
 
@@ -57,11 +57,18 @@ class Relation(Generic[T]):
     """A relation trait for the sub-trait itself rather than any specific target."""
 
     trait: T
+    """The trait for this relation which could be Tag or Relation or a plain key."""
     target: Entity | EllipsisType | BoundQuery
+    """The target of this relation.
+
+    Can be a specific entity, a wildcard, or a query.
+    """
     inverse: bool = False
+    """If True then the target refers to the relations origin instead."""
 
     @classmethod
     def _from_query(cls, query: _RelationQuery, /) -> Self:
+        """Return a Relation from a query-like relation tuple."""
         trait: Any
         if len(query) == 2:  # noqa: PLR2004
             trait, target = query
@@ -84,3 +91,18 @@ class Relation(Generic[T]):
             return Relation(Component(type=self.trait.tag), self.target, self.inverse)  # type: ignore[arg-type]
         assert isinstance(self.trait, Component)
         return Relation(Tag(self.trait._as_key()), self.target, self.inverse)
+
+
+def traits_from_query(
+    *,
+    components: Iterable[ComponentKey[object]] = (),
+    tags: Iterable[object] = (),
+    relations: Iterable[_RelationQuery] = (),
+) -> Iterator[_Trait]:
+    """Iterate over the traits derived from a query."""
+    for component in components:
+        yield Component.from_key(component)
+    for tag in tags:
+        yield Tag(tag)
+    for relation in relations:
+        yield Relation._from_query(relation)

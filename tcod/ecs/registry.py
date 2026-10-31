@@ -17,7 +17,7 @@ from tcod.ecs.query import _QueryCache
 from tcod.ecs.traits import Component, Relation, Tag
 
 if TYPE_CHECKING:
-    from tcod.ecs.typing import ComponentKey, _RelationTargetLookup
+    from tcod.ecs.typing import ComponentKey, _RelationTargetLookup, _Trait
 
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
@@ -452,15 +452,16 @@ class Registry:
         """
         return tcod.ecs.query.BoundQuery(self)
 
-    def _set_lookup(self, entity: Entity, trait: object, value: object) -> None:
+    def _set_lookup(self, entity: Entity, trait: _Trait, value: object) -> None:
         """Internal call to set a lookup value.
 
         Usually called indirectly via `_set_data` or `_set_relation_data`.
         """
         entity_data = self._trait_entity_data.setdefault(trait, {})
         entity_data[entity] = value
+        self._query_cache._touch_trait(trait)
 
-    def _discard_lookup(self, entity: Entity, trait: object) -> None:
+    def _discard_lookup(self, entity: Entity, trait: _Trait) -> None:
         """Internal call to delete a lookup value.
 
         Usually called indirectly via `_discard_data` or `_discard_relation_data`.
@@ -471,11 +472,12 @@ class Registry:
         entity_data.pop(entity, None)
         if not entity_data:
             del self._trait_entity_data[trait]
+        self._query_cache._touch_trait(trait)
 
     def _set_data(
         self,
         entity: Entity,
-        trait: object,
+        trait: _Trait,
         category: Literal["Component", "Tag"],
         key: Any,  # noqa: ANN401
         value: object,
@@ -487,7 +489,7 @@ class Registry:
 
         self._set_lookup(entity, trait, value)
 
-    def _discard_data(self, entity: Entity, trait: object, category: Literal["Component", "Tag"], key: Any) -> None:  # noqa: ANN401
+    def _discard_data(self, entity: Entity, trait: _Trait, category: Literal["Component", "Tag"], key: Any) -> None:  # noqa: ANN401
         """Delete an `entity`'s `trait` and remove it from the lookup table. Does nothing if these don't exist."""
         entity_key_data = self._category_entity_key_data[category]
         key_data = entity_key_data.get(entity)

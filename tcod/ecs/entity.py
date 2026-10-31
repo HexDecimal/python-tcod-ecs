@@ -436,9 +436,6 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
 
         old_value = self.entity.registry._components_by_entity[self.entity].get(key)
 
-        if old_value is None:
-            tcod.ecs.query._touch_component(self.entity.registry, key)  # Component added
-
         self.entity.registry._components_by_entity[self.entity][key] = value
         self.entity.registry._components_by_type[key][self.entity] = value
 
@@ -465,7 +462,6 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
 
         self.entity.registry._discard_data(self.entity, Component.from_key(key), "Component", key)
 
-        tcod.ecs.query._touch_component(self.entity.registry, key)  # Component removed
         tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, None)
 
     def keys(self) -> AbstractSet[ComponentKey[object]]:  # type: ignore[override]
@@ -634,7 +630,6 @@ class EntityTags(MutableSet[Any]):
         """Add a tag to the entity."""
         if tag in self.entity.registry._tags_by_entity[self.entity]:
             return  # Already has tag
-        tcod.ecs.query._touch_tag(self.entity.registry, tag)  # Tag added
 
         self.entity.registry._tags_by_entity[self.entity].add(tag)
         self.entity.registry._tags_by_key[tag].add(self.entity)
@@ -645,7 +640,6 @@ class EntityTags(MutableSet[Any]):
         """Discard a tag directly held by an entity."""
         if tag not in self.entity.registry._tags_by_entity.get(self.entity, ()):
             return  # Already doesn't have tag
-        tcod.ecs.query._touch_tag(self.entity.registry, tag)  # Tag removed
 
         self.entity.registry._discard_data(self.entity, Tag(tag), "Tag", tag)
 

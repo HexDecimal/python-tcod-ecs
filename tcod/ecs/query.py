@@ -13,6 +13,7 @@ from typing_extensions import Self, deprecated
 
 import tcod.ecs.entity
 from tcod.ecs.constants import IsA
+from tcod.ecs.traits import traits_from_query
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 
     from tcod.ecs.entity import Entity
     from tcod.ecs.registry import Registry
-    from tcod.ecs.typing import ComponentKey, _RelationQuery
+    from tcod.ecs.typing import ComponentKey, _RelationQuery, _Trait
 
 _T1 = TypeVar("_T1")
 _T2 = TypeVar("_T2")
@@ -35,12 +36,8 @@ class _QueryCache:
 
     queries: dict[_Query, AbstractSet[Entity]] = attrs.field(factory=dict)
     """Table of cached queries."""
-    by_components: defaultdict[ComponentKey[object], WeakSet[_Query]] = attrs.field(
-        factory=lambda: defaultdict(WeakSet)
-    )
-    """Which queries depend on which components."""
-    by_tags: defaultdict[object, WeakSet[_Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
-    """Which queries depend on which tags."""
+    by_traits: defaultdict[_Trait, WeakSet[_Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
+    """Which queries depend on which traits."""
     by_relations: defaultdict[_RelationQuery, WeakSet[_Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
     """Which queries depend on which relations."""
 
@@ -50,30 +47,18 @@ class _QueryCache:
     `dependencies[dependency] = {dependant}`
     """
 
+    def _drop_cached_query(self, query: _Query) -> None:
+        """Drop a cached query and all of its dependant queries."""
+        self.queries.pop(query, None)
+        for sub_registry, sub_query in self.dependencies.pop(query, ()):
+            sub_registry._query_cache._drop_cached_query(sub_query)
 
-def _drop_cached_query(cache: _QueryCache, query: _Query) -> None:
-    """Drop a cached query and all of its dependant queries."""
-    cache.queries.pop(query, None)
-    for sub_registry, sub_query in cache.dependencies.pop(query, ()):
-        _drop_cached_query(_get_query_cache(sub_registry), sub_query)
-
-
-def _touch_component(registry: Registry, component: ComponentKey[object]) -> None:
-    """Drop cached queries if a component change has invalidated them."""
-    cache = _get_query_cache(registry)
-    if component not in cache.by_components:
-        return
-    for touched_query in cache.by_components.pop(component, ()):
-        _drop_cached_query(cache, touched_query)
-
-
-def _touch_tag(registry: Registry, tag: object) -> None:
-    """Drop cached queries if a tag change has invalidated them."""
-    cache = _get_query_cache(registry)
-    if tag not in cache.by_tags:
-        return
-    for touched_query in cache.by_tags.pop(tag, ()):
-        _drop_cached_query(cache, touched_query)
+    def _touch_trait(self, trait: _Trait) -> None:
+        """Drop cached queries if a trait change has invalidated them."""
+        if trait not in self.by_traits:
+            return
+        for touched_query in self.by_traits.pop(trait, ()):
+            self._drop_cached_query(touched_query)
 
 
 def _touch_relations(registry: Registry, relations: Iterable[_RelationQuery]) -> None:
@@ -83,7 +68,7 @@ def _touch_relations(registry: Registry, relations: Iterable[_RelationQuery]) ->
         if relation not in cache.by_relations:
             continue
         for touched_query in cache.by_relations.pop(relation, ()):
-            _drop_cached_query(cache, touched_query)
+            cache._drop_cached_query(touched_query)
 
 
 def _check_suspicious_tags(tags: Iterable[object], stacklevel: int = 2) -> None:
@@ -164,34 +149,21 @@ class _Query(Protocol):
         ...
 
     def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:
-        """Compile the entities of this query, returning a set which must not be modified."""
+        """Compile the entities of this query, returning a set which must not be modified by the caller."""
         ...
 
 
 @attrs.define(frozen=True)
-class _QueryComponent:
-    """Query all entities with the given component."""
+class _QueryTrait:
+    """Query all entities with the given trait."""
 
-    _component: ComponentKey[object]
-
-    def _add_to_cache(self, registry: Registry, cache: _QueryCache) -> None:  # noqa: ARG002
-        cache.by_components[self._component].add(self)
-
-    def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:  # noqa: ARG002
-        return registry._components_by_type.get(self._component, {}).keys()
-
-
-@attrs.define(frozen=True)
-class _QueryTag:
-    """Query all entities with the given tag."""
-
-    _tag: object
+    trait: _Trait
 
     def _add_to_cache(self, registry: Registry, cache: _QueryCache) -> None:  # noqa: ARG002
-        cache.by_tags[self._tag].add(self)
+        cache.by_traits[self.trait].add(self)
 
     def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:  # noqa: ARG002
-        return registry._tags_by_key.get(self._tag, set())
+        return registry._trait_entity_data.get(self.trait, {}).keys()
 
 
 @attrs.define(frozen=True)
@@ -355,8 +327,10 @@ class BoundQuery:
     ) -> Iterator[_Query]:
         """Convert parameters into queries."""
         traverse = tuple(traverse)
-        yield from (_QueryTraversalPropagation(_QueryComponent(component), traverse, depth) for component in components)
-        yield from (_QueryTraversalPropagation(_QueryTag(tag), traverse, depth) for tag in tags)
+        yield from (
+            _QueryTraversalPropagation(_QueryTrait(trait), traverse, depth)
+            for trait in traits_from_query(components=components, tags=tags)
+        )
         yield from (_QueryTraversalPropagation(_QueryRelation(relations), traverse, depth) for relations in relations)
 
     def all_of(

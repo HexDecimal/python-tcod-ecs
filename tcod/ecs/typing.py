@@ -10,6 +10,7 @@ from typing_extensions import TypeForm
 if TYPE_CHECKING:
     from tcod.ecs.entity import Entity
     from tcod.ecs.query import BoundQuery
+    from tcod.ecs.traits import Component, Relation, Tag
 else:
     Entity = Any
     BoundQuery = Any
@@ -36,3 +37,6 @@ One of 4 formats:
 * (origin, tag, None)
 * (..., tag, None)
 """
+
+_Trait: TypeAlias = "Component[Any] | Tag | Relation[Any]"  # noqa: PYI047
+"""Available trait objects."""
