@@ -76,19 +76,17 @@ class Relation(Generic[T]):
         target, trait, _ = query
         return cls(trait, target, inverse=True)
 
-    def _expand_lookup(self: Relation[T]) -> Iterator[Relation[T]]:
-        """Iterate over the variants of a common `Relation(trait, target)` trait."""
-        assert self.target is not ...
-        assert self.inverse is False
-        yield self
-        yield self.__class__(self.trait, ...)
-        yield self.__class__(self.trait, self.target, inverse=True)
-        yield self.__class__(self.trait, ..., inverse=True)
+    def _as_query(self) -> _RelationQuery:
+        if self.inverse:
+            return (self.target, self.trait, None)
+        return (self.trait, self.target)
 
-    def _get_alt(self: Relation[Component[object] | Tag]) -> Relation[Component[object] | Tag]:
+    def _get_alt(self: Relation[Component[object] | Tag]) -> Relation[Component[object] | Tag] | None:
         """Return a relation with the sub-trait swapped between Tag and Component traits."""
         if isinstance(self.trait, Tag):
-            return Relation(Component(type=self.trait.tag), self.target, self.inverse)  # type: ignore[arg-type]
+            if isinstance(self.trait.tag, tuple) and len(self.trait.tag) != 2:  # noqa: PLR2004
+                return None  # Tag not convertible to a Component
+            return Relation(Component.from_key(self.trait.tag), self.target, self.inverse)  # type: ignore[arg-type]
         assert isinstance(self.trait, Component)
         return Relation(Tag(self.trait._as_key()), self.target, self.inverse)
 

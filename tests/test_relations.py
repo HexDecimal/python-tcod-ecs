@@ -248,7 +248,7 @@ def test_relation_component_tables() -> None:
     del e3.relation_components[int][e1]
     assert set(w.Q.all_of(relations=[(e3, int, None)])) == {e2}
     assert set(w.Q.all_of(relations=[(..., int, None)])) == {e2}
-    assert set(w.Q.all_of(relations=[(int, ...)])) == {e1, e3}
+    assert set(w.Q.all_of(relations=[(int, ...)])) == {e1, e3}  # e3 still has int relation to e2
 
     del e3.relation_components[int][e2]
     assert set(w.Q.all_of(relations=[(..., int, None)])) == {e2}
@@ -280,7 +280,7 @@ def test_relation_tag_tables() -> None:
     e3.relation_tags_many["tag"].discard(e1)
     assert set(w.Q.all_of(relations=[(e3, "tag", None)])) == {e2}
     assert set(w.Q.all_of(relations=[(..., "tag", None)])) == {e2}
-    assert set(w.Q.all_of(relations=[("tag", ...)])) == {e1, e3}
+    assert set(w.Q.all_of(relations=[("tag", ...)])) == {e1, e3}  # e3 still has tag relation to e2
 
     del e3.relation_tag["tag"]
     assert set(w.Q.all_of(relations=[(..., "tag", None)])) == {e2}

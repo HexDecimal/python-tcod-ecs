@@ -13,7 +13,7 @@ from typing_extensions import Self, deprecated
 
 import tcod.ecs.entity
 from tcod.ecs.constants import IsA
-from tcod.ecs.traits import traits_from_query
+from tcod.ecs.traits import Relation, traits_from_query
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -91,19 +91,12 @@ def _fetch_relation_table(registry: Registry, relation: _RelationQuery) -> Abstr
 
     For advanced cases `BoundQuery` this returns the subset of entities following the query condition.
     """
-    if len(relation) == 2:  # noqa: PLR2004
-        tag, target = relation
-        if not isinstance(target, BoundQuery):
-            return registry._relations_lookup.get((tag, target), frozenset())
-
-        registry = target.registry
-        return set().union(*(registry._relations_lookup.get((tag, entity), ()) for entity in target))
-    origin, tag, target_none = relation
-    if not isinstance(origin, BoundQuery):
-        return registry._relations_lookup.get((origin, tag, target_none), frozenset())
-
-    registry = origin.registry
-    return set().union(*(registry._relations_lookup.get((entity, tag, None), ()) for entity in origin))
+    trait: Relation[Any] = Relation._from_query(relation)
+    if not isinstance(trait.target, BoundQuery):
+        return registry._trait_entity_data.get(trait, {}).keys()
+    return set().union(
+        *(registry._trait_entity_data.get(Relation(trait.trait, entity, trait.inverse), ()) for entity in trait.target)
+    )
 
 
 def _get_query_cache(registry: Registry) -> _QueryCache:
@@ -174,19 +167,14 @@ class _QueryRelation:
 
     def _add_to_cache(self, registry: Registry, cache: _QueryCache) -> None:
         """Add this query to the cache and mark it dependant on a registry query if the relation uses one."""
+        trait: Relation[Any] = Relation._from_query(self._relation)
 
-        def _get_registry_query() -> BoundQuery | None:
-            """Return the bound query of a relation if it exists."""
-            if isinstance(self._relation[0], BoundQuery):
-                return self._relation[0]
-            if isinstance(self._relation[-1], BoundQuery):
-                return self._relation[-1]
-            return None
-
-        cache.by_relations[self._relation].add(self)
-        w_query = _get_registry_query()
-        if w_query is not None:
-            _get_query_cache(w_query.registry).dependencies[w_query._query].add((registry, self))
+        target_query = trait.target
+        if isinstance(target_query, BoundQuery):
+            target_query.registry._query_cache.dependencies[target_query._query].add((registry, self))
+        else:
+            cache.by_relations[self._relation].add(self)
+            cache.by_traits[trait].add(self)
 
     def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:  # noqa: ARG002
         return _fetch_relation_table(registry, self._relation)

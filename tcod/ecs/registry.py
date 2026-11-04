@@ -459,7 +459,7 @@ class Registry:
         """
         entity_data = self._trait_entity_data.setdefault(trait, {})
         entity_data[entity] = value
-        self._query_cache._touch_trait(trait)
+        self._query_cache._touch_trait(trait)  # Maybe entity added to trait
 
     def _discard_lookup(self, entity: Entity, trait: _Trait) -> None:
         """Internal call to delete a lookup value.
@@ -472,7 +472,37 @@ class Registry:
         entity_data.pop(entity, None)
         if not entity_data:
             del self._trait_entity_data[trait]
-        self._query_cache._touch_trait(trait)
+        self._query_cache._touch_trait(trait)  # Maybe entity removed from trait
+
+    def _add_lookup_relation(self, entity: Entity, trait: _Trait, target: Entity) -> None:
+        """Add `entity` to the lookup for `trait`. The lookup will be kept alive by `target`.
+
+        The data for this lookup is the set of `target` entities.
+
+        Usually called indirectly.
+        """
+        entity_data = self._trait_entity_data.setdefault(trait, {})
+        entity_data.setdefault(entity, set()).add(target)
+        self._query_cache._touch_trait(trait)  # Maybe entity added to trait
+
+    def _discard_lookup_relation(self, entity: Entity, trait: _Trait, target: Entity) -> None:
+        """Discard `target` from a lookup set. Discard lookup when the set is empty.
+
+        Usually called indirectly.
+        """
+        entity_data = self._trait_entity_data.get(trait)
+        if entity_data is None:
+            return  # Trait is not in registry
+        if entity not in entity_data:
+            return  # entity not in trait
+
+        entity_data[entity].discard(target)
+        if not entity_data[entity]:
+            del entity_data[entity]
+            if not entity_data:
+                del self._trait_entity_data[trait]
+
+        self._query_cache._touch_trait(trait)  # Maybe entity removed from trait
 
     def _set_data(
         self,
@@ -514,14 +544,18 @@ class Registry:
         target_data = key_target_data.get(key)
         if target_data is None:
             target_data = key_target_data[key] = {}
-            for trait in Relation(sub_trait, target)._expand_lookup():
-                self._set_lookup(origin, (trait), value=True)
-
-            # Include legacy relation lookups which treat tags and components as equivalent
-            for trait in Relation(key, target)._expand_lookup():
-                self._set_lookup(origin, (trait), value=True)
-
         target_data[target] = value
+
+        self._set_lookup(origin, Relation(sub_trait, target), value=True)
+        self._add_lookup_relation(origin, Relation(sub_trait, ...), target)
+        self._set_lookup(target, Relation(sub_trait, origin, inverse=True), value=True)
+        self._add_lookup_relation(target, Relation(sub_trait, ..., inverse=True), origin)
+
+        # Add legacy lookups
+        self._set_lookup(origin, Relation(key, target), value=True)
+        self._add_lookup_relation(origin, Relation(key, ...), target)
+        self._set_lookup(target, Relation(key, origin, inverse=True), value=True)
+        self._add_lookup_relation(target, Relation(key, ..., inverse=True), origin)
 
     def _discard_relation_data(
         self,
@@ -543,10 +577,14 @@ class Registry:
             if not key_target_data:
                 del self._category_entity_key_data[category][origin]
 
-        for trait in Relation(sub_trait, target)._expand_lookup():
-            self._discard_lookup(origin, trait)
+        self._discard_lookup(origin, Relation(sub_trait, target))
+        self._discard_lookup_relation(origin, Relation(sub_trait, ...), target)
+        self._discard_lookup(target, Relation(sub_trait, origin, inverse=True))
+        self._discard_lookup_relation(target, Relation(sub_trait, ..., inverse=True), origin)
 
         # Remove legacy relation lookups if neither tag/component traits exist
-        if (Relation(sub_trait, target)._get_alt(), target) not in self._trait_entity_data:
-            for trait in Relation(key, target)._expand_lookup():
-                self._discard_lookup(origin, trait)
+        if Relation(sub_trait, target)._get_alt() not in self._trait_entity_data:
+            self._discard_lookup(origin, Relation(key, target))
+            self._discard_lookup_relation(origin, Relation(key, ...), target)
+            self._discard_lookup(target, Relation(key, origin, inverse=True))
+            self._discard_lookup_relation(target, Relation(key, ..., inverse=True), origin)

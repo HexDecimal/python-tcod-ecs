@@ -788,7 +788,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
         This will raise KeyError of only an indirect relation target exists.
         """
-        relations = self.entity.registry._relation_tags_by_entity.get(self.entity)
+        relations = self.entity.registry._category_entity_key_data["RelationTag"].get(self.entity)
         if relations is None:
             raise KeyError(target)
         targets = relations.get(self.key)
@@ -828,7 +828,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
     def clear(self) -> None:
         """Discard all targets for this tag relation."""
-        by_entity = self.entity.registry._relation_tags_by_entity.get(self.entity)
+        by_entity = self.entity.registry._category_entity_key_data["RelationTag"].get(self.entity)
         if by_entity is None:
             return
         for key in list(by_entity.get(self.key, ())):
@@ -874,7 +874,7 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
 
     def __iter__(self) -> Iterator[Any]:
         """Iterate over the unique relation tags of this entity."""
-        _relation_tags_by_entity = self.entity.registry._relation_tags_by_entity
+        _relation_tags_by_entity = self.entity.registry._category_entity_key_data["RelationTag"]
         empty_dict: dict[object, set[Entity]] = {}
         yield from set().union(
             *(
@@ -889,7 +889,7 @@ class EntityRelations(MutableMapping[object, EntityRelationsMapping]):
 
     def clear(self) -> None:
         """Discard all tag relations from an entity."""
-        for key in list(self.entity.registry._relation_tags_by_entity.get(self.entity, ())):
+        for key in list(self.entity.registry._category_entity_key_data["RelationTag"].get(self.entity, ())):
             del self[key]
 
 
@@ -916,7 +916,7 @@ class EntityRelationsExclusive(MutableMapping[object, Entity]):
         If the relation has no target then raises KeyError.
         If the relation is not exclusive then raises ValueError.
         """
-        _relation_tags_by_entity = self.entity.registry._relation_tags_by_entity
+        _relation_tags_by_entity = self.entity.registry._category_entity_key_data["RelationTag"]
         for entity in _traverse_entities(self.entity, self.traverse):
             by_entity = _relation_tags_by_entity.get(entity)
             if by_entity is None:
@@ -1118,7 +1118,9 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
 
         Does not clear relations targeting this entity.
         """
-        for component_key in list(self.entity.registry._relation_components_by_entity.get(self.entity, ())):
+        for component_key in list(
+            self.entity.registry._category_entity_key_data["RelationComponent"].get(self.entity, ())
+        ):
             self[component_key].clear()
 
     def keys(self) -> AbstractSet[ComponentKey[object]]:  # type: ignore[override]
