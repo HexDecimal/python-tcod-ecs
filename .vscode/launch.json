@@ -16,7 +16,6 @@
             "type": "debugpy",
             "request": "launch",
             "module": "pytest",
-            "preLaunchTask": "develop tcod-ecs",
         },
         {
             "name": "Documentation: Launch Chrome",
