@@ -358,3 +358,14 @@ def test_query_contradictory_filters(kind: str, *, reverse: bool) -> None:
     actor.clear()
     assert not query
     assert not included
+
+
+def test_pickle_empty() -> None:
+    world = pickle.loads(pickle.dumps(tcod.ecs.Registry()))  # noqa: S301
+    assert isinstance(world, tcod.ecs.Registry)
+
+    # Internals should be initialized
+    world[None].components[int] = 1
+    world[None].tags.add(1)
+    world[None].relation_tag["t"] = world[None]
+    world[None].relation_components[int][world[None]] = 1

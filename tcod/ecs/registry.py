@@ -107,11 +107,17 @@ class _CategorizedData(TypedDict):
     """
 
 
+def _new_CategorizedData() -> _CategorizedData:  # noqa: N802
+    """Return a new categorized data dict with empty values."""
+    # Parameter order doesn't matter but tests are sensitive to it
+    return _CategorizedData(Component={}, Tag={}, RelationTag={}, RelationComponent={})
+
+
 @attrs.define(eq=False)
 class Registry:
     """A container for entities and components."""
 
-    _category_entity_key_data: _CategorizedData = attrs.field(init=False, factory=lambda: defaultdict(dict))  # type: ignore[assignment]
+    _category_entity_key_data: _CategorizedData = attrs.field(init=False, factory=_new_CategorizedData)
     """Random access to entity data by category.
 
     This is used as the primary source of truth for data associations.
@@ -279,7 +285,7 @@ class Registry:
             global_._force_remap(None)
 
         self._trait_entity_data = {}
-        self._category_entity_key_data = defaultdict(dict)  # type: ignore[assignment]
+        self._category_entity_key_data = _new_CategorizedData()
 
         categorized: _CategorizedData | None = state.pop("_categorized", None)
         if categorized is not None:
@@ -296,7 +302,7 @@ class Registry:
             warnings.warn(f"These attributes were not unpacked {state.keys()}", RuntimeWarning, stacklevel=1)
 
     def _generate_from_categorized_data(self, categorized: _CategorizedData) -> None:
-        """Set internal data and lookup tables from categorized data."""
+        """Set internal data and lookup tables from categorized data. The input `categorized` is untouched."""
         key: Any
         for standard_category in ("Component", "Tag"):
             if standard_category not in categorized:
@@ -367,7 +373,7 @@ class Registry:
     def __getstate__(self) -> dict[str, Any]:
         """Pickle this object."""
         return {
-            "_categorized": dict(**self._category_entity_key_data),  # Since >5.5
+            "_categorized": self._category_entity_key_data,  # Since >5.5
             # Remaining items for backwards compatibility
             "_components_by_type": self._get_components_by_type(),
             "_tags_by_entity": self._get_tags_by_entity(),
