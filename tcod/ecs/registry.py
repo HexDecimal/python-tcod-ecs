@@ -117,7 +117,7 @@ def _new_CategorizedData() -> _CategorizedData:  # noqa: N802
 class Registry:
     """A container for entities and components."""
 
-    _category_entity_key_data: _CategorizedData = attrs.field(init=False, factory=_new_CategorizedData)
+    _any_by_key_by_entity_by_category: _CategorizedData = attrs.field(init=False, factory=_new_CategorizedData)
     """Random access to entity data by category.
 
     This is used as the primary source of truth for data associations.
@@ -132,8 +132,16 @@ class Registry:
 
     """
 
-    _trait_entity_data: dict[object, dict[Entity, Any]] = attrs.field(init=False, factory=dict)
+    _any_by_entity_by_trait: dict[object, dict[Entity, Any]] = attrs.field(init=False, factory=dict)
     """Query lookup table for all traits.
+
+    For any trait key, the inner dict keys include all entities including that trait.
+
+    The data assigned may be used for optimization or bookkeeping, otherwise the data will be literal True.
+
+    The data assigned is respective of the trait.
+    Components duplicate the source data as trait data.
+    Wildcard relations use trait data to track the other ends of a relation.
 
     dict[trait][Entity] = trait_data
     """
@@ -284,8 +292,8 @@ class Registry:
         if global_ is not None and global_.uid is not None:  # Migrate from version <=1.2.0
             global_._force_remap(None)
 
-        self._trait_entity_data = {}
-        self._category_entity_key_data = _new_CategorizedData()
+        self._any_by_entity_by_trait = {}
+        self._any_by_key_by_entity_by_category = _new_CategorizedData()
 
         categorized: _CategorizedData | None = state.pop("_categorized", None)
         if categorized is not None:
@@ -346,13 +354,13 @@ class Registry:
                     )
 
     def _get_tags_by_entity(self) -> dict[Entity, set[object]]:
-        _tags_by_entity = {entity: set(tags) for entity, tags in self._category_entity_key_data["Tag"].items()}
+        _tags_by_entity = {entity: set(tags) for entity, tags in self._any_by_key_by_entity_by_category["Tag"].items()}
         assert _tags_by_entity == self._tags_by_entity
         return _tags_by_entity
 
     def _get_components_by_type(self) -> dict[ComponentKey[object], dict[Entity, object]]:
         _components_by_type: dict[ComponentKey[object], dict[Entity, object]] = {}
-        for entity, component_data in self._category_entity_key_data["Component"].items():
+        for entity, component_data in self._any_by_key_by_entity_by_category["Component"].items():
             for component_key, value in component_data.items():
                 _components_by_type.setdefault(component_key, {})[entity] = value
         assert _components_by_type == self._components_by_type
@@ -361,19 +369,19 @@ class Registry:
     def _get_relation_tags_by_entity(self) -> dict[Entity, dict[object, set[Entity]]]:
         _relation_tags_by_entity: dict[Entity, dict[object, set[Entity]]] = {
             entity: {tag: set(targets) for tag, targets in tag_targets.items()}
-            for entity, tag_targets in self._category_entity_key_data["RelationTag"].items()
+            for entity, tag_targets in self._any_by_key_by_entity_by_category["RelationTag"].items()
         }
         assert _relation_tags_by_entity == self._relation_tags_by_entity
         return _relation_tags_by_entity
 
     def _get_relation_components_by_entity(self) -> dict[Entity, dict[ComponentKey[object], dict[Entity, Any]]]:
-        assert self._category_entity_key_data["RelationComponent"] == self._relation_components_by_entity
-        return self._category_entity_key_data["RelationComponent"]
+        assert self._any_by_key_by_entity_by_category["RelationComponent"] == self._relation_components_by_entity
+        return self._any_by_key_by_entity_by_category["RelationComponent"]
 
     def __getstate__(self) -> dict[str, Any]:
         """Pickle this object."""
         return {
-            "_categorized": self._category_entity_key_data,  # Since >5.5
+            "_categorized": self._any_by_key_by_entity_by_category,  # Since >5.5
             # Remaining items for backwards compatibility
             "_components_by_type": self._get_components_by_type(),
             "_tags_by_entity": self._get_tags_by_entity(),
@@ -463,8 +471,8 @@ class Registry:
 
         Usually called indirectly via `_set_data` or `_set_relation_data`.
         """
-        entity_data = self._trait_entity_data.setdefault(trait, {})
-        entity_data[entity] = value
+        any_by_entity = self._any_by_entity_by_trait.setdefault(trait, {})
+        any_by_entity[entity] = value
         self._query_cache._touch_trait(trait)  # Maybe entity added to trait
 
     def _discard_lookup(self, entity: Entity, trait: _Trait) -> None:
@@ -472,12 +480,12 @@ class Registry:
 
         Usually called indirectly via `_discard_data` or `_discard_relation_data`.
         """
-        entity_data = self._trait_entity_data.get(trait)
-        if entity_data is None:
+        any_by_entity = self._any_by_entity_by_trait.get(trait)
+        if any_by_entity is None:
             return  # Trait is not in registry
-        entity_data.pop(entity, None)
-        if not entity_data:
-            del self._trait_entity_data[trait]
+        any_by_entity.pop(entity, None)
+        if not any_by_entity:
+            del self._any_by_entity_by_trait[trait]
         self._query_cache._touch_trait(trait)  # Maybe entity removed from trait
 
     def _add_lookup_relation(self, entity: Entity, trait: _Trait, target: Entity) -> None:
@@ -487,8 +495,8 @@ class Registry:
 
         Usually called indirectly.
         """
-        entity_data = self._trait_entity_data.setdefault(trait, {})
-        entity_data.setdefault(entity, set()).add(target)
+        ends_by_entity: dict[Entity, set[Entity]] = self._any_by_entity_by_trait.setdefault(trait, {})
+        ends_by_entity.setdefault(entity, set()).add(target)
         self._query_cache._touch_trait(trait)  # Maybe entity added to trait
 
     def _discard_lookup_relation(self, entity: Entity, trait: _Trait, target: Entity) -> None:
@@ -496,17 +504,17 @@ class Registry:
 
         Usually called indirectly.
         """
-        entity_data = self._trait_entity_data.get(trait)
-        if entity_data is None:
+        ends_by_entity: dict[Entity, set[Entity]] | None = self._any_by_entity_by_trait.get(trait)
+        if ends_by_entity is None:
             return  # Trait is not in registry
-        if entity not in entity_data:
+        if entity not in ends_by_entity:
             return  # entity not in trait
 
-        entity_data[entity].discard(target)
-        if not entity_data[entity]:
-            del entity_data[entity]
-            if not entity_data:
-                del self._trait_entity_data[trait]
+        ends_by_entity[entity].discard(target)
+        if not ends_by_entity[entity]:
+            del ends_by_entity[entity]
+            if not ends_by_entity:
+                del self._any_by_entity_by_trait[trait]
 
         self._query_cache._touch_trait(trait)  # Maybe entity removed from trait
 
@@ -519,21 +527,21 @@ class Registry:
         value: object,
     ) -> None:
         """Set an `entity`'s `trait` = `value`. Also sets up the lookup table for `trait` with the same `value`."""
-        entity_key_data = self._category_entity_key_data[category]
-        key_data = entity_key_data.setdefault(entity, {})
-        key_data[key] = value
+        data_by_key_by_entity = self._any_by_key_by_entity_by_category[category]
+        data_by_key = data_by_key_by_entity.setdefault(entity, {})
+        data_by_key[key] = value
 
         self._set_lookup(entity, trait, value)
 
     def _discard_data(self, entity: Entity, trait: _Trait, category: Literal["Component", "Tag"], key: Any) -> None:  # noqa: ANN401
         """Delete an `entity`'s `trait` and remove it from the lookup table. Does nothing if these don't exist."""
-        entity_key_data = self._category_entity_key_data[category]
-        key_data = entity_key_data.get(entity)
-        if key_data is None:
+        data_by_key_by_entity = self._any_by_key_by_entity_by_category[category]
+        data_by_key = data_by_key_by_entity.get(entity)
+        if data_by_key is None:
             return
-        key_data.pop(key, None)
-        if not key_data:
-            del entity_key_data[entity]
+        data_by_key.pop(key, None)
+        if not data_by_key:
+            del data_by_key_by_entity[entity]
 
         self._discard_lookup(entity, trait)
 
@@ -546,11 +554,11 @@ class Registry:
         target: Entity,
         value: object,
     ) -> None:
-        key_target_data = self._category_entity_key_data[category].setdefault(origin, {})
-        target_data = key_target_data.get(key)
-        if target_data is None:
-            target_data = key_target_data[key] = {}
-        target_data[target] = value
+        data_by_target_by_key = self._any_by_key_by_entity_by_category[category].setdefault(origin, {})
+        data_by_target = data_by_target_by_key.get(key)
+        if data_by_target is None:
+            data_by_target = data_by_target_by_key[key] = {}
+        data_by_target[target] = value
 
         self._set_lookup(origin, Relation(sub_trait, target), value=True)
         self._add_lookup_relation(origin, Relation(sub_trait, ...), target)
@@ -571,17 +579,17 @@ class Registry:
         key: Any,  # noqa: ANN401
         target: Entity,
     ) -> None:
-        key_target_data = self._category_entity_key_data[category].get(origin)
-        if key_target_data is None:
+        data_by_target_by_key = self._any_by_key_by_entity_by_category[category].get(origin)
+        if data_by_target_by_key is None:
             return  # Entity is not in registry
-        target_data = key_target_data.get(key)
-        if target_data is None:
+        data_by_target = data_by_target_by_key.get(key)
+        if data_by_target is None:
             return  # Entity relation is not in registry
-        target_data.pop(target, None)
-        if not target_data:
-            del key_target_data[key]
-            if not key_target_data:
-                del self._category_entity_key_data[category][origin]
+        data_by_target.pop(target, None)
+        if not data_by_target:
+            del data_by_target_by_key[key]
+            if not data_by_target_by_key:
+                del self._any_by_key_by_entity_by_category[category][origin]
 
         self._discard_lookup(origin, Relation(sub_trait, target))
         self._discard_lookup_relation(origin, Relation(sub_trait, ...), target)
@@ -589,7 +597,7 @@ class Registry:
         self._discard_lookup_relation(target, Relation(sub_trait, ..., inverse=True), origin)
 
         # Remove legacy relation lookups if neither tag/component traits exist
-        if Relation(sub_trait, target)._get_alt() not in self._trait_entity_data:
+        if Relation(sub_trait, target)._get_alt() not in self._any_by_entity_by_trait:
             self._discard_lookup(origin, Relation(key, target))
             self._discard_lookup_relation(origin, Relation(key, ...), target)
             self._discard_lookup(target, Relation(key, origin, inverse=True))

@@ -93,9 +93,12 @@ def _fetch_relation_table(registry: Registry, relation: _RelationQuery) -> Abstr
     """
     trait: Relation[Any] = Relation._from_query(relation)
     if not isinstance(trait.target, BoundQuery):
-        return registry._trait_entity_data.get(trait, {}).keys()
+        return registry._any_by_entity_by_trait.get(trait, {}).keys()
     return set().union(
-        *(registry._trait_entity_data.get(Relation(trait.trait, entity, trait.inverse), ()) for entity in trait.target)
+        *(
+            registry._any_by_entity_by_trait.get(Relation(trait.trait, entity, trait.inverse), ())
+            for entity in trait.target
+        )
     )
 
 
@@ -156,7 +159,7 @@ class _QueryTrait:
         cache.by_traits[self.trait].add(self)
 
     def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:  # noqa: ARG002
-        return registry._trait_entity_data.get(self.trait, {}).keys()
+        return registry._any_by_entity_by_trait.get(self.trait, {}).keys()
 
 
 @attrs.define(frozen=True)
