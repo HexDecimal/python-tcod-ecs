@@ -710,7 +710,6 @@ def _relations_lookup_add(registry: Registry, origin: Entity, tag: object, targe
     registry._relations_lookup[(tag, ...)].add(origin)
     registry._relations_lookup[(origin, tag, None)].add(target)
     registry._relations_lookup[(..., tag, None)].add(target)
-    tcod.ecs.query._touch_relations(registry, ((tag, target), (tag, ...), (origin, tag, None), (..., tag, None)))
 
 
 def _relations_lookup_discard(registry: Registry, origin: Entity, tag: object, target: Entity) -> None:
@@ -736,8 +735,6 @@ def _relations_lookup_discard(registry: Registry, origin: Entity, tag: object, t
         registry._relations_lookup[(tag, ...)].discard(origin)
         if not registry._relations_lookup[(tag, ...)]:
             del registry._relations_lookup[(tag, ...)]
-
-    tcod.ecs.query._touch_relations(registry, ((tag, target), (tag, ...), (origin, tag, None), (..., tag, None)))
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
@@ -998,12 +995,6 @@ class EntityComponentRelationMapping(MutableMapping[Entity, T], Generic[T]):
     def __setitem__(self, target: Entity, component: T) -> None:
         """Assign a component to the target entity."""
         registry = self.entity.registry
-
-        old_value = registry._relation_components_by_entity[self.entity][self.key].get(target)
-        if old_value is None:  # Relation added
-            tcod.ecs.query._touch_relations(
-                registry, ((self.key, target), (self.key, ...), (self.entity, self.key, None), (..., self.key, None))
-            )
 
         registry._relation_components_by_entity[self.entity][self.key][target] = component
 

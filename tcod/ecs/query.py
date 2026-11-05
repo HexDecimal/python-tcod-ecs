@@ -38,8 +38,6 @@ class _QueryCache:
     """Table of cached queries."""
     by_traits: defaultdict[_Trait, WeakSet[_Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
     """Which queries depend on which traits."""
-    by_relations: defaultdict[_RelationQuery, WeakSet[_Query]] = attrs.field(factory=lambda: defaultdict(WeakSet))
-    """Which queries depend on which relations."""
 
     dependencies: dict[_Query, set[tuple[Registry, _Query]]] = attrs.field(factory=lambda: defaultdict(set))
     """Tracks which queries depend on the queries of the current registry.
@@ -59,16 +57,6 @@ class _QueryCache:
             return
         for touched_query in self.by_traits.pop(trait, ()):
             self._drop_cached_query(touched_query)
-
-
-def _touch_relations(registry: Registry, relations: Iterable[_RelationQuery]) -> None:
-    """Drop cached queries if a relation change has invalidated them."""
-    cache = _get_query_cache(registry)
-    for relation in relations:
-        if relation not in cache.by_relations:
-            continue
-        for touched_query in cache.by_relations.pop(relation, ()):
-            cache._drop_cached_query(touched_query)
 
 
 def _check_suspicious_tags(tags: Iterable[object], stacklevel: int = 2) -> None:
@@ -176,7 +164,6 @@ class _QueryRelation:
         if isinstance(target_query, BoundQuery):
             target_query.registry._query_cache.dependencies[target_query._query].add((registry, self))
         else:
-            cache.by_relations[self._relation].add(self)
             cache.by_traits[trait].add(self)
 
     def _compile(self, registry: Registry, cache: _QueryCache) -> AbstractSet[Entity]:  # noqa: ARG002
