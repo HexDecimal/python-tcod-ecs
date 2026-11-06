@@ -9,7 +9,6 @@ from typing import (
     Final,
     Generic,
     TypeVar,
-    cast,
     overload,
 )
 from weakref import WeakKeyDictionary, WeakValueDictionary
@@ -18,7 +17,6 @@ import attrs
 from typing_extensions import Self, Sentinel, TypeForm, deprecated
 
 import tcod.ecs.callbacks
-import tcod.ecs.query
 from tcod.ecs.constants import IsA
 from tcod.ecs.traits import Component, Tag
 from tcod.ecs.typing import ComponentKey
@@ -363,7 +361,7 @@ def _traverse_entities(start: Entity, traverse_parents: tuple[object, ...]) -> I
     traverse_parents = traverse_parents[::-1]
     visited = {start}
     stack = [start]
-    _relation_tags_by_entity = start.registry._relation_tags_by_entity
+    _relation_tags_by_entity = start.registry._any_by_key_by_entity_by_category["RelationTag"]
     while stack:
         entity = stack.pop()
         yield entity
@@ -434,10 +432,7 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
         """Assign a component directly to an entity."""
         assert self.__assert_key(key)
 
-        old_value = self.entity.registry._components_by_entity[self.entity].get(key)
-
-        self.entity.registry._components_by_entity[self.entity][key] = value
-        self.entity.registry._components_by_type[key][self.entity] = value
+        old_value = self.entity.registry._any_by_key_by_entity_by_category["Component"].get(self.entity, {}).get(key)
 
         self.entity.registry._set_data(self.entity, Component.from_key(key), "Component", key, value)
 
@@ -447,20 +442,10 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
         """Delete a directly held component from an entity."""
         assert self.__assert_key(key)
 
-        components = self.entity.registry._components_by_entity.get(self.entity)
-        if components is None:
+        old_value = self.entity.registry._any_by_key_by_entity_by_category["Component"].get(self.entity, {}).get(key)
+
+        if not self.entity.registry._discard_data(self.entity, Component.from_key(key), "Component", key):
             raise KeyError(key)
-        old_value = components.get(key)
-
-        del components[key]
-        if not components:
-            del self.entity.registry._components_by_entity[self.entity]
-
-        del self.entity.registry._components_by_type[key][self.entity]
-        if not self.entity.registry._components_by_type[key]:
-            del self.entity.registry._components_by_type[key]
-
-        self.entity.registry._discard_data(self.entity, Component.from_key(key), "Component", key)
 
         tcod.ecs.callbacks._on_component_changed(key, self.entity, old_value, None)
 
@@ -584,12 +569,12 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
             ...
         KeyError: <class 'str'>
         """
-        _components = self.entity.registry._components_by_entity.get(self.entity, {})
-        if __key not in _components:
+        data_by_key = self.entity.registry._any_by_key_by_entity_by_category["Component"].get(self.entity, {})
+        if __key not in data_by_key:
             if default is _raise:
                 raise KeyError(__key)
             return default
-        value: T | _T1 = _components[__key]
+        value: T | _T1 = data_by_key[__key]
         del self[__key]
         return value
 
@@ -599,9 +584,6 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
             self(traverse=()).clear()
             return
         super().clear()
-        # MutableMapping.clear() only calls __delitem__ for existing components,
-        # so it leaves an already empty registry row behind.
-        self.entity.registry._components_by_entity.pop(self.entity, None)
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
@@ -628,42 +610,21 @@ class EntityTags(MutableSet[Any]):
 
     def add(self, tag: object) -> None:
         """Add a tag to the entity."""
-        if tag in self.entity.registry._tags_by_entity[self.entity]:
-            return  # Already has tag
-
-        self.entity.registry._tags_by_entity[self.entity].add(tag)
-        self.entity.registry._tags_by_key[tag].add(self.entity)
-
         self.entity.registry._set_data(self.entity, Tag(tag), "Tag", tag, True)  # noqa: FBT003
 
     def discard(self, tag: object) -> None:
         """Discard a tag directly held by an entity."""
-        if tag not in self.entity.registry._tags_by_entity.get(self.entity, ()):
-            return  # Already doesn't have tag
-
         self.entity.registry._discard_data(self.entity, Tag(tag), "Tag", tag)
-
-        self.entity.registry._tags_by_entity[self.entity].discard(tag)
-        if not self.entity.registry._tags_by_entity[self.entity]:
-            del self.entity.registry._tags_by_entity[self.entity]
-
-        self.entity.registry._tags_by_key[tag].discard(self.entity)
-        if not self.entity.registry._tags_by_key[tag]:
-            del self.entity.registry._tags_by_key[tag]
 
     def remove(self, tag: object) -> None:
         """Remove a tag directly held by an entity."""
-        tags = self.entity.registry._tags_by_entity.get(self.entity)
-        if tags is None or tag not in tags:
+        if not self.entity.registry._discard_data(self.entity, Tag(tag), "Tag", tag):
             raise KeyError(tag)
-        self.discard(tag)
 
     def clear(self) -> None:
         """Remove all tags directly in this entity."""
-        _tags_by_entity = self.entity.registry._tags_by_entity
-        while tags := _tags_by_entity.get(self.entity):
+        while tags := self.entity.registry._any_by_key_by_entity_by_category["Tag"].get(self.entity):
             self.discard(next(iter(tags)))
-        _tags_by_entity.pop(self.entity, None)
 
     def __contains__(self, x: object) -> bool:
         """Return True if this entity has the given tag."""
@@ -704,39 +665,6 @@ class EntityTags(MutableSet[Any]):
         return self
 
 
-def _relations_lookup_add(registry: Registry, origin: Entity, tag: object, target: Entity) -> None:
-    """Add a relation tag/component to the lookup table and handle side effects."""
-    registry._relations_lookup[(tag, target)].add(origin)
-    registry._relations_lookup[(tag, ...)].add(origin)
-    registry._relations_lookup[(origin, tag, None)].add(target)
-    registry._relations_lookup[(..., tag, None)].add(target)
-
-
-def _relations_lookup_discard(registry: Registry, origin: Entity, tag: object, target: Entity) -> None:
-    """Discard a relation tag/component from the lookup table and handle side effects."""
-    tags = registry._relation_tags_by_entity.get(origin)
-    if tags is not None and target in tags.get(tag, ()):
-        return  # A tag relation still owns this index entry.
-    components = registry._relation_components_by_entity.get(origin)
-    if components is not None and target in components.get(cast("ComponentKey[object]", tag), ()):
-        return  # A component relation still owns this index entry.
-    registry._relations_lookup[(tag, target)].discard(origin)
-    if not registry._relations_lookup[(tag, target)]:
-        del registry._relations_lookup[(tag, target)]
-
-        registry._relations_lookup[(..., tag, None)].discard(target)
-        if not registry._relations_lookup[(..., tag, None)]:
-            del registry._relations_lookup[(..., tag, None)]
-
-    registry._relations_lookup[(origin, tag, None)].discard(target)
-    if not registry._relations_lookup[(origin, tag, None)]:
-        del registry._relations_lookup[(origin, tag, None)]
-
-        registry._relations_lookup[(tag, ...)].discard(origin)
-        if not registry._relations_lookup[(tag, ...)]:
-            del registry._relations_lookup[(tag, ...)]
-
-
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
 class EntityRelationsMapping(MutableSet[Entity]):
     """A proxy attribute to access entity relation targets like a set.
@@ -761,37 +689,19 @@ class EntityRelationsMapping(MutableSet[Entity]):
 
     def add(self, target: Entity) -> None:
         """Add a relation target to this tag."""
-        registry = self.entity.registry
-        registry._relation_tags_by_entity[self.entity][self.key].add(target)
-
-        _relations_lookup_add(registry, self.entity, self.key, target)
         self.entity.registry._set_relation_data(self.entity, Tag(self.key), "RelationTag", self.key, target, value=True)
 
     def discard(self, target: Entity) -> None:
         """Discard a directly held relation target from this tag."""
-        registry = self.entity.registry
-
-        registry._relation_tags_by_entity[self.entity][self.key].discard(target)
-        if not registry._relation_tags_by_entity[self.entity][self.key]:
-            del registry._relation_tags_by_entity[self.entity][self.key]
-            if not registry._relation_tags_by_entity[self.entity]:
-                del registry._relation_tags_by_entity[self.entity]
-
-        _relations_lookup_discard(registry, self.entity, self.key, target)
         self.entity.registry._discard_relation_data(self.entity, Tag(self.key), "RelationTag", self.key, target)
 
     def remove(self, target: Entity) -> None:
         """Remove a directly held relation target from this tag.
 
-        This will raise KeyError of only an indirect relation target exists.
+        This will raise KeyError if only an indirect relation target exists.
         """
-        relations = self.entity.registry._any_by_key_by_entity_by_category["RelationTag"].get(self.entity)
-        if relations is None:
+        if not self.entity.registry._discard_relation_data(self.entity, Tag(self.key), "RelationTag", self.key, target):
             raise KeyError(target)
-        targets = relations.get(self.key)
-        if targets is None or target not in targets:
-            raise KeyError(target)
-        self.discard(target)
 
     def __contains__(self, target: Entity) -> bool:  # type: ignore[override]
         """Return True if this relation contains the given value."""
@@ -994,34 +904,16 @@ class EntityComponentRelationMapping(MutableMapping[Entity, T], Generic[T]):
 
     def __setitem__(self, target: Entity, component: T) -> None:
         """Assign a component to the target entity."""
-        registry = self.entity.registry
-
-        registry._relation_components_by_entity[self.entity][self.key][target] = component
-
-        _relations_lookup_add(registry, self.entity, self.key, target)
         self.entity.registry._set_relation_data(
             self.entity, Component.from_key(self.key), "RelationComponent", self.key, target, component
         )
 
     def __delitem__(self, target: Entity) -> None:
         """Delete a component assigned to the target entity."""
-        registry = self.entity.registry
-        by_entity = registry._relation_components_by_entity.get(self.entity)
-        if by_entity is None:
-            raise KeyError(target)
-        by_key = by_entity.get(self.key)
-        if by_key is None:
-            raise KeyError(target)
-        del by_key[target]
-        if not by_key:
-            del by_entity[self.key]
-        if not by_entity:
-            del registry._relation_components_by_entity[self.entity]
-
-        _relations_lookup_discard(registry, self.entity, self.key, target)
-        self.entity.registry._discard_relation_data(
+        if not self.entity.registry._discard_relation_data(
             self.entity, Component.from_key(self.key), "RelationComponent", self.key, target
-        )
+        ):
+            raise KeyError(target)
 
     def keys(self) -> AbstractSet[Entity]:  # type: ignore[override]
         """Return all entities with an associated component value."""

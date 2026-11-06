@@ -13,7 +13,7 @@ from typing_extensions import Self, deprecated
 
 import tcod.ecs.entity
 from tcod.ecs.constants import IsA
-from tcod.ecs.traits import Relation, traits_from_query
+from tcod.ecs.traits import Component, Relation, traits_from_query
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -90,14 +90,9 @@ def _fetch_relation_table(registry: Registry, relation: _RelationQuery) -> Abstr
     )
 
 
-def _get_query_cache(registry: Registry) -> _QueryCache:
-    """Return the cache owned by the given registry."""
-    return registry._query_cache
-
-
 def _get_query(registry: Registry, query: _Query) -> AbstractSet[Entity]:
     """Return the entities for the given query and registry."""
-    cache = _get_query_cache(registry)
+    cache = registry._query_cache
     if cache is not None:
         cached_entities = cache.queries.get(query)
         if cached_entities is not None:
@@ -252,10 +247,9 @@ class _QueryTraversalPropagation:
         while unchecked_set and (self._max_depth is None or depth < self._max_depth):
             depth += 1
             new_set: set[Entity] = set()
-            empty_set: frozenset[Entity] = frozenset()
             for traverse_key in self._traverse_keys:
                 for unchecked in unchecked_set:
-                    new_set |= registry._relations_lookup.get((traverse_key, unchecked), empty_set)
+                    new_set |= registry._any_by_entity_by_trait.get(Relation(traverse_key, unchecked), {}).keys()
             new_set -= cumulative_set
             cumulative_set |= new_set
             unchecked_set = new_set
@@ -411,7 +405,7 @@ class BoundQuery:
             if component_key is Entity:
                 entity_components.append(entities)
                 continue
-            registry_components = self.registry._components_by_type[component_key]
+            registry_components = self.registry._any_by_entity_by_trait.get(Component.from_key(component_key), {})
             try:
                 entity_components.append([registry_components[entity] for entity in entities])
             except KeyError:  # Some matching entities inherit this component.

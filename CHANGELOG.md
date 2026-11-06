@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Pickle format updated, should remain backwards compatible with previous versions, later versions may require this new format.
+
 ## [5.5.2] - 2026-10-21
 
 More bugfixes thanks to Anton Soloviev.

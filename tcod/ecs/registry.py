@@ -3,81 +3,19 @@
 from __future__ import annotations
 
 import warnings
-from collections import defaultdict
 from collections.abc import Iterable, Mapping
-from typing import TYPE_CHECKING, Any, Final, Literal, NoReturn, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Any, Final, Literal, NoReturn, TypedDict
 
 import attrs
 from typing_extensions import deprecated
 
-import tcod.ecs._converter
 import tcod.ecs.query
 from tcod.ecs.entity import Entity
 from tcod.ecs.query import _QueryCache
 from tcod.ecs.traits import Component, Relation, Tag
 
 if TYPE_CHECKING:
-    from tcod.ecs.typing import ComponentKey, _RelationTargetLookup, _Trait
-
-_T1 = TypeVar("_T1")
-_T2 = TypeVar("_T2")
-_T3 = TypeVar("_T3")
-
-
-def _defaultdict_of_set() -> defaultdict[_T1, set[_T2]]:
-    """Return a new defaultdict of sets."""
-    return defaultdict(set)
-
-
-def _defaultdict_of_dict() -> defaultdict[_T1, dict[_T2, _T3]]:
-    """Return a new defaultdict of dicts."""
-    return defaultdict(dict)
-
-
-def _components_by_entity_from(
-    by_type: defaultdict[ComponentKey[_T1], dict[Entity, _T1]],
-) -> defaultdict[Entity, dict[ComponentKey[_T1], _T1]]:
-    """Return the component lookup table from the components sparse-set."""
-    by_entity: defaultdict[Entity, dict[ComponentKey[_T1], _T1]] = defaultdict(dict)
-    for component_key, components in by_type.items():
-        for entity, component in components.items():
-            by_entity[entity][component_key] = component
-    return by_entity
-
-
-def _tags_by_key_from_tags_by_entity(by_entity: defaultdict[Entity, set[object]]) -> defaultdict[object, set[Entity]]:
-    """Return the tag lookup table from the tags sparse-set."""
-    tags_by_key = defaultdict(set)
-    for entity, tags in by_entity.items():
-        for tag in tags:
-            tags_by_key[tag].add(entity)
-    return tags_by_key
-
-
-def _relations_lookup_from(
-    tags_by_entity: defaultdict[Entity, defaultdict[object, set[Entity]]],
-    components_by_entity: defaultdict[Entity, defaultdict[ComponentKey[object], dict[Entity, Any]]],
-) -> defaultdict[tuple[Any, _RelationTargetLookup] | tuple[_RelationTargetLookup, Any, None], set[Entity]]:
-    """Return the relation lookup table from the relations sparse-sets."""
-    relations_lookup: defaultdict[
-        tuple[Any, _RelationTargetLookup] | tuple[_RelationTargetLookup, Any, None], set[Entity]
-    ] = defaultdict(set)
-    for origin, tags in tags_by_entity.items():
-        for tag, targets in tags.items():
-            for target in targets:
-                relations_lookup[(tag, ...)].add(origin)
-                relations_lookup[(tag, target)].add(origin)
-                relations_lookup[(origin, tag, None)].add(target)
-                relations_lookup[(..., tag, None)].add(target)
-    for origin, components in components_by_entity.items():
-        for component_key, target_components in components.items():
-            for target in target_components:
-                relations_lookup[(component_key, ...)].add(origin)
-                relations_lookup[(component_key, target)].add(origin)
-                relations_lookup[(origin, component_key, None)].add(target)
-                relations_lookup[(..., component_key, None)].add(target)
-
-    return relations_lookup
+    from tcod.ecs.typing import ComponentKey, _Trait
 
 
 class _CategorizedData(TypedDict):
@@ -143,65 +81,15 @@ class Registry:
     Components duplicate the source data as trait data.
     Wildcard relations use trait data to track the other ends of a relation.
 
-    dict[trait][Entity] = trait_data
-    """
+    ``dict[trait][Entity] = trait_data``
 
-    _components_by_entity: defaultdict[Entity, dict[ComponentKey[object], Any]] = attrs.field(
-        init=False, factory=lambda: defaultdict(dict)
-    )
-    """Random access entity components.
-
-    dict[Entity][ComponentKey] = component_instance
-    """
-    _components_by_type: defaultdict[ComponentKey[object], dict[Entity, Any]] = attrs.field(
-        init=False, factory=lambda: defaultdict(dict)
-    )
-    """Query table entity components.
-
-    dict[ComponentKey] = {entities_with_component}
-    """
-
-    _tags_by_key: defaultdict[object, set[Entity]] = attrs.field(init=False, factory=lambda: defaultdict(set))
-    """Query table entity tags.
-
-    dict[tag] = {all_entities_with_tag}
-    """
-    _tags_by_entity: defaultdict[Entity, set[Any]] = attrs.field(init=False, factory=lambda: defaultdict(set))
-    """Random access entity tags.
-
-    dict[Entity] = {all_tags_for_entity}
-    """
-
-    _relation_tags_by_entity: defaultdict[Entity, defaultdict[object, set[Entity]]] = attrs.field(
-        init=False, factory=lambda: defaultdict(_defaultdict_of_set)
-    )
-    """Random access tag multi-relations.
-
-    dict[entity][tag] = {target_entities}
-    """
-    _relation_components_by_entity: defaultdict[Entity, defaultdict[ComponentKey[object], dict[Entity, Any]]] = (
-        attrs.field(init=False, factory=lambda: defaultdict(_defaultdict_of_dict))
-    )
-    """Random access relations owning components.
-
-    dict[entity][ComponentKey][target_entity] = component
-    """
-    _relations_lookup: defaultdict[
-        tuple[Any, _RelationTargetLookup] | tuple[_RelationTargetLookup, Any, None], set[Entity]
-    ] = attrs.field(init=False, factory=lambda: defaultdict(set))
-    """Relations query table.  Tags and components are mixed together.
+    Reference for relation data:
 
     ```
-    Tag:
-        dict[(tag, this_entity)] = {target_entities_for_entity}
-        dict[(tag, None)] = {target_entities_for_tag}
-        dict[(target_entity, tag, None)] = {origin_entities_for_target}
-        dict[(None, tag, None)] = {all_origen_entities_for_tag}
-    Component:
-        dict[(ComponentKey, target_entity)] = {origin_entities}
-        dict[(ComponentKey, None)] = {all_origin_entities}
-        dict[(origin_entity, ComponentKey, None)] = {target_entities}
-        dict[(None, ComponentKey, None)] = {all_target_entities}
+    dict[Relation(key, target)] = dict[origin_entities, True]
+    dict[Relation(key, ...)] = dict[origin_entities, set[target_entities]]
+    dict[Relation(key, origin, inverse=True)] = dict[target_entities, True]
+    dict[Relation(key, ..., inverse=True)] = dict[target_entities, set[origin_entities]]
     ```
     """
 
@@ -260,30 +148,11 @@ class Registry:
         for ignored in redundant_attributes:
             state.pop(ignored, None)
 
-        converter = tcod.ecs._converter._get_converter()
-        # Apply defaultdict types to unpickled dictionaries
-        self._components_by_type = converter.structure(
-            state.pop("_components_by_type"),
-            defaultdict[Any, dict[Any, Any]],
-        )
-        self._components_by_entity = _components_by_entity_from(self._components_by_type)
-
-        self._tags_by_entity = converter.structure(
-            state.pop("_tags_by_entity"),
-            defaultdict[Any, set[Any]],
-        )
-        self._tags_by_key = _tags_by_key_from_tags_by_entity(self._tags_by_entity)
-
-        self._relation_tags_by_entity = converter.structure(
-            state.pop("_relation_tags_by_entity"),
-            defaultdict[Any, defaultdict[Any, set[Any]]],
-        )
-        self._relation_components_by_entity = converter.structure(
-            state.pop("_relation_components_by_entity"),
-            defaultdict[Any, defaultdict[Any, dict[Any, Any]]],
-        )
-        self._relations_lookup = _relations_lookup_from(
-            self._relation_tags_by_entity, self._relation_components_by_entity
+        _components_by_type: dict[ComponentKey[object], dict[Entity, Any]] = state.pop("_components_by_type", {})
+        _tags_by_entity: dict[Entity, set[Any]] = state.pop("_tags_by_entity", {})
+        _relation_tags_by_entity: dict[Entity, dict[object, set[Entity]]] = state.pop("_relation_tags_by_entity", {})
+        _relation_components_by_entity: dict[Entity, dict[ComponentKey[object], dict[Entity, Any]]] = state.pop(
+            "_relation_components_by_entity", {}
         )
 
         self._names_by_name = state.pop("_names_by_name")
@@ -300,10 +169,10 @@ class Registry:
             self._generate_from_categorized_data(categorized)
         else:
             self._migrate_from_old_structures(
-                self._components_by_type,
-                self._tags_by_entity,
-                self._relation_tags_by_entity,  # type: ignore[arg-type]
-                self._relation_components_by_entity,  # type: ignore[arg-type]
+                _components_by_type,
+                _tags_by_entity,
+                _relation_tags_by_entity,
+                _relation_components_by_entity,
             )
 
         if state:
@@ -354,28 +223,27 @@ class Registry:
                     )
 
     def _get_tags_by_entity(self) -> dict[Entity, set[object]]:
-        _tags_by_entity = {entity: set(tags) for entity, tags in self._any_by_key_by_entity_by_category["Tag"].items()}
-        assert _tags_by_entity == self._tags_by_entity
-        return _tags_by_entity
+        """Return the legacy data structure from categorized data."""
+        return {entity: set(tags) for entity, tags in self._any_by_key_by_entity_by_category["Tag"].items()}
 
     def _get_components_by_type(self) -> dict[ComponentKey[object], dict[Entity, object]]:
+        """Return the legacy data structure from categorized data."""
         _components_by_type: dict[ComponentKey[object], dict[Entity, object]] = {}
         for entity, component_data in self._any_by_key_by_entity_by_category["Component"].items():
             for component_key, value in component_data.items():
                 _components_by_type.setdefault(component_key, {})[entity] = value
-        assert _components_by_type == self._components_by_type
         return _components_by_type
 
     def _get_relation_tags_by_entity(self) -> dict[Entity, dict[object, set[Entity]]]:
+        """Return the legacy data structure from categorized data."""
         _relation_tags_by_entity: dict[Entity, dict[object, set[Entity]]] = {
             entity: {tag: set(targets) for tag, targets in tag_targets.items()}
             for entity, tag_targets in self._any_by_key_by_entity_by_category["RelationTag"].items()
         }
-        assert _relation_tags_by_entity == self._relation_tags_by_entity
         return _relation_tags_by_entity
 
     def _get_relation_components_by_entity(self) -> dict[Entity, dict[ComponentKey[object], dict[Entity, Any]]]:
-        assert self._any_by_key_by_entity_by_category["RelationComponent"] == self._relation_components_by_entity
+        """Return categorized relation component data which is equivalent to the legacy data structure."""
         return self._any_by_key_by_entity_by_category["RelationComponent"]
 
     def __getstate__(self) -> dict[str, Any]:
@@ -533,17 +401,23 @@ class Registry:
 
         self._set_lookup(entity, trait, value)
 
-    def _discard_data(self, entity: Entity, trait: _Trait, category: Literal["Component", "Tag"], key: Any) -> None:  # noqa: ANN401
-        """Delete an `entity`'s `trait` and remove it from the lookup table. Does nothing if these don't exist."""
+    def _discard_data(self, entity: Entity, trait: _Trait, category: Literal["Component", "Tag"], key: Any) -> bool:  # noqa: ANN401
+        """Delete an `entity`'s `trait` and remove it from the lookup table. Does nothing if these don't exist.
+
+        Return False if the entity/key did not exist.
+        """
         data_by_key_by_entity = self._any_by_key_by_entity_by_category[category]
         data_by_key = data_by_key_by_entity.get(entity)
         if data_by_key is None:
-            return
-        data_by_key.pop(key, None)
+            return False  # Entity not in category
+        if key not in data_by_key:
+            return False  # Key not in entity
+        del data_by_key[key]
         if not data_by_key:
             del data_by_key_by_entity[entity]
 
         self._discard_lookup(entity, trait)
+        return True
 
     def _set_relation_data(  # noqa: PLR0913, PLR0917
         self,
@@ -578,13 +452,13 @@ class Registry:
         category: Literal["RelationComponent", "RelationTag"],
         key: Any,  # noqa: ANN401
         target: Entity,
-    ) -> None:
+    ) -> bool:
         data_by_target_by_key = self._any_by_key_by_entity_by_category[category].get(origin)
         if data_by_target_by_key is None:
-            return  # Entity is not in registry
+            return False  # Entity is not in registry
         data_by_target = data_by_target_by_key.get(key)
         if data_by_target is None:
-            return  # Entity relation is not in registry
+            return False  # Entity relation is not in registry
         data_by_target.pop(target, None)
         if not data_by_target:
             del data_by_target_by_key[key]
@@ -602,3 +476,5 @@ class Registry:
             self._discard_lookup_relation(origin, Relation(key, ...), target)
             self._discard_lookup(target, Relation(key, origin, inverse=True))
             self._discard_lookup_relation(target, Relation(key, ..., inverse=True), origin)
+
+        return True
