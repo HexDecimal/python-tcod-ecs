@@ -349,7 +349,12 @@ class Entity:
 
 
 def _traverse_entities(start: Entity, traverse_parents: tuple[object, ...]) -> Iterator[Entity]:
-    """Iterate over all entities this one inherits from, including itself."""
+    """Iterate over all entities `start` inherits from, including itself.
+
+    `traverse_parents` are the relation tags to be followed.
+
+    The result is equivalent to a method-resolution-order for this entity.
+    """
     if not traverse_parents:
         yield start
         return

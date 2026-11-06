@@ -428,6 +428,10 @@ class Registry:
         target: Entity,
         value: object,
     ) -> None:
+        """Set relation from `origin` to `target` for `sub_trait` to `value`.
+
+        `key` is the older legacy key which mixes tag/component relations into one tuple.
+        """
         data_by_target_by_key = self._any_by_key_by_entity_by_category[category].setdefault(origin, {})
         data_by_target = data_by_target_by_key.get(key)
         if data_by_target is None:
@@ -453,6 +457,10 @@ class Registry:
         key: Any,  # noqa: ANN401
         target: Entity,
     ) -> bool:
+        """Discard relation from `origin` to `target` for `sub_trait`.
+
+        Return False if the relation edge did not exist.
+        """
         data_by_target_by_key = self._any_by_key_by_entity_by_category[category].get(origin)
         if data_by_target_by_key is None:
             return False  # Entity is not in registry
