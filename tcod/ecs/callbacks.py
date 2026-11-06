@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
     from tcod.ecs.entity import Entity
     from tcod.ecs.typing import ComponentKey
 
-_T = TypeVar("_T")
 
-_OnComponentChangedFunc: TypeAlias = Callable[["Entity", _T | None, _T | None], None]
+type _OnComponentChangedFunc[T] = Callable[[Entity, T | None, T | None], None]
 _OnComponentChangedFuncT = TypeVar("_OnComponentChangedFuncT", bound=_OnComponentChangedFunc[Any])
 
 _on_component_changed_callbacks: dict[ComponentKey[Any], list[_OnComponentChangedFunc[Any]]] = {}
@@ -51,11 +50,11 @@ def register_component_changed(
     return register
 
 
-def unregister_component_changed(callback: _OnComponentChangedFunc[_T], *, component: ComponentKey[_T]) -> None:
+def unregister_component_changed[T](callback: _OnComponentChangedFunc[T], *, component: ComponentKey[T]) -> None:
     """Unregister a registered on-component-changed callback function."""
     _on_component_changed_callbacks[component].remove(callback)
 
 
-def _on_component_changed(key: ComponentKey[_T], entity: Entity, old: _T | None, new: _T | None) -> None:
+def _on_component_changed[T](key: ComponentKey[T], entity: Entity, old: T | None, new: T | None) -> None:
     for callback in _on_component_changed_callbacks.get(key, ()):
         callback(entity, old, new)

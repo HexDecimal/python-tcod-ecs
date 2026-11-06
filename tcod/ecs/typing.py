@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import EllipsisType
-from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from typing_extensions import TypeForm
 
@@ -11,23 +11,18 @@ if TYPE_CHECKING:
     from tcod.ecs.entity import Entity
     from tcod.ecs.query import BoundQuery
     from tcod.ecs.traits import Component, Relation, Tag
-else:
-    Entity = Any
-    BoundQuery = Any
 
 
-_T = TypeVar("_T")
-
-ComponentKey: TypeAlias = TypeForm[_T] | tuple[object, TypeForm[_T]]
+type ComponentKey[T] = TypeForm[T] | tuple[object, TypeForm[T]]
 """ComponentKey is plain `type` or tuple `(tag, type)`."""
 
-_RelationTargetLookup: TypeAlias = Entity | EllipsisType
+type _RelationTargetLookup = Entity | EllipsisType
 """Possible target for stored relations."""
 
-_RelationQueryTarget: TypeAlias = _RelationTargetLookup | BoundQuery
+type _RelationQueryTarget = _RelationTargetLookup | BoundQuery
 """Possible target for relation queries."""
 
-_RelationQuery: TypeAlias = tuple[object, _RelationQueryTarget] | tuple[_RelationQueryTarget, object, None]  # noqa: PYI047
+type _RelationQuery = tuple[object, _RelationQueryTarget] | tuple[_RelationQueryTarget, object, None]  # noqa: PYI047
 """Query format for relations.
 
 One of 4 formats:
@@ -38,5 +33,5 @@ One of 4 formats:
 * (..., tag, None)
 """
 
-_Trait: TypeAlias = "Component[Any] | Tag | Relation[Any]"  # noqa: PYI047
+type _Trait = Component[Any] | Tag | Relation[Any]  # noqa: PYI047
 """Available trait objects."""

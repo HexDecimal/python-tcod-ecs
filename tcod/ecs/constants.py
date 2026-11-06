@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing_extensions import Never
+from typing import Never
 
 
 class _IgnoreSetState(type):

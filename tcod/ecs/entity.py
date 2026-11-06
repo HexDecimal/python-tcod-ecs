@@ -7,14 +7,13 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Final,
-    Generic,
-    TypeVar,
+    Self,
     overload,
 )
 from weakref import WeakKeyDictionary, WeakValueDictionary
 
 import attrs
-from typing_extensions import Self, Sentinel, TypeForm, deprecated
+from typing_extensions import Sentinel, TypeForm, deprecated
 
 import tcod.ecs.callbacks
 from tcod.ecs.constants import IsA
@@ -28,10 +27,6 @@ if TYPE_CHECKING:
 
     from tcod.ecs.registry import Registry
 
-
-T = TypeVar("T")
-_T1 = TypeVar("_T1")
-_T2 = TypeVar("_T2")
 
 _raise: Final = Sentinel("_raise")
 
@@ -414,7 +409,7 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
             key = key[1]
         return True
 
-    def __getitem__(self, key: ComponentKey[T]) -> T:
+    def __getitem__[T](self, key: ComponentKey[T]) -> T:
         """Return a component belonging to this entity, or an indirect parent."""
         assert self.__assert_key(key)
         _components_by_entity = self.entity.registry._any_by_key_by_entity_by_category["Component"]
@@ -428,7 +423,7 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
                 pass
         raise KeyError(key)
 
-    def __setitem__(self, key: ComponentKey[T], value: T) -> None:
+    def __setitem__[T](self, key: ComponentKey[T], value: T) -> None:
         """Assign a component directly to an entity."""
         assert self.__assert_key(key)
 
@@ -485,7 +480,7 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
             self.set(value)
 
     @deprecated("This method has been deprecated. Iterate over items instead.", category=FutureWarning)
-    def by_name_type(self, name_type: type[_T1], component_type: TypeForm[_T2]) -> Iterator[tuple[_T1, TypeForm[_T2]]]:
+    def by_name_type[T, T2](self, name_type: type[T], component_type: TypeForm[T2]) -> Iterator[tuple[T, TypeForm[T2]]]:
         """Iterate over all of an entities component keys with a specific (name_type, component_type) combination.
 
         .. versionadded:: 3.0
@@ -517,18 +512,18 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
         return self
 
     @overload
-    def get(self, __key: ComponentKey[T], /) -> T | None: ...
+    def get[T](self, __key: ComponentKey[T], /) -> T | None: ...
     @overload
-    def get(self, __key: ComponentKey[T], /, default: _T1) -> T | _T1: ...
+    def get[T, T1](self, __key: ComponentKey[T], /, default: T1) -> T | T1: ...
 
-    def get(self, __key: ComponentKey[T], /, default: _T1 | None = None) -> T | _T1:
+    def get[T, T1](self, __key: ComponentKey[T], /, default: T1 | None = None) -> T | T1:
         """Return a component, returns None or a default value when the component is missing."""
         try:
             return self[__key]
         except KeyError:
             return default  # type: ignore[return-value] # https://github.com/python/mypy/issues/3737
 
-    def setdefault(self, __key: ComponentKey[T], __default: T, /) -> T:  # type: ignore[override] # Disallows default None
+    def setdefault[T](self, __key: ComponentKey[T], __default: T, /) -> T:  # type: ignore[override] # Disallows default None
         """Assign a default value if a component is missing, then returns the current value."""
         try:
             return self[__key]
@@ -537,16 +532,16 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
             return __default
 
     @overload
-    def pop(self, __key: ComponentKey[T], /) -> T: ...
+    def pop[T](self, __key: ComponentKey[T], /) -> T: ...
     @overload
-    def pop(self, __key: ComponentKey[T], /, default: _T1) -> T | _T1: ...
+    def pop[T, T1](self, __key: ComponentKey[T], /, default: T1) -> T | T1: ...
 
-    def pop(
+    def pop[T, T1](
         self,
         __key: ComponentKey[T],
         /,
-        default: _T1 = _raise,  # type: ignore[assignment] # https://github.com/python/mypy/issues/3737
-    ) -> T | _T1:
+        default: T1 = _raise,  # type: ignore[assignment] # https://github.com/python/mypy/issues/3737
+    ) -> T | T1:
         """Remove a component directly from this entity.
 
         Returns the removed value.
@@ -574,7 +569,7 @@ class EntityComponents(MutableMapping[TypeForm[Any] | tuple[object, TypeForm[Any
             if default is _raise:
                 raise KeyError(__key)
             return default
-        value: T | _T1 = data_by_key[__key]
+        value: T | T1 = data_by_key[__key]
         del self[__key]
         return value
 
@@ -597,7 +592,7 @@ class EntityTags(MutableSet[Any]):
     traverse: tuple[object, ...]
 
     @classmethod
-    def _from_iterable(cls, it: Iterable[_T1]) -> set[_T1]:
+    def _from_iterable[T](cls, it: Iterable[T]) -> set[T]:
         """Return an independent set for the inherited set operations."""
         return set(it)
 
@@ -677,7 +672,7 @@ class EntityRelationsMapping(MutableSet[Entity]):
     traverse: tuple[object, ...]
 
     @classmethod
-    def _from_iterable(cls, it: Iterable[_T1]) -> set[_T1]:
+    def _from_iterable[T](cls, it: Iterable[T]) -> set[T]:
         """Return an independent set for the inherited set operations."""
         return set(it)
 
@@ -864,7 +859,7 @@ class EntityRelationsExclusive(MutableMapping[object, Entity]):
 
 
 @attrs.define(eq=False, frozen=True, weakref_slot=False)
-class EntityComponentRelationMapping(MutableMapping[Entity, T], Generic[T]):
+class EntityComponentRelationMapping[T](MutableMapping[Entity, T]):
     """An entity-component mapping to access the relation target component objects.
 
     See :any:`Entity.relation_components`.
@@ -967,11 +962,11 @@ class EntityComponentRelations(MutableMapping[ComponentKey[Any], EntityComponent
         """
         return self.__class__(self.entity, tuple(traverse))
 
-    def __getitem__(self, key: ComponentKey[T]) -> EntityComponentRelationMapping[T]:
+    def __getitem__[T](self, key: ComponentKey[T]) -> EntityComponentRelationMapping[T]:
         """Access relations for this component key as a `{target: component}` dict-like object."""
         return EntityComponentRelationMapping(self.entity, key, self.traverse)
 
-    def __setitem__(self, __key: ComponentKey[T], __values: Mapping[Entity, T], /) -> None:
+    def __setitem__[T](self, __key: ComponentKey[T], __values: Mapping[Entity, T], /) -> None:
         """Redefine the component relations for this entity.
 
         ..versionadded:: 4.2.0

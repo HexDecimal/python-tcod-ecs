@@ -5,11 +5,11 @@ from __future__ import annotations
 import itertools
 import warnings
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Protocol, Self, overload
 from weakref import WeakSet
 
 import attrs
-from typing_extensions import Self, deprecated
+from typing_extensions import deprecated
 
 import tcod.ecs.entity
 from tcod.ecs.constants import IsA
@@ -22,12 +22,6 @@ if TYPE_CHECKING:
     from tcod.ecs.entity import Entity
     from tcod.ecs.registry import Registry
     from tcod.ecs.typing import ComponentKey, _RelationQuery, _Trait
-
-_T1 = TypeVar("_T1")
-_T2 = TypeVar("_T2")
-_T3 = TypeVar("_T3")
-_T4 = TypeVar("_T4")
-_T5 = TypeVar("_T5")
 
 
 @attrs.define
@@ -368,26 +362,26 @@ class BoundQuery:
         return iter(self.get_entities())
 
     @overload
-    def __getitem__(self, key: tuple[ComponentKey[_T1]]) -> Iterable[tuple[_T1]]: ...
+    def __getitem__[T](self, key: tuple[ComponentKey[T]]) -> Iterable[tuple[T]]: ...
 
     @overload
-    def __getitem__(self, key: tuple[ComponentKey[_T1], ComponentKey[_T2]]) -> Iterable[tuple[_T1, _T2]]: ...
+    def __getitem__[T1, T2](self, key: tuple[ComponentKey[T1], ComponentKey[T2]]) -> Iterable[tuple[T1, T2]]: ...
 
     @overload
-    def __getitem__(
-        self, key: tuple[ComponentKey[_T1], ComponentKey[_T2], ComponentKey[_T3]]
-    ) -> Iterable[tuple[_T1, _T2, _T3]]: ...
+    def __getitem__[T1, T2, T3](
+        self, key: tuple[ComponentKey[T1], ComponentKey[T2], ComponentKey[T3]]
+    ) -> Iterable[tuple[T1, T2, T3]]: ...
 
     @overload
-    def __getitem__(
-        self, key: tuple[ComponentKey[_T1], ComponentKey[_T2], ComponentKey[_T3], ComponentKey[_T4]]
-    ) -> Iterable[tuple[_T1, _T2, _T3, _T4]]: ...
+    def __getitem__[T1, T2, T3, T4](
+        self, key: tuple[ComponentKey[T1], ComponentKey[T2], ComponentKey[T3], ComponentKey[T4]]
+    ) -> Iterable[tuple[T1, T2, T3, T4]]: ...
 
     @overload
-    def __getitem__(
+    def __getitem__[T1, T2, T3, T4, T5](
         self,
-        key: tuple[ComponentKey[_T1], ComponentKey[_T2], ComponentKey[_T3], ComponentKey[_T4], ComponentKey[_T5]],
-    ) -> Iterable[tuple[_T1, _T2, _T3, _T4, _T5]]: ...
+        key: tuple[ComponentKey[T1], ComponentKey[T2], ComponentKey[T3], ComponentKey[T4], ComponentKey[T5]],
+    ) -> Iterable[tuple[T1, T2, T3, T4, T5]]: ...
 
     @overload
     def __getitem__(self, key: tuple[ComponentKey[object], ...]) -> Iterable[tuple[Any, ...]]: ...

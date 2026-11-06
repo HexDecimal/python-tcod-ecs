@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib.metadata
 from collections import defaultdict
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 from tcod.ecs.constants import IsA
 from tcod.ecs.entity import Entity
@@ -33,16 +33,11 @@ except importlib.metadata.PackageNotFoundError:
     __version__ = ""
 
 
-_T1 = TypeVar("_T1")
-_T2 = TypeVar("_T2")
-_T3 = TypeVar("_T3")
-
-
-def _defaultdict_of_set() -> defaultdict[_T1, set[_T2]]:  # Migrate from <=3.4
+def _defaultdict_of_set[T1, T2]() -> defaultdict[T1, set[T2]]:  # Migrate from <=3.4
     """Return a new defaultdict of sets."""
     return defaultdict(set)
 
 
-def _defaultdict_of_dict() -> defaultdict[_T1, dict[_T2, _T3]]:  # Migrate from <=3.4
+def _defaultdict_of_dict[T1, T2, T3]() -> defaultdict[T1, dict[T2, T3]]:  # Migrate from <=3.4
     """Return a new defaultdict of dicts."""
     return defaultdict(dict)

@@ -5,10 +5,10 @@ Mostly private at the moment.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Self
 
 import attrs
-from typing_extensions import Self, TypeForm, sentinel
+from typing_extensions import TypeForm, sentinel
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
@@ -18,13 +18,12 @@ if TYPE_CHECKING:
     from tcod.ecs.query import BoundQuery
     from tcod.ecs.typing import ComponentKey, _RelationQuery, _Trait
 
-T = TypeVar("T")
 
 _undefined = sentinel("_undefined")
 
 
 @attrs.define(frozen=True, weakref_slot=False, kw_only=True)
-class Component(Generic[T]):
+class Component[T]:
     """A component or named component trait."""
 
     type: TypeForm[T]
@@ -53,7 +52,7 @@ class Tag:
 
 
 @attrs.define(frozen=True, weakref_slot=False)
-class Relation(Generic[T]):
+class Relation[T]:
     """A relation trait for the sub-trait itself rather than any specific target."""
 
     trait: T
